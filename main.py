@@ -14,6 +14,37 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 conversation_history = {}
 
+ONBOARDING_QUESTIONS = [
+    ("business_name", "Welcome to TradesPA! 👷\n\nLet's get you set up — only takes 2 minutes.\n\nWhat's your *business name*?"),
+    ("owner_name", "What's your *name*?"),
+    ("phone", "What's your *phone number*?"),
+    ("trade", "What's your *trade*? (e.g. Carpenter, Plumber, Plasterer)"),
+    ("day_rate", "What's your *day rate* for labour? (£)"),
+    ("half_day_rate", "What's your *half day rate*? (£)"),
+    ("hourly_rate", "What's your *hourly rate*? (£)"),
+    ("materials_markup", "What *% markup* do you add on materials? (e.g. 20)"),
+    ("payment_terms", "What are your *payment terms* in days? (e.g. 30)"),
+    ("vat_registered", "Are you *VAT registered*? (yes/no)"),
+]
+
+def get_user_profile(sender):
+    try:
+        result = supabase.table("profiles").select("*").eq("sender", sender).execute()
+        if result.data:
+            return result.data[0]
+    except:
+        pass
+    return None
+
+def get_onboarding_state(sender):
+    try:
+        result = supabase.table("onboarding").select("*").eq("sender", sender).execute()
+        if result.data:
+            return result.data[0]
+    except:
+        pass
+    return None
+
 def send_morning_summary():
     account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
     auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
@@ -26,12 +57,12 @@ def send_morning_summary():
     enquiries = result.data
 
     if enquiries:
-        summary = f"Good morning Harry 👋\n\n📋 Outstanding enquiries: {len(enquiries)}\n\n"
+        summary = f"Good morning 👋\n\n📋 Outstanding enquiries: {len(enquiries)}\n\n"
         for e in enquiries[:5]:
             summary += f"• {e.get('client_name', 'Unknown')} - {e.get('job_type', 'Unknown')} - {e.get('location', 'Unknown')}\n"
         summary += "\nReply with any job details to log them."
     else:
-        summary = "Good morning Harry 👋\n\nNo outstanding enquiries. Have a great day!"
+        summary = "Good morning 👋\n\nNo outstanding enquiries. Have a great day!"
 
     twilio_client.messages.create(
         from_=f"whatsapp:{twilio_number}",
@@ -48,6 +79,81 @@ def whatsapp():
     incoming_msg = request.form.get("Body", "").strip()
     sender = request.form.get("From", "")
 
+    from twilio.twiml.messaging_response import MessagingResponse
+    resp = MessagingResponse()
+
+    # Check if user has a profile
+    profile = get_user_profile(sender)
+
+    if not profile:
+        # Check onboarding state
+        onboarding = get_onboarding_state(sender)
+
+        if not onboarding:
+            # Start onboarding
+            question_key, question_text = ONBOARDING_QUESTIONS[0]
+            supabase.table("onboarding").insert({
+                "sender": sender,
+                "step": 0,
+                "data": {}
+            }).execute()
+            resp.message(question_text)
+            return str(resp)
+
+        else:
+            step = onboarding["step"]
+            data = onboarding["data"] or {}
+
+            # Save answer to current step
+            question_key, _ = ONBOARDING_QUESTIONS[step]
+            data[question_key] = incoming_msg
+
+            # Check if VAT registered to maybe ask for VAT number
+            if step + 1 < len(ONBOARDING_QUESTIONS):
+                # Move to next question
+                next_step = step + 1
+                _, next_question = ONBOARDING_QUESTIONS[next_step]
+
+                supabase.table("onboarding").update({
+                    "step": next_step,
+                    "data": data
+                }).eq("sender", sender).execute()
+
+                # If they said yes to VAT, ask for VAT number
+                if question_key == "vat_registered" and incoming_msg.lower() in ["yes", "y"]:
+                    resp.message("What's your *VAT number*?")
+                    supabase.table("onboarding").update({
+                        "step": next_step,
+                        "data": {**data, "awaiting_vat_number": True}
+                    }).eq("sender", sender).execute()
+                else:
+                    resp.message(next_question)
+
+            else:
+                # Onboarding complete — save profile
+                supabase.table("profiles").insert({
+                    "sender": sender,
+                    "business_name": data.get("business_name", ""),
+                    "owner_name": data.get("owner_name", ""),
+                    "phone": data.get("phone", ""),
+                    "trade": data.get("trade", ""),
+                    "day_rate": float(data.get("day_rate", 0)),
+                    "half_day_rate": float(data.get("half_day_rate", 0)),
+                    "hourly_rate": float(data.get("hourly_rate", 0)),
+                    "materials_markup": float(data.get("materials_markup", 20)),
+                    "payment_terms": int(data.get("payment_terms", 30)),
+                    "vat_registered": data.get("vat_registered", "no").lower() in ["yes", "y"],
+                    "vat_number": data.get("vat_number", "")
+                }).execute()
+
+                # Clean up onboarding
+                supabase.table("onboarding").delete().eq("sender", sender).execute()
+
+                resp.message(f"✅ All set {data.get('owner_name', '')}! You're ready to go.\n\nTry saying:\n• 'Quote for John Smith, kitchen fitting, 3 days labour'\n• 'Log a call from Sarah Jones, wants bathroom tiled'\n• 'What jobs are outstanding?'")
+
+            return str(resp)
+
+    # User has profile — normal PA mode
     if sender not in conversation_history:
         conversation_history[sender] = []
 
@@ -56,20 +162,43 @@ def whatsapp():
         "content": incoming_msg
     })
 
+    # Build system prompt with their rates
+    system_prompt = f"""You are a PA for a trades business. The user's details are:
+- Business: {profile.get('business_name')}
+- Name: {profile.get('owner_name')}
+- Trade: {profile.get('trade')}
+- Day rate: £{profile.get('day_rate')}
+- Half day rate: £{profile.get('half_day_rate')}
+- Hourly rate: £{profile.get('hourly_rate')}
+- Materials markup: {profile.get('materials_markup')}%
+- Payment terms: {profile.get('payment_terms')} days
+- VAT registered: {profile.get('vat_registered')}
+
+You help with:
+1. Logging job enquiries - extract client name, address, job type, urgency
+2. Generating quotes - use their exact rates above
+3. Tracking outstanding jobs and payments
+4. General scheduling and reminders
+
+Always be concise - this is WhatsApp.
+
+If generating a QUOTE, format it clearly with:
+- Client name and job description
+- Labour breakdown (days x day rate)
+- Materials estimate with markup
+- Total
+- Payment terms
+
+If logging an enquiry, end your reply with:
+LOG:name=<client name>|job=<job type>|location=<location>|status=new
+
+If generating a quote, end your reply with:
+LOG:name=<client name>|job=<job type>|location=<location>|status=quoted"""
+
     response = client.messages.create(
         model="claude-sonnet-4-5",
-        max_tokens=1000,
-        system="""You are a PA for a small trades business. You help with:
-- Logging job enquiries and extracting key details (client name, address, job type, urgency)
-- Generating quotes and invoices
-- Reminders and scheduling
-- Tracking outstanding payments
-
-Always be concise - this is WhatsApp. Extract and confirm key info clearly.
-If someone describes a job enquiry, pull out: name, address, job type, urgency, contact number.
-
-After extracting details, end your reply with this exact format on a new line:
-LOG:name=<client name>|job=<job type>|location=<location>|status=new""",
+        max_tokens=1500,
+        system=system_prompt,
         messages=conversation_history[sender]
     )
 
@@ -97,9 +226,6 @@ LOG:name=<client name>|job=<job type>|location=<location>|status=new""",
             print(f"Logging error: {e}")
 
     clean_reply = reply.split("LOG:")[0].strip()
-
-    from twilio.twiml.messaging_response import MessagingResponse
-    resp = MessagingResponse()
     resp.message(clean_reply)
     return str(resp)
 
