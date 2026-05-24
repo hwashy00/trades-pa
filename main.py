@@ -22,7 +22,7 @@ def whatsapp():
     })
     
     response = client.messages.create(
-        model="claude-opus-4-20250514",
+        model="claude-sonnet-4-5",
         max_tokens=1000,
         system="""You are a PA for a small trades business. You help with:
 - Logging job enquiries and extracting key details (client name, address, job type, urgency)
