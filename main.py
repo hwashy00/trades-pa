@@ -2,6 +2,8 @@ import os
 from flask import Flask, request
 import anthropic
 from supabase import create_client
+from apscheduler.schedulers.background import BackgroundScheduler
+from twilio.rest import Client as TwilioClient
 
 app = Flask(__name__)
 client = anthropic.Anthropic()
@@ -11,6 +13,35 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 conversation_history = {}
+
+def send_morning_summary():
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+    twilio_number = os.environ.get("TWILIO_NUMBER")
+    your_whatsapp = os.environ.get("YOUR_WHATSAPP")
+
+    twilio_client = TwilioClient(account_sid, auth_token)
+
+    result = supabase.table("enquiries").select("*").eq("status", "new").execute()
+    enquiries = result.data
+
+    if enquiries:
+        summary = f"Good morning Harry 👋\n\n📋 Outstanding enquiries: {len(enquiries)}\n\n"
+        for e in enquiries[:5]:
+            summary += f"• {e.get('client_name', 'Unknown')} - {e.get('job_type', 'Unknown')} - {e.get('location', 'Unknown')}\n"
+        summary += "\nReply with any job details to log them."
+    else:
+        summary = "Good morning Harry 👋\n\nNo outstanding enquiries. Have a great day!"
+
+    twilio_client.messages.create(
+        from_=f"whatsapp:{twilio_number}",
+        to=f"whatsapp:{your_whatsapp}",
+        body=summary
+    )
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(send_morning_summary, 'cron', hour=8, minute=0)
+scheduler.start()
 
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp():
@@ -49,7 +80,6 @@ LOG:name=<client name>|job=<job type>|location=<location>|status=new""",
         "content": reply
     })
 
-    # Extract and save log if present
     if "LOG:" in reply:
         try:
             log_line = reply.split("LOG:")[1].strip().split("\n")[0]
@@ -66,20 +96,18 @@ LOG:name=<client name>|job=<job type>|location=<location>|status=new""",
         except Exception as e:
             print(f"Logging error: {e}")
 
-    # Remove LOG line from reply before sending
     clean_reply = reply.split("LOG:")[0].strip()
 
     from twilio.twiml.messaging_response import MessagingResponse
     resp = MessagingResponse()
     resp.message(clean_reply)
     return str(resp)
+
 @app.route("/call", methods=["POST"])
 def incoming_call():
     caller = request.form.get("From", "")
     called = request.form.get("To", "")
-    call_status = request.form.get("CallStatus", "")
-    
-    # Log the missed call
+
     try:
         supabase.table("enquiries").insert({
             "sender": caller,
@@ -93,12 +121,10 @@ def incoming_call():
     except Exception as e:
         print(f"Logging error: {e}")
 
-    # Send auto text to caller
-    from twilio.rest import Client as TwilioClient
     account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
     auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
     twilio_client = TwilioClient(account_sid, auth_token)
-    
+
     try:
         twilio_client.messages.create(
             body="Hi, sorry I missed your call! I'm currently on site. What's the job? I'll get back to you as soon as I can.",
@@ -112,5 +138,6 @@ def incoming_call():
     resp = VoiceResponse()
     resp.say("Sorry I missed your call, I have sent you a text message and will be in touch shortly.")
     return str(resp)
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
