@@ -15,17 +15,23 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 conversation_history = {}
 
 ONBOARDING_QUESTIONS = [
-    ("business_name", "Welcome to TradesPA! Let's get you set up - only takes 2 minutes.\n\nWhat is your business name?"),
+    ("business_name", "Welcome to TradesPA! Lets get you set up - only takes 2 minutes.\n\nWhat is your business name?"),
     ("owner_name", "What is your name?"),
     ("phone", "What is your phone number?"),
     ("trade", "What is your trade? (e.g. Carpenter, Plumber, Plasterer)"),
-    ("day_rate", "What is your day rate for labour? (numbers only, e.g. 300)"),
-    ("half_day_rate", "What is your half day rate? (numbers only)"),
-    ("hourly_rate", "What is your hourly rate? (numbers only)"),
-    ("materials_markup", "What percentage markup do you add on materials? (numbers only, e.g. 20)"),
+    ("day_rate", "What is your day rate for labour? (just the number, e.g. 300)"),
+    ("half_day_rate", "What is your half day rate? (just the number)"),
+    ("hourly_rate", "What is your hourly rate? (just the number)"),
+    ("materials_markup", "What percentage markup do you add on materials? (just the number, e.g. 20)"),
     ("payment_terms", "What are your payment terms in days? (e.g. 30)"),
     ("vat_registered", "Are you VAT registered? (yes or no)"),
 ]
+
+def clean_number(value, default="0"):
+    cleaned = str(value).replace("£", "").replace("%", "").replace(",", "").replace(" ", "").strip()
+    if not cleaned:
+        return default
+    return cleaned
 
 def get_user_profile(sender):
     try:
@@ -116,24 +122,30 @@ def whatsapp():
                 resp.message(next_question)
 
             else:
-                supabase.table("profiles").insert({
-                    "sender": sender,
-                    "business_name": data.get("business_name", ""),
-                    "owner_name": data.get("owner_name", ""),
-                    "phone": data.get("phone", ""),
-                    "trade": data.get("trade", ""),
-                    "day_rate": float(data.get("day_rate", "0").replace(",", "").strip()),
-                    "half_day_rate": float(data.get("half_day_rate", "0").replace(",", "").strip()),
-                    "hourly_rate": float(data.get("hourly_rate", "0").replace(",", "").strip()),
-                    "materials_markup": float(data.get("materials_markup", "20").replace("%", "").strip()),
-                    "payment_terms": int(data.get("payment_terms", "30").strip()),
-                    "vat_registered": data.get("vat_registered", "no").lower() in ["yes", "y"],
-                    "vat_number": data.get("vat_number", "")
-                }).execute()
+                try:
+                    supabase.table("profiles").insert({
+                        "sender": sender,
+                        "business_name": data.get("business_name", ""),
+                        "owner_name": data.get("owner_name", ""),
+                        "phone": data.get("phone", ""),
+                        "trade": data.get("trade", ""),
+                        "day_rate": float(clean_number(data.get("day_rate", "0"))),
+                        "half_day_rate": float(clean_number(data.get("half_day_rate", "0"))),
+                        "hourly_rate": float(clean_number(data.get("hourly_rate", "0"))),
+                        "materials_markup": float(clean_number(data.get("materials_markup", "20"))),
+                        "payment_terms": int(clean_number(data.get("payment_terms", "30"))),
+                        "vat_registered": data.get("vat_registered", "no").lower() in ["yes", "y"],
+                        "vat_number": data.get("vat_number", "")
+                    }).execute()
 
-                supabase.table("onboarding").delete().eq("sender", sender).execute()
+                    supabase.table("onboarding").delete().eq("sender", sender).execute()
 
-                resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nTry saying:\n- Quote for John Smith, kitchen fitting, 3 days labour\n- Log a call from Sarah Jones, wants bathroom tiled\n- What jobs are outstanding?")
+                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nTry saying:\n- Quote for John Smith, kitchen fitting, 3 days labour\n- Log a call from Sarah Jones, wants bathroom tiled\n- What jobs are outstanding?")
+
+                except Exception as e:
+                    print("Profile save error: " + str(e))
+                    resp.message("Sorry something went wrong saving your profile. Please try again.")
+                    supabase.table("onboarding").delete().eq("sender", sender).execute()
 
             return str(resp)
 
