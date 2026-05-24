@@ -16,17 +16,18 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 conversation_history = {}
 
 ONBOARDING_QUESTIONS = [
-    ("business_name", "Welcome to TradesPA! Lets get you set up - only takes 2 minutes.\n\nWhat is your business name?"),
+    ("business_name", "Welcome to TradesPA! Lets get you set up - only takes 2 minutes. What is your business name?"),
     ("owner_name", "What is your name?"),
     ("phone", "What is your phone number?"),
-    ("trade", "What is your trade? (e.g. Carpenter, Plumber, Plasterer)"),
-    ("day_rate", "What is your day rate for labour? (just the number, e.g. 300)"),
-    ("half_day_rate", "What is your half day rate? (just the number)"),
-    ("hourly_rate", "What is your hourly rate? (just the number)"),
-    ("materials_markup", "What percentage markup do you add on materials? (just the number, e.g. 20)"),
-    ("payment_terms", "What are your payment terms in days? (e.g. 30)"),
-    ("vat_registered", "Are you VAT registered? (yes or no)"),
+    ("trade", "What is your trade? e.g. Carpenter, Plumber, Plasterer"),
+    ("day_rate", "What is your day rate for labour? Just the number e.g. 300"),
+    ("half_day_rate", "What is your half day rate? Just the number"),
+    ("hourly_rate", "What is your hourly rate? Just the number"),
+    ("materials_markup", "What percentage markup do you add on materials? Just the number e.g. 20"),
+    ("payment_terms", "What are your payment terms in days? e.g. 30"),
+    ("vat_registered", "Are you VAT registered? yes or no"),
 ]
+
 
 def clean_number(value, default="0"):
     cleaned = str(value).replace("£", "").replace("%", "").replace(",", "").replace(" ", "").strip()
@@ -34,52 +35,60 @@ def clean_number(value, default="0"):
         return default
     return cleaned
 
+
 def get_user_profile(sender):
     try:
         result = supabase.table("profiles").select("*").eq("sender", sender).execute()
         if result.data:
             return result.data[0]
-    except:
-        pass
+    except Exception as e:
+        print("Get profile error: " + str(e))
     return None
+
 
 def get_onboarding_state(sender):
     try:
         result = supabase.table("onboarding").select("*").eq("sender", sender).execute()
         if result.data:
             return result.data[0]
-    except:
-        pass
+    except Exception as e:
+        print("Get onboarding error: " + str(e))
     return None
 
+
 def send_morning_summary():
-    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-    twilio_number = os.environ.get("TWILIO_NUMBER")
-    your_whatsapp = os.environ.get("YOUR_WHATSAPP")
+    try:
+        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+        twilio_number = os.environ.get("TWILIO_NUMBER")
+        your_whatsapp = os.environ.get("YOUR_WHATSAPP")
 
-    twilio_client = TwilioClient(account_sid, auth_token)
+        twilio_client = TwilioClient(account_sid, auth_token)
 
-    result = supabase.table("enquiries").select("*").eq("status", "new").execute()
-    enquiries = result.data
+        result = supabase.table("enquiries").select("*").eq("status", "new").execute()
+        enquiries = result.data
 
-    if enquiries:
-        summary = "Good morning!\n\nOutstanding enquiries: " + str(len(enquiries)) + "\n\n"
-        for e in enquiries[:5]:
-            summary += "- " + e.get("client_name", "Unknown") + " - " + e.get("job_type", "Unknown") + " - " + e.get("location", "Unknown") + "\n"
-        summary += "\nReply with any job details to log them."
-    else:
-        summary = "Good morning!\n\nNo outstanding enquiries. Have a great day!"
+        if enquiries:
+            summary = "Good morning!\n\nOutstanding enquiries: " + str(len(enquiries)) + "\n\n"
+            for e in enquiries[:5]:
+                summary += "- " + e.get("client_name", "Unknown") + " - " + e.get("job_type", "Unknown") + " - " + e.get("location", "Unknown") + "\n"
+            summary += "\nReply with any job details to log them."
+        else:
+            summary = "Good morning!\n\nNo outstanding enquiries. Have a great day!"
 
-    twilio_client.messages.create(
-        from_="whatsapp:" + twilio_number,
-        to="whatsapp:" + your_whatsapp,
-        body=summary
-    )
+        twilio_client.messages.create(
+            from_="whatsapp:" + twilio_number,
+            to="whatsapp:" + your_whatsapp,
+            body=summary
+        )
+    except Exception as e:
+        print("Morning summary error: " + str(e))
+
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(send_morning_summary, "cron", hour=8, minute=0)
 scheduler.start()
+
 
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp():
@@ -134,7 +143,7 @@ def whatsapp():
                         "half_day_rate": float(clean_number(data.get("half_day_rate", "0"))),
                         "hourly_rate": float(clean_number(data.get("hourly_rate", "0"))),
                         "materials_markup": float(clean_number(data.get("materials_markup", "20"))),
-                        "payment_terms": int(clean_number(data.get("payment_terms", "30"))),
+                        "payment_terms": int(float(clean_number(data.get("payment_terms", "30")))),
                         "vat_registered": data.get("vat_registered", "no").lower() in ["yes", "y"],
                         "vat_number": data.get("vat_number", "")
                     }).execute()
@@ -143,9 +152,11 @@ def whatsapp():
 
                     resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nTry saying:\n- Quote for John Smith, kitchen fitting, 3 days labour\n- Log a call from Sarah Jones, wants bathroom tiled\n- What jobs are outstanding?")
 
-        
-print("Profile save error: " + str(e))
-print(traceback.format_exc())
+                except Exception as e:
+                    print("Profile save error: " + str(e))
+                    print(traceback.format_exc())
+                    resp.message("Sorry something went wrong. Please try again.")
+                    supabase.table("onboarding").delete().eq("sender", sender).execute()
 
             return str(resp)
 
@@ -167,26 +178,22 @@ print(traceback.format_exc())
     system_prompt += "Materials markup: " + str(profile.get("materials_markup")) + "%\n"
     system_prompt += "Payment terms: " + str(profile.get("payment_terms")) + " days\n"
     system_prompt += "VAT registered: " + str(profile.get("vat_registered")) + "\n\n"
-    system_prompt += """You help with:
-1. Logging job enquiries - extract client name, address, job type, urgency
-2. Generating quotes - use their exact rates above
-3. Tracking outstanding jobs and payments
-4. General scheduling and reminders
-
-Always be concise - this is WhatsApp.
-
-If generating a QUOTE format it clearly with:
-- Client name and job description
-- Labour breakdown (days x day rate)
-- Materials estimate with markup applied
-- Total
-- Payment terms
-
-If logging an enquiry end your reply with:
-LOG:name=<client name>|job=<job type>|location=<location>|status=new
-
-If generating a quote end your reply with:
-LOG:name=<client name>|job=<job type>|location=<location>|status=quoted"""
+    system_prompt += "You help with:\n"
+    system_prompt += "1. Logging job enquiries - extract client name, address, job type, urgency\n"
+    system_prompt += "2. Generating quotes - use their exact rates above\n"
+    system_prompt += "3. Tracking outstanding jobs and payments\n"
+    system_prompt += "4. General scheduling and reminders\n\n"
+    system_prompt += "Always be concise - this is WhatsApp.\n\n"
+    system_prompt += "If generating a QUOTE format it clearly with:\n"
+    system_prompt += "- Client name and job description\n"
+    system_prompt += "- Labour breakdown (days x day rate)\n"
+    system_prompt += "- Materials estimate with markup applied\n"
+    system_prompt += "- Total\n"
+    system_prompt += "- Payment terms\n\n"
+    system_prompt += "If logging an enquiry end your reply with:\n"
+    system_prompt += "LOG:name=<client name>|job=<job type>|location=<location>|status=new\n\n"
+    system_prompt += "If generating a quote end your reply with:\n"
+    system_prompt += "LOG:name=<client name>|job=<job type>|location=<location>|status=quoted"
 
     response = client.messages.create(
         model="claude-sonnet-4-5",
@@ -221,6 +228,7 @@ LOG:name=<client name>|job=<job type>|location=<location>|status=quoted"""
     clean_reply = reply.split("LOG:")[0].strip()
     resp.message(clean_reply)
     return str(resp)
+
 
 @app.route("/call", methods=["POST"])
 def incoming_call():
@@ -257,6 +265,7 @@ def incoming_call():
     resp = VoiceResponse()
     resp.say("Sorry I missed your call. I have sent you a text message and will be in touch shortly.")
     return str(resp)
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
