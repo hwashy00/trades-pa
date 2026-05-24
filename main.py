@@ -73,6 +73,44 @@ LOG:name=<client name>|job=<job type>|location=<location>|status=new""",
     resp = MessagingResponse()
     resp.message(clean_reply)
     return str(resp)
+@app.route("/call", methods=["POST"])
+def incoming_call():
+    caller = request.form.get("From", "")
+    called = request.form.get("To", "")
+    call_status = request.form.get("CallStatus", "")
+    
+    # Log the missed call
+    try:
+        supabase.table("enquiries").insert({
+            "sender": caller,
+            "message": "MISSED CALL",
+            "summary": f"Missed call from {caller}",
+            "client_name": "",
+            "job_type": "missed call",
+            "location": "",
+            "status": "missed call"
+        }).execute()
+    except Exception as e:
+        print(f"Logging error: {e}")
 
+    # Send auto text to caller
+    from twilio.rest import Client as TwilioClient
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+    twilio_client = TwilioClient(account_sid, auth_token)
+    
+    try:
+        twilio_client.messages.create(
+            body="Hi, sorry I missed your call! I'm currently on site. What's the job? I'll get back to you as soon as I can.",
+            from_=called,
+            to=caller
+        )
+    except Exception as e:
+        print(f"SMS error: {e}")
+
+    from twilio.twiml.voice_response import VoiceResponse
+    resp = VoiceResponse()
+    resp.say("Sorry I missed your call, I have sent you a text message and will be in touch shortly.")
+    return str(resp)
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
