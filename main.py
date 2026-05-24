@@ -19,10 +19,9 @@ ONBOARDING_QUESTIONS = [
     ("owner_name", "What's your *name*?"),
     ("phone", "What's your *phone number*?"),
     ("trade", "What's your *trade*? (e.g. Carpenter, Plumber, Plasterer)"),
-    ("day_rate", "What's your *day rate* for labour? (£)"),
-    ("half_day_rate", "What's your *half day rate*? (£)"),
-    ("hourly_rate", "What's your *hourly rate*? (£)"),
-    ("materials_markup", "What *% markup* do you add on materials? (e.g. 20)"),
+    git add .
+git commit -m "fix float parsing"
+git push origin main
     ("payment_terms", "What are your *payment terms* in days? (e.g. 30)"),
     ("vat_registered", "Are you *VAT registered*? (yes/no)"),
 ]
