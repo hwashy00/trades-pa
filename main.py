@@ -1,4 +1,5 @@
 import os
+import traceback
 from flask import Flask, request
 import anthropic
 from supabase import create_client
@@ -142,7 +143,7 @@ def whatsapp():
 
                     resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nTry saying:\n- Quote for John Smith, kitchen fitting, 3 days labour\n- Log a call from Sarah Jones, wants bathroom tiled\n- What jobs are outstanding?")
 
-               import traceback
+        
 print("Profile save error: " + str(e))
 print(traceback.format_exc())
 
