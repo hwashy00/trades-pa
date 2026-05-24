@@ -15,16 +15,16 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 conversation_history = {}
 
 ONBOARDING_QUESTIONS = [
-    ("business_name", "Welcome to TradesPA! 👷\n\nLet's get you set up — only takes 2 minutes.\n\nWhat's your *business name*?"),
-    ("owner_name", "What's your *name*?"),
-    ("phone", "What's your *phone number*?"),
-    ("trade", "What's your *trade*? (e.g. Carpenter, Plumber, Plasterer)"),
-"day_rate": float(data.get("day_rate", "0").replace(",", "").strip()),
-"half_day_rate": float(data.get("half_day_rate", "0").replace(",", "").strip()),
-"hourly_rate": float(data.get("hourly_rate", "0").replace(",", "").strip()),
-"materials_markup": float(data.get("materials_markup", "20").replace("%", "").strip()),
-    ("payment_terms", "What are your *payment terms* in days? (e.g. 30)"),
-    ("vat_registered", "Are you *VAT registered*? (yes/no)"),
+    ("business_name", "Welcome to TradesPA! Let's get you set up - only takes 2 minutes.\n\nWhat is your business name?"),
+    ("owner_name", "What is your name?"),
+    ("phone", "What is your phone number?"),
+    ("trade", "What is your trade? (e.g. Carpenter, Plumber, Plasterer)"),
+    ("day_rate", "What is your day rate for labour? (numbers only, e.g. 300)"),
+    ("half_day_rate", "What is your half day rate? (numbers only)"),
+    ("hourly_rate", "What is your hourly rate? (numbers only)"),
+    ("materials_markup", "What percentage markup do you add on materials? (numbers only, e.g. 20)"),
+    ("payment_terms", "What are your payment terms in days? (e.g. 30)"),
+    ("vat_registered", "Are you VAT registered? (yes or no)"),
 ]
 
 def get_user_profile(sender):
@@ -57,21 +57,21 @@ def send_morning_summary():
     enquiries = result.data
 
     if enquiries:
-        summary = f"Good morning 👋\n\n📋 Outstanding enquiries: {len(enquiries)}\n\n"
+        summary = "Good morning!\n\nOutstanding enquiries: " + str(len(enquiries)) + "\n\n"
         for e in enquiries[:5]:
-            summary += f"• {e.get('client_name', 'Unknown')} - {e.get('job_type', 'Unknown')} - {e.get('location', 'Unknown')}\n"
+            summary += "- " + e.get("client_name", "Unknown") + " - " + e.get("job_type", "Unknown") + " - " + e.get("location", "Unknown") + "\n"
         summary += "\nReply with any job details to log them."
     else:
-        summary = "Good morning 👋\n\nNo outstanding enquiries. Have a great day!"
+        summary = "Good morning!\n\nNo outstanding enquiries. Have a great day!"
 
     twilio_client.messages.create(
-        from_=f"whatsapp:{twilio_number}",
-        to=f"whatsapp:{your_whatsapp}",
+        from_="whatsapp:" + twilio_number,
+        to="whatsapp:" + your_whatsapp,
         body=summary
     )
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(send_morning_summary, 'cron', hour=8, minute=0)
+scheduler.add_job(send_morning_summary, "cron", hour=8, minute=0)
 scheduler.start()
 
 @app.route("/whatsapp", methods=["POST"])
@@ -82,15 +82,12 @@ def whatsapp():
     from twilio.twiml.messaging_response import MessagingResponse
     resp = MessagingResponse()
 
-    # Check if user has a profile
     profile = get_user_profile(sender)
 
     if not profile:
-        # Check onboarding state
         onboarding = get_onboarding_state(sender)
 
         if not onboarding:
-            # Start onboarding
             question_key, question_text = ONBOARDING_QUESTIONS[0]
             supabase.table("onboarding").insert({
                 "sender": sender,
@@ -104,13 +101,10 @@ def whatsapp():
             step = onboarding["step"]
             data = onboarding["data"] or {}
 
-            # Save answer to current step
             question_key, _ = ONBOARDING_QUESTIONS[step]
             data[question_key] = incoming_msg
 
-            # Check if VAT registered to maybe ask for VAT number
             if step + 1 < len(ONBOARDING_QUESTIONS):
-                # Move to next question
                 next_step = step + 1
                 _, next_question = ONBOARDING_QUESTIONS[next_step]
 
@@ -119,41 +113,30 @@ def whatsapp():
                     "data": data
                 }).eq("sender", sender).execute()
 
-                # If they said yes to VAT, ask for VAT number
-                if question_key == "vat_registered" and incoming_msg.lower() in ["yes", "y"]:
-                    resp.message("What's your *VAT number*?")
-                    supabase.table("onboarding").update({
-                        "step": next_step,
-                        "data": {**data, "awaiting_vat_number": True}
-                    }).eq("sender", sender).execute()
-                else:
-                    resp.message(next_question)
+                resp.message(next_question)
 
             else:
-                # Onboarding complete — save profile
                 supabase.table("profiles").insert({
                     "sender": sender,
                     "business_name": data.get("business_name", ""),
                     "owner_name": data.get("owner_name", ""),
                     "phone": data.get("phone", ""),
                     "trade": data.get("trade", ""),
-                    "day_rate": float(data.get("day_rate", 0)),
-                    "half_day_rate": float(data.get("half_day_rate", 0)),
-                    "hourly_rate": float(data.get("hourly_rate", 0)),
-                    "materials_markup": float(data.get("materials_markup", 20)),
-                    "payment_terms": int(data.get("payment_terms", 30)),
+                    "day_rate": float(data.get("day_rate", "0").replace(",", "").strip()),
+                    "half_day_rate": float(data.get("half_day_rate", "0").replace(",", "").strip()),
+                    "hourly_rate": float(data.get("hourly_rate", "0").replace(",", "").strip()),
+                    "materials_markup": float(data.get("materials_markup", "20").replace("%", "").strip()),
+                    "payment_terms": int(data.get("payment_terms", "30").strip()),
                     "vat_registered": data.get("vat_registered", "no").lower() in ["yes", "y"],
                     "vat_number": data.get("vat_number", "")
                 }).execute()
 
-                # Clean up onboarding
                 supabase.table("onboarding").delete().eq("sender", sender).execute()
 
-                resp.message(f"✅ All set {data.get('owner_name', '')}! You're ready to go.\n\nTry saying:\n• 'Quote for John Smith, kitchen fitting, 3 days labour'\n• 'Log a call from Sarah Jones, wants bathroom tiled'\n• 'What jobs are outstanding?'")
+                resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nTry saying:\n- Quote for John Smith, kitchen fitting, 3 days labour\n- Log a call from Sarah Jones, wants bathroom tiled\n- What jobs are outstanding?")
 
             return str(resp)
 
-    # User has profile — normal PA mode
     if sender not in conversation_history:
         conversation_history[sender] = []
 
@@ -162,19 +145,17 @@ def whatsapp():
         "content": incoming_msg
     })
 
-    # Build system prompt with their rates
-    system_prompt = f"""You are a PA for a trades business. The user's details are:
-- Business: {profile.get('business_name')}
-- Name: {profile.get('owner_name')}
-- Trade: {profile.get('trade')}
-- Day rate: £{profile.get('day_rate')}
-- Half day rate: £{profile.get('half_day_rate')}
-- Hourly rate: £{profile.get('hourly_rate')}
-- Materials markup: {profile.get('materials_markup')}%
-- Payment terms: {profile.get('payment_terms')} days
-- VAT registered: {profile.get('vat_registered')}
-
-You help with:
+    system_prompt = "You are a PA for a trades business. The user details are:\n"
+    system_prompt += "Business: " + str(profile.get("business_name")) + "\n"
+    system_prompt += "Name: " + str(profile.get("owner_name")) + "\n"
+    system_prompt += "Trade: " + str(profile.get("trade")) + "\n"
+    system_prompt += "Day rate: " + str(profile.get("day_rate")) + "\n"
+    system_prompt += "Half day rate: " + str(profile.get("half_day_rate")) + "\n"
+    system_prompt += "Hourly rate: " + str(profile.get("hourly_rate")) + "\n"
+    system_prompt += "Materials markup: " + str(profile.get("materials_markup")) + "%\n"
+    system_prompt += "Payment terms: " + str(profile.get("payment_terms")) + " days\n"
+    system_prompt += "VAT registered: " + str(profile.get("vat_registered")) + "\n\n"
+    system_prompt += """You help with:
 1. Logging job enquiries - extract client name, address, job type, urgency
 2. Generating quotes - use their exact rates above
 3. Tracking outstanding jobs and payments
@@ -182,17 +163,17 @@ You help with:
 
 Always be concise - this is WhatsApp.
 
-If generating a QUOTE, format it clearly with:
+If generating a QUOTE format it clearly with:
 - Client name and job description
 - Labour breakdown (days x day rate)
-- Materials estimate with markup
+- Materials estimate with markup applied
 - Total
 - Payment terms
 
-If logging an enquiry, end your reply with:
+If logging an enquiry end your reply with:
 LOG:name=<client name>|job=<job type>|location=<location>|status=new
 
-If generating a quote, end your reply with:
+If generating a quote end your reply with:
 LOG:name=<client name>|job=<job type>|location=<location>|status=quoted"""
 
     response = client.messages.create(
@@ -223,7 +204,7 @@ LOG:name=<client name>|job=<job type>|location=<location>|status=quoted"""
                 "status": parts.get("status", "new")
             }).execute()
         except Exception as e:
-            print(f"Logging error: {e}")
+            print("Logging error: " + str(e))
 
     clean_reply = reply.split("LOG:")[0].strip()
     resp.message(clean_reply)
@@ -238,14 +219,14 @@ def incoming_call():
         supabase.table("enquiries").insert({
             "sender": caller,
             "message": "MISSED CALL",
-            "summary": f"Missed call from {caller}",
+            "summary": "Missed call from " + caller,
             "client_name": "",
             "job_type": "missed call",
             "location": "",
             "status": "missed call"
         }).execute()
     except Exception as e:
-        print(f"Logging error: {e}")
+        print("Logging error: " + str(e))
 
     account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
     auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
@@ -253,16 +234,16 @@ def incoming_call():
 
     try:
         twilio_client.messages.create(
-            body="Hi, sorry I missed your call! I'm currently on site. What's the job? I'll get back to you as soon as I can.",
+            body="Hi, sorry I missed your call! I am currently on site. What is the job? I will get back to you as soon as I can.",
             from_=called,
             to=caller
         )
     except Exception as e:
-        print(f"SMS error: {e}")
+        print("SMS error: " + str(e))
 
     from twilio.twiml.voice_response import VoiceResponse
     resp = VoiceResponse()
-    resp.say("Sorry I missed your call, I have sent you a text message and will be in touch shortly.")
+    resp.say("Sorry I missed your call. I have sent you a text message and will be in touch shortly.")
     return str(resp)
 
 if __name__ == "__main__":
