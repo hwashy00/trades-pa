@@ -142,10 +142,9 @@ def whatsapp():
 
                     resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nTry saying:\n- Quote for John Smith, kitchen fitting, 3 days labour\n- Log a call from Sarah Jones, wants bathroom tiled\n- What jobs are outstanding?")
 
-                except Exception as e:
-                    print("Profile save error: " + str(e))
-                    resp.message("Sorry something went wrong saving your profile. Please try again.")
-                    supabase.table("onboarding").delete().eq("sender", sender).execute()
+               import traceback
+print("Profile save error: " + str(e))
+print(traceback.format_exc())
 
             return str(resp)
 
