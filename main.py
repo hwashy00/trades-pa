@@ -133,13 +133,6 @@ def whatsapp():
                         "owner_name": data.get("owner_name", ""),
                         "phone": data.get("phone", ""),
                         "trade": data.get("trade", ""),
-                        "day_rate": float(clean_number(data.get("day_rate", "0"))),
-                        "half_day_rate": float(clean_number(data.get("half_day_rate", "0"))),
-                        "hourly_rate": float(clean_number(data.get("hourly_rate", "0"))),
-                        "materials_markup": float(clean_number(data.get("materials_markup", "20"))),
-                        "payment_terms": int(float(clean_number(data.get("payment_terms", "30")))),
-                        "vat_registered": data.get("vat_registered", "no").lower() in ["yes", "y"],
-                        "vat_number": data.get("vat_number", "")
                     }).execute()
 
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
