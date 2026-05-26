@@ -20,12 +20,6 @@ ONBOARDING_QUESTIONS = [
     ("owner_name", "What is your name?"),
     ("phone", "What is your phone number?"),
     ("trade", "What is your trade? e.g. Carpenter, Plumber, Plasterer"),
-    ("day_rate", "What is your day rate for labour? Just the number e.g. 300"),
-    ("half_day_rate", "What is your half day rate? Just the number"),
-    ("hourly_rate", "What is your hourly rate? Just the number"),
-    ("materials_markup", "What percentage markup do you add on materials? Just the number e.g. 20"),
-    ("payment_terms", "What are your payment terms in days? e.g. 30"),
-    ("vat_registered", "Are you VAT registered? yes or no"),
 ]
 
 
