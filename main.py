@@ -319,5 +319,37 @@ def api_stats():
     except Exception as e:
         return {"error": str(e)}
 
+@app.route("/dashboard")
+def dashboard():
+    with open("dashboard.html", "r") as f:
+        return f.read()
+
+@app.route("/api/stats")
+def api_stats():
+    try:
+        phone = request.args.get("phone", "")
+        sender = "whatsapp:" + phone.replace(" ", "")
+        
+        profile = None
+        if phone:
+            result = supabase.table("profiles").select("*").eq("sender", sender).execute()
+            if result.data:
+                profile = result.data[0]
+
+        new_enq = supabase.table("enquiries").select("*").eq("status", "new").execute().data
+        missed = supabase.table("enquiries").select("*").eq("status", "missed call").execute().data
+        quoted = supabase.table("enquiries").select("*").eq("status", "quoted").execute().data
+        recent = supabase.table("enquiries").select("*").order("created_at", desc=True).limit(20).execute().data
+
+        return {
+            "enquiries": len(new_enq),
+            "unpaid": len(quoted),
+            "missed": len(missed),
+            "recent": recent,
+            "profile": profile
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
