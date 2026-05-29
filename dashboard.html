@@ -125,14 +125,28 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
 .sg-row{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--br)}
 .sg-row:last-child{border-bottom:none}
 .sg-row-label{font-size:.86rem;font-weight:500;color:var(--t1)}
-.sg-val{font-size:.82rem;color:var(--acc2);font-weight:500;text-align:right;background:none;border:none;font-family:'Inter',sans-serif;outline:none;width:130px;cursor:pointer}
+.sg-val{font-size:.82rem;color:var(--acc2);font-weight:500;text-align:right;background:none;border:none;font-family:'Inter',sans-serif;outline:none;width:150px;cursor:pointer}
+.sg-val-ta{font-size:.78rem;color:var(--acc2);font-weight:400;text-align:right;background:none;border:none;font-family:'Inter',sans-serif;outline:none;width:150px;cursor:pointer;resize:none;line-height:1.5}
 .sg-danger .sg-row-label{color:var(--red)}
 .sg-danger{cursor:pointer}
+.colour-row{display:flex;gap:8px;padding:12px 18px;flex-wrap:wrap}
+.colour-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s}
+.colour-swatch.selected{border-color:var(--t1);transform:scale(1.15)}
+.save-btn{width:calc(100% - 40px);margin:0 20px 20px;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Inter',sans-serif;font-size:.88rem;font-weight:700;color:#fff;cursor:pointer;transition:opacity .15s}
+.save-btn:active{opacity:.8}
+.success-msg{text-align:center;color:var(--grn);font-size:.75rem;margin:-10px 20px 16px;min-height:20px}
 .scr{display:none}
 .scr.on{display:block}
 .hidden{display:none!important}
 .loading{text-align:center;padding:40px 20px;color:var(--t3);font-size:.8rem}
 .empty-state{text-align:center;padding:40px 20px;color:var(--t3);font-size:.8rem;line-height:1.8}
+.colour-row{display:flex;flex-wrap:wrap;gap:10px;padding:14px 18px}
+.colour-swatch{width:32px;height:32px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:border-color .15s}
+.colour-swatch.selected{border-color:var(--t1)}
+.sg-val-ta{font-size:.78rem;color:var(--acc2);font-weight:400;text-align:right;background:none;border:none;font-family:'Inter',sans-serif;outline:none;width:160px;resize:none;line-height:1.5}
+.save-btn{display:block;width:calc(100% - 40px);margin:0 20px 20px;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Inter',sans-serif;font-size:.88rem;font-weight:700;color:#fff;cursor:pointer;transition:opacity .15s}
+.save-btn:disabled{opacity:.5;cursor:not-allowed}
+.success-msg{text-align:center;font-size:.75rem;color:var(--grn);margin:-10px 20px 20px;min-height:20px}
 </style>
 </head>
 <body>
@@ -160,10 +174,8 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
   </div>
   <div>
     <div class="pin-dots">
-      <div class="pin-dot" id="d0"></div>
-      <div class="pin-dot" id="d1"></div>
-      <div class="pin-dot" id="d2"></div>
-      <div class="pin-dot" id="d3"></div>
+      <div class="pin-dot" id="d0"></div><div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
     </div>
     <div class="err-msg" id="pinErr"></div>
     <div class="pin-keypad">
@@ -303,14 +315,66 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
         <div class="prof-av" id="profAv">H</div>
         <div><div class="prof-name" id="profName">Loading...</div><div class="prof-trade" id="profTrade">VanOffice</div></div>
       </div>
+
       <div class="sg">
         <div class="sg-lbl">Business</div>
         <div class="sg-list" id="profDetails"><div class="sg-row"><div class="sg-row-label">Loading...</div></div></div>
       </div>
+
       <div class="sg">
         <div class="sg-lbl">Rates</div>
         <div class="sg-list" id="profRates"><div class="sg-row"><div class="sg-row-label">Set rates via WhatsApp</div></div></div>
       </div>
+
+      <!-- QUOTE TEMPLATE -->
+      <div class="sg">
+        <div class="sg-lbl">Quote template</div>
+        <div class="sg-list">
+          <div class="sg-row"><div class="sg-row-label">Business name</div><input class="sg-val" id="qt-business-name" placeholder="e.g. Harry's Carpentry"></div>
+          <div class="sg-row"><div class="sg-row-label">Address</div><input class="sg-val" id="qt-address" placeholder="Town, County"></div>
+          <div class="sg-row"><div class="sg-row-label">Phone</div><input class="sg-val" id="qt-phone" placeholder="+44 7700 000000"></div>
+          <div class="sg-row"><div class="sg-row-label">Email</div><input class="sg-val" id="qt-email" placeholder="you@email.com"></div>
+          <div class="sg-row"><div class="sg-row-label">Quote valid for</div><input class="sg-val" id="qt-validity" placeholder="30 days"></div>
+        </div>
+      </div>
+
+      <div class="sg">
+        <div class="sg-lbl">Quote brand colour</div>
+        <div class="sg-list">
+          <div class="colour-row" id="colourRow">
+            <div class="colour-swatch selected" style="background:#1a1a2e" data-colour="#1a1a2e" onclick="selectColour(this)"></div>
+            <div class="colour-swatch" style="background:#1e3a5f" data-colour="#1e3a5f" onclick="selectColour(this)"></div>
+            <div class="colour-swatch" style="background:#2d6a4f" data-colour="#2d6a4f" onclick="selectColour(this)"></div>
+            <div class="colour-swatch" style="background:#7b2d8b" data-colour="#7b2d8b" onclick="selectColour(this)"></div>
+            <div class="colour-swatch" style="background:#c0392b" data-colour="#c0392b" onclick="selectColour(this)"></div>
+            <div class="colour-swatch" style="background:#e67e22" data-colour="#e67e22" onclick="selectColour(this)"></div>
+            <div class="colour-swatch" style="background:#2c3e50" data-colour="#2c3e50" onclick="selectColour(this)"></div>
+            <div class="colour-swatch" style="background:#16213e" data-colour="#16213e" onclick="selectColour(this)"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sg">
+        <div class="sg-lbl">Quote footer</div>
+        <div class="sg-list">
+          <div class="sg-row" style="align-items:flex-start;padding:14px 18px">
+            <div class="sg-row-label" style="padding-top:2px">Payment details</div>
+            <textarea class="sg-val-ta" id="qt-payment" rows="2" placeholder="Sort code: 00-00-00&#10;Account: 00000000"></textarea>
+          </div>
+          <div class="sg-row" style="align-items:flex-start;padding:14px 18px">
+            <div class="sg-row-label" style="padding-top:2px">Terms</div>
+            <textarea class="sg-val-ta" id="qt-terms" rows="3" placeholder="All work guaranteed for 12 months. Payment due within 30 days of invoice."></textarea>
+          </div>
+          <div class="sg-row" style="align-items:flex-start;padding:14px 18px">
+            <div class="sg-row-label" style="padding-top:2px">Footer note</div>
+            <textarea class="sg-val-ta" id="qt-footer" rows="2" placeholder="Thank you for your business."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <button class="save-btn" onclick="saveTemplate()">Save quote template</button>
+      <div class="success-msg" id="saveMsg"></div>
+
       <div class="sg">
         <div class="sg-lbl">Account</div>
         <div class="sg-list">
@@ -336,7 +400,8 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
 let cm=new Date().getMonth(),cy=new Date().getFullYear();
 let currentFilter='all';
 let allEnquiries=[],allBookings=[];
-let userPhone='',userPin='',pinBuffer='';
+let userPhone='',userPin='',userSender='',pinBuffer='';
+let selectedColour='#1a1a2e';
 
 function submitPhone(){
   const phone=document.getElementById('phoneInput').value.trim();
@@ -427,6 +492,7 @@ function showApp(data){
   app.classList.remove('hidden');app.style.display='flex';
   allEnquiries=data.recent||[];
   allBookings=data.bookings||[];
+  if(data.profile)userSender=data.profile.sender||'';
   updateStats(data);
   renderRecent(allEnquiries);
   renderUpcoming(allBookings);
@@ -434,6 +500,8 @@ function showApp(data){
   renderQuotes(allEnquiries);
   renderBookings(allBookings);
   if(data.profile)renderProfile(data.profile);
+  if(data.template)loadTemplate(data.template);
+  if(data.template)loadTemplate(data.template);
   const n=data.profile&&data.profile.owner_name?data.profile.owner_name[0].toUpperCase():'H';
   document.getElementById('avInit').textContent=n;
   renderCal();
@@ -444,7 +512,7 @@ function doLogout(){
   document.getElementById('app').classList.add('hidden');
   document.getElementById('screenPin').classList.add('hidden');
   document.getElementById('screenPhone').classList.remove('hidden');
-  pinBuffer='';userPhone='';userPin='';
+  pinBuffer='';userPhone='';userPin='';userSender='';
 }
 
 function doDemo(){
@@ -456,10 +524,11 @@ function doDemo(){
       {client_name:'Mrs Jones',job_type:'Bathroom refit',location:'Exeter',status:'quoted'}
     ],
     bookings:[
-      {client_name:'Mrs Jones',job_type:'Bathroom refit',location:'Exeter',date:'2026-05-27',time:'09:00',duration_days:'3',status:'booked'},
-      {client_name:'Mrs Lewis',job_type:'Staircase',location:'Exeter',date:'2026-06-03',time:'08:00',duration_days:'4',status:'booked'}
+      {client_name:'Mrs Jones',job_type:'Bathroom refit',location:'Exeter',date:'2026-06-02',time:'09:00',duration_days:'3',status:'booked'},
+      {client_name:'Mrs Lewis',job_type:'Staircase',location:'Exeter',date:'2026-06-10',time:'08:00',duration_days:'4',status:'booked'}
     ],
-    profile:{owner_name:'Harry',business_name:"Harry's Carpentry",trade:'Carpenter',phone:'07504544469',day_rate:'300',half_day_rate:'175',hourly_rate:'45',materials_markup:'20',payment_terms:'30',vat_registered:'no'}
+    profile:{owner_name:'Harry',business_name:"Harry's Carpentry",trade:'Carpenter',phone:'07504544469',day_rate:'300',half_day_rate:'175',hourly_rate:'45',materials_markup:'20',payment_terms:'30',vat_registered:'no'},
+    template:null
   });
 }
 
@@ -548,6 +617,64 @@ function renderProfile(p){
     <div class="sg-row"><div class="sg-row-label">Markup</div><input class="sg-val" value="${p.materials_markup||20}%"></div>
     <div class="sg-row"><div class="sg-row-label">Terms</div><input class="sg-val" value="${p.payment_terms||30} days"></div>
     <div class="sg-row"><div class="sg-row-label">VAT</div><input class="sg-val" value="${p.vat_registered||'No'}"></div>`;
+  document.getElementById('qt-business-name').value=p.business_name||'';
+  document.getElementById('qt-phone').value=p.phone||'';
+}
+
+function loadTemplate(t){
+  if(!t)return;
+  document.getElementById('qt-business-name').value=t.business_name||'';
+  document.getElementById('qt-address').value=t.business_address||'';
+  document.getElementById('qt-phone').value=t.business_phone||'';
+  document.getElementById('qt-email').value=t.business_email||'';
+  document.getElementById('qt-validity').value=t.quote_validity_days||'30';
+  document.getElementById('qt-payment').value=t.payment_details||'';
+  document.getElementById('qt-terms').value=t.terms||'';
+  document.getElementById('qt-footer').value=t.footer_text||'';
+  if(t.brand_colour){
+    selectedColour=t.brand_colour;
+    document.querySelectorAll('.colour-swatch').forEach(s=>{
+      s.classList.toggle('selected',s.dataset.colour===t.brand_colour);
+    });
+  }
+}
+
+function selectColour(el){
+  document.querySelectorAll('.colour-swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedColour=el.dataset.colour;
+}
+
+async function saveTemplate(){
+  const btn=document.querySelector('.save-btn');
+  btn.textContent='Saving...';
+  btn.disabled=true;
+  try{
+    const res=await fetch('/api/save-template?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        business_name:document.getElementById('qt-business-name').value,
+        business_address:document.getElementById('qt-address').value,
+        business_phone:document.getElementById('qt-phone').value,
+        business_email:document.getElementById('qt-email').value,
+        quote_validity_days:document.getElementById('qt-validity').value||'30',
+        brand_colour:selectedColour,
+        payment_details:document.getElementById('qt-payment').value,
+        terms:document.getElementById('qt-terms').value,
+        footer_text:document.getElementById('qt-footer').value
+      })
+    });
+    const data=await res.json();
+    if(data.error){document.getElementById('saveMsg').textContent='Error: '+data.error;return}
+    document.getElementById('saveMsg').textContent='✓ Template saved';
+    setTimeout(()=>document.getElementById('saveMsg').textContent='',3000);
+  }catch(e){
+    document.getElementById('saveMsg').textContent='Error saving. Try again.';
+  }finally{
+    btn.textContent='Save quote template';
+    btn.disabled=false;
+  }
 }
 
 function go(name){
@@ -580,26 +707,20 @@ function renderCal(){
   document.getElementById('calMon').textContent=months[cm]+' '+cy;
   const g=document.getElementById('calGrid');
   g.innerHTML='';
-
   const bookedDates=new Set();
   allBookings.forEach(b=>{
     if(!b.date)return;
     const start=new Date(b.date);
     const days=parseInt(b.duration_days)||1;
     for(let i=0;i<days;i++){
-      const d=new Date(start);
-      d.setDate(d.getDate()+i);
-      if(d.getMonth()===cm&&d.getFullYear()===cy){
-        bookedDates.add(d.getDate());
-      }
+      const d=new Date(start);d.setDate(d.getDate()+i);
+      if(d.getMonth()===cm&&d.getFullYear()===cy)bookedDates.add(d.getDate());
     }
   });
-
   const fd=new Date(cy,cm,1).getDay();
   const off=fd===0?6:fd-1;
   const dim=new Date(cy,cm+1,0).getDate();
   const td=new Date();
-
   for(let i=0;i<off;i++){const el=document.createElement('div');el.className='cd empty';g.appendChild(el)}
   for(let d=1;d<=dim;d++){
     const el=document.createElement('div');el.className='cd';el.textContent=d;
