@@ -364,9 +364,9 @@ def reset_pin():
     import random
     try:
         phone = request.args.get("phone", "").strip()
-        if phone.startswith("0"):
+if phone.startswith("0"):
     phone = "+44" + phone[1:]
-        if not phone:
+if not phone:
             return jsonify({"error": "Phone required"}), 400
 
         result = supabase.table("profiles").select("*").eq("phone", phone).execute()
