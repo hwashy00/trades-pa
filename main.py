@@ -71,13 +71,21 @@ def send_morning_summary():
         result = supabase.table("enquiries").select("*").eq("status", "new").execute()
         enquiries = result.data
 
-        if enquiries:
-            summary = "Good morning!\n\nOutstanding enquiries: " + str(len(enquiries)) + "\n\n"
-            for e in enquiries[:5]:
-                summary += "- " + e.get("client_name", "Unknown") + " - " + e.get("job_type", "Unknown") + " - " + e.get("location", "Unknown") + "\n"
-            summary += "\nReply with any job details to log them."
+        bookings_today = supabase.table("bookings").select("*").eq("date", str(__import__("datetime").date.today())).execute().data
+
+        if enquiries or bookings_today:
+            summary = "Good morning!\n\n"
+            if bookings_today:
+                summary += "Jobs today:\n"
+                for b in bookings_today:
+                    summary += "- " + b.get("client_name", "Unknown") + " " + b.get("time", "") + " - " + b.get("job_type", "") + " - " + b.get("location", "") + "\n"
+                summary += "\n"
+            if enquiries:
+                summary += "Outstanding enquiries: " + str(len(enquiries)) + "\n"
+                for e in enquiries[:3]:
+                    summary += "- " + e.get("client_name", "Unknown") + " - " + e.get("job_type", "Unknown") + "\n"
         else:
-            summary = "Good morning!\n\nNo outstanding enquiries. Have a great day!"
+            summary = "Good morning!\n\nNo jobs today and no outstanding enquiries. Have a great day!"
 
         twilio_client.messages.create(
             from_="whatsapp:" + twilio_number,
@@ -164,7 +172,7 @@ def whatsapp():
 
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
 
-                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nVisit your dashboard at:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard\n\nLog in with your mobile number and PIN.\n\nTry saying:\n- Quote for John Smith, kitchen fitting, 3 days labour\n- Log a call from Sarah Jones, wants bathroom tiled\n- What jobs are outstanding?")
+                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nVisit your dashboard at:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard\n\nLog in with your mobile number and PIN.\n\nTry saying:\n- Quote for John Smith, kitchen fitting, 3 days labour\n- Book in Mrs Jones, bathroom refit, Tuesday 3rd June 9am\n- What jobs are outstanding?")
 
                 except Exception as e:
                     print("Profile save error: " + str(e))
@@ -182,7 +190,11 @@ def whatsapp():
         "content": incoming_msg
     })
 
-    system_prompt = "You are a PA for a trades business. The user details are:\n"
+    import datetime
+    today = datetime.date.today().strftime("%A %d %B %Y")
+
+    system_prompt = "You are a PA for a trades business. Today is " + today + ".\n"
+    system_prompt += "The user details are:\n"
     system_prompt += "Business: " + str(profile.get("business_name")) + "\n"
     system_prompt += "Name: " + str(profile.get("owner_name")) + "\n"
     system_prompt += "Trade: " + str(profile.get("trade")) + "\n"
@@ -195,8 +207,9 @@ def whatsapp():
     system_prompt += "You help with:\n"
     system_prompt += "1. Logging job enquiries - extract client name, address, job type, urgency\n"
     system_prompt += "2. Generating quotes - use their exact rates above\n"
-    system_prompt += "3. Tracking outstanding jobs and payments\n"
-    system_prompt += "4. General scheduling and reminders\n\n"
+    system_prompt += "3. Booking in jobs - extract client, job type, location, date, time, duration\n"
+    system_prompt += "4. Tracking outstanding jobs and payments\n"
+    system_prompt += "5. General scheduling and reminders\n\n"
     system_prompt += "Always be concise - this is WhatsApp.\n\n"
     system_prompt += "If generating a QUOTE format it clearly with:\n"
     system_prompt += "- Client name and job description\n"
@@ -207,7 +220,10 @@ def whatsapp():
     system_prompt += "If logging an enquiry end your reply with:\n"
     system_prompt += "LOG:name=<client name>|job=<job type>|location=<location>|status=new\n\n"
     system_prompt += "If generating a quote end your reply with:\n"
-    system_prompt += "LOG:name=<client name>|job=<job type>|location=<location>|status=quoted"
+    system_prompt += "LOG:name=<client name>|job=<job type>|location=<location>|status=quoted\n\n"
+    system_prompt += "If BOOKING a job, confirm the details clearly then end your reply with:\n"
+    system_prompt += "BOOK:name=<client name>|job=<job type>|location=<location>|date=<YYYY-MM-DD>|time=<HH:MM>|days=<number of days>\n"
+    system_prompt += "For the date, convert relative dates like 'Tuesday 3rd June' to YYYY-MM-DD format using today's date as reference."
 
     response = client.messages.create(
         model="claude-sonnet-4-5",
@@ -239,7 +255,25 @@ def whatsapp():
         except Exception as e:
             print("Logging error: " + str(e))
 
-    clean_reply = reply.split("LOG:")[0].strip()
+    if "BOOK:" in reply:
+        try:
+            book_line = reply.split("BOOK:")[1].strip().split("\n")[0]
+            parts = dict(p.split("=") for p in book_line.split("|"))
+            supabase.table("bookings").insert({
+                "sender": sender,
+                "client_name": parts.get("name", ""),
+                "job_type": parts.get("job", ""),
+                "location": parts.get("location", ""),
+                "date": parts.get("date", ""),
+                "time": parts.get("time", ""),
+                "duration_days": parts.get("days", "1"),
+                "notes": "",
+                "status": "booked"
+            }).execute()
+        except Exception as e:
+            print("Booking error: " + str(e))
+
+    clean_reply = reply.split("LOG:")[0].split("BOOK:")[0].strip()
     resp.message(clean_reply)
     return str(resp)
 
@@ -352,12 +386,14 @@ def api_stats():
         missed = supabase.table("enquiries").select("*").eq("status", "missed call").execute().data
         quoted = supabase.table("enquiries").select("*").eq("status", "quoted").execute().data
         recent = supabase.table("enquiries").select("*").order("created_at", desc=True).limit(20).execute().data
+        bookings = supabase.table("bookings").select("*").eq("sender", profile.get("sender", "")).order("date").execute().data
 
         return jsonify({
             "enquiries": len(new_enq),
             "unpaid": len(quoted),
             "missed": len(missed),
             "recent": recent,
+            "bookings": bookings,
             "profile": profile
         })
 
