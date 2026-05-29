@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VanOffice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+--bg:#0c0c0c;--s1:#111;--s2:#161616;--s3:#1c1c1c;--s4:#242424;--s5:#2c2c2c;
+--t1:#fff;--t2:rgba(255,255,255,0.6);--t3:rgba(255,255,255,0.25);--t4:rgba(255,255,255,0.1);
+--br:rgba(255,255,255,0.08);
+--acc:#5b6cff;--acc2:#7b8bff;--acc-d:rgba(91,108,255,0.15);
+--grn:#00d4a0;--grn-d:rgba(0,212,160,0.12);
+--red:#ff4757;--red-d:rgba(255,71,87,0.12);
+--amb:#ffb347;--amb-d:rgba(255,179,71,0.12);
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;max-width:390px;margin:0 auto;display:flex;flex-direction:column;position:relative}
+.content{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:72px;-webkit-overflow-scrolling:touch}
+.content::-webkit-scrollbar{display:none}
+#login{position:absolute;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;padding:72px 28px 48px;transition:opacity .3s,transform .3s}
+#login.out{opacity:0;pointer-events:none;transform:translateY(-16px)}
+.logo{font-size:2rem;font-weight:900;letter-spacing:-.06em;color:var(--t1);margin-bottom:5px}
+.logo b{color:var(--acc2);font-weight:900}
+.logo-sub{font-size:.75rem;color:var(--t3);margin-bottom:56px}
+.lbl{font-size:.65rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
+.inp{width:100%;padding:15px 18px;background:var(--s2);border:1px solid var(--br);border-radius:14px;font-family:'Inter',sans-serif;font-size:.95rem;color:var(--t1);outline:none;margin-bottom:14px;transition:border-color .2s}
+.inp::placeholder{color:var(--t4)}
+.inp:focus{border-color:var(--acc)}
+.btn-cta{width:100%;padding:17px;background:var(--acc);border:none;border-radius:14px;font-family:'Inter',sans-serif;font-size:.95rem;font-weight:700;color:#fff;cursor:pointer;margin-top:4px;transition:opacity .15s,transform .1s}
+.btn-cta:active{transform:scale(.98);opacity:.85}
+.login-alt{text-align:center;margin-top:20px;font-size:.75rem;color:var(--t3)}
+.login-alt span{color:var(--acc2);cursor:pointer;font-weight:600}
+.login-foot{margin-top:auto;text-align:center;font-size:.6rem;color:var(--t4);line-height:1.9}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px;flex-shrink:0}
+.topbar-logo{font-size:1.05rem;font-weight:900;letter-spacing:-.05em}
+.topbar-logo b{color:var(--acc2)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.ib{width:34px;height:34px;border-radius:50%;background:var(--s3);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1rem;position:relative;color:var(--t2)}
+.ndot{width:7px;height:7px;background:var(--acc);border-radius:50%;position:absolute;top:6px;right:6px;border:2px solid var(--bg)}
+.av{width:34px;height:34px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:#fff;cursor:pointer}
+.hero{padding:6px 20px 28px}
+.hero-label{font-size:.65rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:10px}
+.hero-amount{font-size:3.4rem;font-weight:900;letter-spacing:-.06em;line-height:1;margin-bottom:10px}
+.hero-pills{display:flex;gap:10px}
+.hpill{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:.7rem;font-weight:600}
+.hpill-grn{background:var(--grn-d);color:var(--grn)}
+.hpill-red{background:var(--red-d);color:var(--red)}
+.hpill-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.hpill-grn .hpill-dot{background:var(--grn)}
+.hpill-red .hpill-dot{background:var(--red)}
+.qa-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 20px 28px}
+.qa{display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:none;cursor:pointer}
+.qa-box{width:100%;aspect-ratio:1;border-radius:18px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;transition:background .15s,transform .1s}
+.qa:active .qa-box{transform:scale(.9);background:var(--s3)}
+.qa-lbl{font-size:.6rem;font-weight:600;color:var(--t3)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 20px 24px}
+.stat{background:var(--s2);border-radius:14px;padding:14px 14px 12px}
+.stat-v{font-size:1.5rem;font-weight:900;letter-spacing:-.04em;line-height:1;margin-bottom:5px}
+.stat-l{font-size:.55rem;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase}
+.sec{padding:0 20px 20px}
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sec-title{font-size:.92rem;font-weight:700;letter-spacing:-.02em}
+.sec-more{font-size:.7rem;font-weight:600;color:var(--acc2);cursor:pointer}
+.list{display:flex;flex-direction:column;gap:2px}
+.li{display:flex;align-items:center;gap:13px;padding:13px 14px;background:var(--s1);border-radius:14px;cursor:pointer;transition:background .1s}
+.li:active{background:var(--s2)}
+.li-ico{width:42px;height:42px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.1rem}
+.li-body{flex:1;min-width:0}
+.li-name{font-size:.86rem;font-weight:600;letter-spacing:-.015em;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-detail{font-size:.67rem;color:var(--t3);font-weight:400}
+.li-right{text-align:right;flex-shrink:0}
+.li-amt{font-size:.86rem;font-weight:700;letter-spacing:-.02em;margin-bottom:4px}
+.bdg{display:inline-block;font-size:.55rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:3px 7px;border-radius:6px}
+.b-acc{background:var(--acc-d);color:var(--acc2)}
+.b-grn{background:var(--grn-d);color:var(--grn)}
+.b-red{background:var(--red-d);color:var(--red)}
+.b-amb{background:var(--amb-d);color:var(--amb)}
+.b-muted{background:var(--s3);color:var(--t3)}
+.nav{flex-shrink:0;background:rgba(12,12,12,.96);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--br);display:flex;padding:8px 0 28px}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:7px 0}
+.ni-ico{font-size:1.2rem;line-height:1;color:var(--t4);transition:color .15s}
+.ni-lbl{font-size:.56rem;font-weight:700;color:var(--t4);letter-spacing:.03em;transition:color .15s}
+.ni.on .ni-ico,.ni.on .ni-lbl{color:var(--t1)}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 14px}
+.ph-title{font-size:1.6rem;font-weight:900;letter-spacing:-.05em}
+.filters{display:flex;gap:7px;padding:0 20px 16px;overflow-x:auto;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.fp{flex-shrink:0;padding:7px 15px;border-radius:20px;font-size:.7rem;font-weight:700;border:1px solid var(--br);background:none;color:var(--t3);cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
+.fp.on{background:var(--t1);border-color:var(--t1);color:var(--bg)}
+.cal{padding:0 20px}
+.cal-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.cal-nav{width:34px;height:34px;background:var(--s2);border:none;border-radius:10px;color:var(--t2);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.cal-mon{font-size:1rem;font-weight:700;letter-spacing:-.03em}
+.cal-hd{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px}
+.cal-hl{text-align:center;font-size:.58rem;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.05em;padding:4px 0 8px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:24px}
+.cd{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:10px;font-size:.76rem;font-weight:500;color:var(--t3);cursor:pointer;position:relative;transition:background .1s}
+.cd:hover{background:var(--s2)}
+.cd.today{background:var(--acc);color:#fff;font-weight:800}
+.cd.hj{color:var(--t1);font-weight:700}
+.cd.hj::after{content:'';width:4px;height:4px;background:var(--acc);border-radius:50%;position:absolute;bottom:4px}
+.cd.empty{cursor:default}
+.prof-hero{display:flex;align-items:center;gap:18px;padding:8px 20px 28px}
+.prof-av{width:62px;height:62px;border-radius:20px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:900;color:#fff;flex-shrink:0}
+.prof-name{font-size:1.15rem;font-weight:800;letter-spacing:-.03em;margin-bottom:3px}
+.prof-trade{font-size:.72rem;color:var(--t3)}
+.sg{padding:0 20px 20px}
+.sg-lbl{font-size:.6rem;font-weight:700;color:var(--t4);letter-spacing:.09em;text-transform:uppercase;margin-bottom:8px;padding-left:2px}
+.sg-list{background:var(--s1);border-radius:16px;overflow:hidden}
+.sg-row{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--br)}
+.sg-row:last-child{border-bottom:none}
+.sg-row-label{font-size:.86rem;font-weight:500;color:var(--t1)}
+.sg-val{font-size:.82rem;color:var(--acc2);font-weight:500;text-align:right;background:none;border:none;font-family:'Inter',sans-serif;outline:none;width:130px;cursor:pointer}
+.sg-danger .sg-row-label{color:var(--red)}
+.sg-danger{cursor:pointer}
+.scr{display:none}
+.scr.on{display:block}
+.hidden{display:none!important}
+.loading{text-align:center;padding:40px 20px;color:var(--t3);font-size:.8rem}
+.empty-state{text-align:center;padding:40px 20px;color:var(--t3);font-size:.8rem;line-height:1.8}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div>
+    <div class="logo">Van<b>Office</b></div>
+    <div class="logo-sub">Your office. In the van.</div>
+  </div>
+  <div>
+    <div class="lbl">Phone number</div>
+    <input type="tel" class="inp" id="loginPhone" placeholder="+44 7700 000000">
+    <div class="lbl">PIN</div>
+    <input type="password" class="inp" id="loginPin" placeholder="••••" maxlength="4">
+    <button class="btn-cta" onclick="doLogin()">Continue</button>
+    <div class="login-alt">No account? <span onclick="doDemo()">Try demo</span></div>
+  </div>
+  <div class="login-foot">VanOffice · Built for UK tradespeople<br>Encrypted · Private · Yours</div>
+</div>
+
+<div id="app" class="hidden" style="display:flex;flex-direction:column;height:100%">
+
+  <div class="content" id="content">
+
+    <!-- HOME -->
+    <div id="s-home" class="scr on">
+      <div class="topbar">
+        <div class="topbar-logo">Van<b>Office</b></div>
+        <div class="topbar-right">
+          <button class="ib">🔔<div class="ndot" id="notifDot" style="display:none"></div></button>
+          <div class="av" id="avInit">H</div>
+        </div>
+      </div>
+      <div class="hero">
+        <div class="hero-label">This month</div>
+        <div class="hero-amount" id="heroAmount">£0</div>
+        <div class="hero-pills">
+          <div class="hpill hpill-grn"><div class="hpill-dot"></div><span id="heroReceived">£0 received</span></div>
+          <div class="hpill hpill-red"><div class="hpill-dot"></div><span id="heroOutstanding">£0 outstanding</span></div>
+        </div>
+      </div>
+      <div class="qa-row">
+        <button class="qa" onclick="go('jobs')"><div class="qa-box">🔨</div><div class="qa-lbl">Jobs</div></button>
+        <button class="qa" onclick="go('quotes')"><div class="qa-box">📋</div><div class="qa-lbl">Quote</div></button>
+        <button class="qa" onclick="go('invoices')"><div class="qa-box">💳</div><div class="qa-lbl">Invoice</div></button>
+        <button class="qa" onclick="go('calendar')"><div class="qa-box">📅</div><div class="qa-lbl">Calendar</div></button>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="stat-v" id="statEnq">0</div><div class="stat-l">Enquiries</div></div>
+        <div class="stat"><div class="stat-v" id="statUnpaid" style="color:var(--red)">0</div><div class="stat-l">Unpaid</div></div>
+        <div class="stat"><div class="stat-v" id="statMissed" style="color:var(--amb)">0</div><div class="stat-l">Missed</div></div>
+      </div>
+      <div class="sec">
+        <div class="sec-head"><div class="sec-title">Recent activity</div><div class="sec-more" onclick="go('jobs')">See all</div></div>
+        <div class="list" id="recentList"><div class="loading">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- JOBS -->
+    <div id="s-jobs" class="scr">
+      <div class="ph"><div class="ph-title">Jobs</div></div>
+      <div class="filters">
+        <button class="fp on" onclick="filt(this,'all')">All</button>
+        <button class="fp" onclick="filt(this,'new')">New</button>
+        <button class="fp" onclick="filt(this,'missed call')">Missed</button>
+        <button class="fp" onclick="filt(this,'quoted')">Quoted</button>
+      </div>
+      <div class="sec">
+        <div class="list" id="jobsList"><div class="loading">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- QUOTES -->
+    <div id="s-quotes" class="scr">
+      <div class="ph"><div class="ph-title">Quotes</div></div>
+      <div class="sec">
+        <div class="list" id="quotesList"><div class="loading">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- INVOICES -->
+    <div id="s-invoices" class="scr">
+      <div class="ph"><div class="ph-title">Invoices</div></div>
+      <div class="sec">
+        <div class="empty-state">Invoice tracking coming soon.<br>Generate invoices via WhatsApp.</div>
+      </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div id="s-calendar" class="scr">
+      <div class="ph"><div class="ph-title">Calendar</div></div>
+      <div class="cal">
+        <div class="cal-top">
+          <button class="cal-nav" onclick="chM(-1)">&#8249;</button>
+          <div class="cal-mon" id="calMon">May 2026</div>
+          <button class="cal-nav" onclick="chM(1)">&#8250;</button>
+        </div>
+        <div class="cal-hd">
+          <div class="cal-hl">M</div><div class="cal-hl">T</div><div class="cal-hl">W</div>
+          <div class="cal-hl">T</div><div class="cal-hl">F</div><div class="cal-hl">S</div><div class="cal-hl">S</div>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+      <div class="sec">
+        <div class="sec-head"><div class="sec-title">Upcoming</div></div>
+        <div class="empty-state">No jobs booked yet.<br>Book jobs via WhatsApp.</div>
+      </div>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="s-profile" class="scr">
+      <div class="ph"><div class="ph-title">Profile</div></div>
+      <div class="prof-hero">
+        <div class="prof-av" id="profAv">H</div>
+        <div><div class="prof-name" id="profName">Loading...</div><div class="prof-trade" id="profTrade">VanOffice</div></div>
+      </div>
+      <div class="sg">
+        <div class="sg-lbl">Business</div>
+        <div class="sg-list" id="profDetails">
+          <div class="sg-row"><div class="sg-row-label">Loading...</div></div>
+        </div>
+      </div>
+      <div class="sg">
+        <div class="sg-lbl">Rates</div>
+        <div class="sg-list" id="profRates">
+          <div class="sg-row"><div class="sg-row-label">Set rates via WhatsApp</div></div>
+        </div>
+      </div>
+      <div class="sg">
+        <div class="sg-lbl">Account</div>
+        <div class="sg-list">
+          <div class="sg-row sg-danger" onclick="doLogout()"><div class="sg-row-label">Sign out</div><div style="color:var(--t4)">›</div></div>
+        </div>
+      </div>
+      <div style="text-align:center;padding:8px 0;font-size:.58rem;color:var(--t4)">VanOffice v0.1 · Built in Devon</div>
+    </div>
+
+  </div>
+
+  <nav class="nav">
+    <button class="ni on" id="n-home" onclick="go('home')"><div class="ni-ico">🏠</div><div class="ni-lbl">Home</div></button>
+    <button class="ni" id="n-jobs" onclick="go('jobs')"><div class="ni-ico">🔨</div><div class="ni-lbl">Jobs</div></button>
+    <button class="ni" id="n-invoices" onclick="go('invoices')"><div class="ni-ico">💳</div><div class="ni-lbl">Invoices</div></button>
+    <button class="ni" id="n-calendar" onclick="go('calendar')"><div class="ni-ico">📅</div><div class="ni-lbl">Calendar</div></button>
+    <button class="ni" id="n-profile" onclick="go('profile')"><div class="ni-ico">👤</div><div class="ni-lbl">Profile</div></button>
+  </nav>
+
+</div>
+
+<script>
+let cm=4,cy=2026;
+let currentFilter='all';
+let allEnquiries=[];
+let userPhone='';
+let isDemo=false;
+
+const DEMO_DATA={
+  enquiries:3,unpaid:2,missed:1,
+  recent:[
+    {client_name:'Dave Thompson',job_type:'Kitchen fitting',location:'Tiverton',status:'new',sender:'demo'},
+    {client_name:'Sarah Mitchell',job_type:'missed call',location:'',status:'missed call',sender:'demo'},
+    {client_name:'Mrs Jones',job_type:'Bathroom refit',location:'Exeter',status:'quoted',sender:'demo'}
+  ]
+};
+
+function doDemo(){
+  isDemo=true;
+  showApp('Demo');
+  loadDemoData();
+}
+
+function doLogin(){
+  const phone=document.getElementById('loginPhone').value.trim();
+  if(!phone){alert('Please enter your phone number');return}
+  userPhone=phone;
+  isDemo=false;
+  showApp(phone);
+  loadRealData(phone);
+}
+
+function showApp(name){
+  document.getElementById('login').classList.add('out');
+  setTimeout(()=>{
+    document.getElementById('login').classList.add('hidden');
+    const app=document.getElementById('app');
+    app.classList.remove('hidden');
+    app.style.display='flex';
+    const initial=name[0].toUpperCase();
+    document.getElementById('avInit').textContent=initial;
+    renderCal();
+  },300);
+}
+
+function doLogout(){
+  document.getElementById('app').style.display='none';
+  document.getElementById('app').classList.add('hidden');
+  const l=document.getElementById('login');
+  l.classList.remove('hidden','out');
+}
+
+async function loadRealData(phone){
+  try{
+    const res=await fetch('/api/stats?phone='+encodeURIComponent(phone));
+    const data=await res.json();
+    if(data.error){loadDemoData();return}
+    updateStats(data);
+    renderRecent(data.recent||[]);
+    allEnquiries=data.recent||[];
+    renderJobs(allEnquiries,'all');
+    renderQuotes(allEnquiries);
+    if(data.profile){renderProfile(data.profile)}
+  }catch(e){
+    loadDemoData();
+  }
+}
+
+function loadDemoData(){
+  updateStats(DEMO_DATA);
+  renderRecent(DEMO_DATA.recent);
+  allEnquiries=DEMO_DATA.recent;
+  renderJobs(allEnquiries,'all');
+  renderQuotes(allEnquiries);
+}
+
+function updateStats(data){
+  document.getElementById('statEnq').textContent=data.enquiries||0;
+  document.getElementById('statUnpaid').textContent=data.unpaid||0;
+  document.getElementById('statMissed').textContent=data.missed||0;
+  if(data.missed>0){document.getElementById('notifDot').style.display='block'}
+}
+
+function statusBadge(status){
+  const map={
+    'new':'<span class="bdg b-acc">New</span>',
+    'quoted':'<span class="bdg b-amb">Quoted</span>',
+    'missed call':'<span class="bdg b-red">Missed</span>',
+    'incoming call':'<span class="bdg b-muted">Call</span>',
+    'done':'<span class="bdg b-grn">Done</span>'
+  };
+  return map[status]||'<span class="bdg b-muted">'+status+'</span>';
+}
+
+function statusIcon(status){
+  const map={
+    'new':'background:var(--acc-d)',
+    'quoted':'background:var(--amb-d)',
+    'missed call':'background:var(--red-d)',
+    'incoming call':'background:var(--grn-d)',
+    'done':'background:var(--grn-d)'
+  };
+  const emoji={
+    'new':'👤','quoted':'📋','missed call':'📞','incoming call':'📞','done':'✅'
+  };
+  return {style:map[status]||'background:var(--s3)',emoji:emoji[status]||'📋'};
+}
+
+function renderRecent(items){
+  const el=document.getElementById('recentList');
+  if(!items||items.length===0){el.innerHTML='<div class="empty-state">No activity yet.<br>Send a WhatsApp to get started.</div>';return}
+  el.innerHTML=items.slice(0,5).map(item=>{
+    const ico=statusIcon(item.status);
+    const name=item.client_name||'Unknown caller';
+    const detail=(item.job_type||'')+(item.location?(' · '+item.location):'');
+    return `<div class="li">
+      <div class="li-ico" style="${ico.style}">${ico.emoji}</div>
+      <div class="li-body"><div class="li-name">${name}</div><div class="li-detail">${detail}</div></div>
+      <div class="li-right"><div class="li-amt" style="font-size:.75rem">${item.status}</div>${statusBadge(item.status)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderJobs(items,filter){
+  const el=document.getElementById('jobsList');
+  let filtered=items;
+  if(filter!=='all')filtered=items.filter(i=>i.status===filter);
+  if(!filtered||filtered.length===0){el.innerHTML='<div class="empty-state">No jobs found.<br>Log enquiries via WhatsApp.</div>';return}
+  el.innerHTML=filtered.map(item=>{
+    const ico=statusIcon(item.status);
+    const name=item.client_name||'Unknown';
+    const detail=(item.job_type||'')+(item.location?(' · '+item.location):'');
+    return `<div class="li">
+      <div class="li-ico" style="${ico.style}">${ico.emoji}</div>
+      <div class="li-body"><div class="li-name">${name}</div><div class="li-detail">${detail}</div></div>
+      <div class="li-right">${statusBadge(item.status)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderQuotes(items){
+  const el=document.getElementById('quotesList');
+  const quotes=items.filter(i=>i.status==='quoted');
+  if(!quotes||quotes.length===0){el.innerHTML='<div class="empty-state">No quotes yet.<br>Generate quotes via WhatsApp.</div>';return}
+  el.innerHTML=quotes.map(item=>{
+    return `<div class="li">
+      <div class="li-ico" style="background:var(--amb-d)">📋</div>
+      <div class="li-body"><div class="li-name">${item.client_name||'Unknown'}</div><div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div></div>
+      <div class="li-right"><span class="bdg b-amb">Quoted</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderProfile(profile){
+  document.getElementById('profName').textContent=profile.owner_name||'Unknown';
+  document.getElementById('profTrade').textContent=(profile.trade||'Tradesperson')+' · Devon';
+  document.getElementById('profAv').textContent=(profile.owner_name||'?')[0].toUpperCase();
+  document.getElementById('profDetails').innerHTML=`
+    <div class="sg-row"><div class="sg-row-label">Business</div><input class="sg-val" value="${profile.business_name||''}"></div>
+    <div class="sg-row"><div class="sg-row-label">Trade</div><input class="sg-val" value="${profile.trade||''}"></div>
+    <div class="sg-row"><div class="sg-row-label">Phone</div><input class="sg-val" value="${profile.phone||''}"></div>
+  `;
+  document.getElementById('profRates').innerHTML=`
+    <div class="sg-row"><div class="sg-row-label">Day rate</div><input class="sg-val" value="£${profile.day_rate||0}"></div>
+    <div class="sg-row"><div class="sg-row-label">Half day</div><input class="sg-val" value="£${profile.half_day_rate||0}"></div>
+    <div class="sg-row"><div class="sg-row-label">Hourly</div><input class="sg-val" value="£${profile.hourly_rate||0}"></div>
+    <div class="sg-row"><div class="sg-row-label">Materials markup</div><input class="sg-val" value="${profile.materials_markup||20}%"></div>
+    <div class="sg-row"><div class="sg-row-label">Payment terms</div><input class="sg-val" value="${profile.payment_terms||30} days"></div>
+    <div class="sg-row"><div class="sg-row-label">VAT</div><input class="sg-val" value="${profile.vat_registered||'No'}"></div>
+  `;
+}
+
+function go(name){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
+  document.getElementById('s-'+name).classList.add('on');
+  const nb=document.getElementById('n-'+name);
+  if(nb)nb.classList.add('on');
+  document.getElementById('content').scrollTop=0;
+  if(name==='jobs')renderJobs(allEnquiries,currentFilter);
+  if(name==='quotes')renderQuotes(allEnquiries);
+  if(!isDemo&&userPhone&&name==='home')loadRealData(userPhone);
+}
+
+function filt(el,filter){
+  el.closest('.filters').querySelectorAll('.fp').forEach(f=>f.classList.remove('on'));
+  el.classList.add('on');
+  currentFilter=filter;
+  renderJobs(allEnquiries,filter);
+}
+
+function chM(d){
+  cm+=d;
+  if(cm>11){cm=0;cy++}
+  if(cm<0){cm=11;cy--}
+  renderCal();
+}
+
+function renderCal(){
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('calMon').textContent=months[cm]+' '+cy;
+  const g=document.getElementById('calGrid');
+  g.innerHTML='';
+  const fd=new Date(cy,cm,1).getDay();
+  const off=fd===0?6:fd-1;
+  const dim=new Date(cy,cm+1,0).getDate();
+  const td=new Date();
+  for(let i=0;i<off;i++){const el=document.createElement('div');el.className='cd empty';g.appendChild(el)}
+  for(let d=1;d<=dim;d++){
+    const el=document.createElement('div');
+    el.className='cd';el.textContent=d;
+    if(d===td.getDate()&&cm===td.getMonth()&&cy===td.getFullYear())el.classList.add('today');
+    g.appendChild(el);
+  }
+}
+</script>
+</body>
+</html>
