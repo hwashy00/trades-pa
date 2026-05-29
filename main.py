@@ -1,6 +1,6 @@
 import os
 import traceback
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import anthropic
 from supabase import create_client
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -16,10 +16,11 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 conversation_history = {}
 
 ONBOARDING_QUESTIONS = [
-    ("business_name", "Welcome to VanOffice! Lets get you set up - only takes 1 minute. What is your business name?"),
+    ("business_name", "Welcome to VanOffice! Lets get you set up - only takes 1 minute.\n\nWhat is your business name?"),
     ("owner_name", "What is your name?"),
-    ("phone", "What is your phone number?"),
+    ("phone", "What is your mobile number?"),
     ("trade", "What is your trade? e.g. Carpenter, Plumber, Plasterer"),
+    ("pin", "Finally, set a 4-digit PIN for your dashboard login. Choose any 4 numbers."),
 ]
 
 
@@ -112,6 +113,14 @@ def whatsapp():
             data = onboarding["data"] or {}
 
             question_key, _ = ONBOARDING_QUESTIONS[step]
+
+            # Validate PIN
+            if question_key == "pin":
+                pin = incoming_msg.strip()
+                if not pin.isdigit() or len(pin) != 4:
+                    resp.message("Please enter exactly 4 digits for your PIN. e.g. 1234")
+                    return str(resp)
+
             data[question_key] = incoming_msg
 
             if step + 1 < len(ONBOARDING_QUESTIONS):
@@ -140,12 +149,13 @@ def whatsapp():
                         "payment_terms": "30",
                         "vat_registered": "no",
                         "vat_number": "",
-                        "twilio_number": ""
+                        "twilio_number": "",
+                        "pin": data.get("pin", "")
                     }).execute()
 
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
 
-                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nTry saying:\n- Quote for John Smith, kitchen fitting, 3 days labour\n- Log a call from Sarah Jones, wants bathroom tiled\n- What jobs are outstanding?")
+                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nVisit your dashboard at:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard\n\nLog in with your mobile number and PIN.\n\nTry saying:\n- Quote for John Smith, kitchen fitting, 3 days labour\n- Log a call from Sarah Jones, wants bathroom tiled\n- What jobs are outstanding?")
 
                 except Exception as e:
                     print("Profile save error: " + str(e))
@@ -299,37 +309,56 @@ def call_status():
     resp = VoiceResponse()
     return str(resp)
 
+
 @app.route("/dashboard")
 def dashboard():
     with open("dashboard.html", "r") as f:
         return f.read()
 
+
 @app.route("/api/stats")
 def api_stats():
     try:
-        phone = request.args.get("phone", "")
-        sender = "whatsapp:" + phone.replace(" ", "")
-        
-        profile = None
-        if phone:
+        phone = request.args.get("phone", "").strip()
+        pin = request.args.get("pin", "").strip()
+
+        if not phone or not pin:
+            return jsonify({"error": "Phone and PIN required"}), 401
+
+        # Find profile by phone number stored in profile
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+
+        if not result.data:
+            # Try with whatsapp: prefix format
+            sender = "whatsapp:+" + phone.lstrip("+").lstrip("0")
             result = supabase.table("profiles").select("*").eq("sender", sender).execute()
-            if result.data:
-                profile = result.data[0]
+
+        if not result.data:
+            return jsonify({"error": "Profile not found"}), 404
+
+        profile = result.data[0]
+
+        # Check PIN
+        if str(profile.get("pin", "")) != str(pin):
+            return jsonify({"error": "Invalid PIN"}), 401
 
         new_enq = supabase.table("enquiries").select("*").eq("status", "new").execute().data
         missed = supabase.table("enquiries").select("*").eq("status", "missed call").execute().data
         quoted = supabase.table("enquiries").select("*").eq("status", "quoted").execute().data
         recent = supabase.table("enquiries").select("*").order("created_at", desc=True).limit(20).execute().data
 
-        return {
+        return jsonify({
             "enquiries": len(new_enq),
             "unpaid": len(quoted),
             "missed": len(missed),
             "recent": recent,
             "profile": profile
-        }
+        })
+
     except Exception as e:
-        return {"error": str(e)}
+        print("API stats error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
