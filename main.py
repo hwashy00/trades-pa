@@ -1,4 +1,5 @@
 import os
+import random
 import traceback
 from flask import Flask, request, jsonify
 import anthropic
@@ -18,7 +19,7 @@ conversation_history = {}
 ONBOARDING_QUESTIONS = [
     ("business_name", "Welcome to VanOffice! Lets get you set up - only takes 1 minute.\n\nWhat is your business name?"),
     ("owner_name", "What is your name?"),
-    ("phone", "What is your mobile number?"),
+    ("phone", "What is your mobile number? Include country code e.g. +447504544469"),
     ("trade", "What is your trade? e.g. Carpenter, Plumber, Plasterer"),
     ("pin", "Finally, set a 4-digit PIN for your dashboard login. Choose any 4 numbers."),
 ]
@@ -29,6 +30,13 @@ def clean_number(value, default="0"):
     if not cleaned:
         return default
     return cleaned
+
+
+def format_phone(phone):
+    phone = phone.strip().replace(" ", "")
+    if phone.startswith("0"):
+        phone = "+44" + phone[1:]
+    return phone
 
 
 def get_user_profile(sender):
@@ -114,7 +122,6 @@ def whatsapp():
 
             question_key, _ = ONBOARDING_QUESTIONS[step]
 
-            # Validate PIN
             if question_key == "pin":
                 pin = incoming_msg.strip()
                 if not pin.isdigit() or len(pin) != 4:
@@ -136,11 +143,12 @@ def whatsapp():
 
             else:
                 try:
+                    phone = format_phone(data.get("phone", ""))
                     supabase.table("profiles").insert({
                         "sender": sender,
                         "business_name": data.get("business_name", ""),
                         "owner_name": data.get("owner_name", ""),
-                        "phone": data.get("phone", ""),
+                        "phone": phone,
                         "trade": data.get("trade", ""),
                         "day_rate": "0",
                         "half_day_rate": "0",
@@ -150,7 +158,8 @@ def whatsapp():
                         "vat_registered": "no",
                         "vat_number": "",
                         "twilio_number": "",
-                        "pin": data.get("pin", "")
+                        "pin": data.get("pin", ""),
+                        "reset_code": ""
                     }).execute()
 
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
@@ -319,18 +328,16 @@ def dashboard():
 @app.route("/api/stats")
 def api_stats():
     try:
-        phone = request.args.get("phone", "").strip()
+        phone = format_phone(request.args.get("phone", "").strip())
         pin = request.args.get("pin", "").strip()
 
         if not phone or not pin:
             return jsonify({"error": "Phone and PIN required"}), 401
 
-        # Find profile by phone number stored in profile
         result = supabase.table("profiles").select("*").eq("phone", phone).execute()
 
         if not result.data:
-            # Try with whatsapp: prefix format
-            sender = "whatsapp:+" + phone.lstrip("+").lstrip("0")
+            sender = "whatsapp:" + phone
             result = supabase.table("profiles").select("*").eq("sender", sender).execute()
 
         if not result.data:
@@ -338,7 +345,6 @@ def api_stats():
 
         profile = result.data[0]
 
-        # Check PIN
         if str(profile.get("pin", "")) != str(pin):
             return jsonify({"error": "Invalid PIN"}), 401
 
@@ -358,15 +364,14 @@ def api_stats():
     except Exception as e:
         print("API stats error: " + str(e))
         return jsonify({"error": str(e)}), 500
-        
+
+
 @app.route("/api/reset-pin")
 def reset_pin():
-    import random
     try:
-        phone = request.args.get("phone", "").strip()
-if phone.startswith("0"):
-    phone = "+44" + phone[1:]
-if not phone:
+        phone = format_phone(request.args.get("phone", "").strip())
+
+        if not phone:
             return jsonify({"error": "Phone required"}), 400
 
         result = supabase.table("profiles").select("*").eq("phone", phone).execute()
@@ -387,14 +392,16 @@ if not phone:
         )
 
         return jsonify({"success": True})
+
     except Exception as e:
+        print("Reset pin error: " + str(e))
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/confirm-reset")
 def confirm_reset():
     try:
-        phone = request.args.get("phone", "").strip()
+        phone = format_phone(request.args.get("phone", "").strip())
         code = request.args.get("code", "").strip()
         newpin = request.args.get("newpin", "").strip()
 
@@ -411,8 +418,11 @@ def confirm_reset():
 
         supabase.table("profiles").update({"pin": newpin, "reset_code": ""}).eq("phone", phone).execute()
         return jsonify({"success": True})
+
     except Exception as e:
+        print("Confirm reset error: " + str(e))
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
