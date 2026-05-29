@@ -254,7 +254,7 @@ def incoming_call():
     resp = VoiceResponse()
 
     if profile and profile.get("phone"):
-        resp.say("Please hold while we connect your call.")
+        resp.say("Please hold while we connect your call. This call may be recorded for quality purposes.")
         dial = Dial(action="/call-status", method="POST")
         dial.number(profile.get("phone"))
         resp.append(dial)
