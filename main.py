@@ -387,6 +387,8 @@ def api_stats():
         quoted = supabase.table("enquiries").select("*").eq("status", "quoted").execute().data
         recent = supabase.table("enquiries").select("*").order("created_at", desc=True).limit(20).execute().data
         bookings = supabase.table("bookings").select("*").eq("sender", profile.get("sender", "")).order("date").execute().data
+        template_result = supabase.table("quote_templates").select("*").eq("sender", profile.get("sender", "")).execute()
+        template = template_result.data[0] if template_result.data else None
 
         return jsonify({
             "enquiries": len(new_enq),
@@ -394,7 +396,8 @@ def api_stats():
             "missed": len(missed),
             "recent": recent,
             "bookings": bookings,
-            "profile": profile
+            "profile": profile,
+            "template": template
         })
 
     except Exception as e:
@@ -457,6 +460,66 @@ def confirm_reset():
 
     except Exception as e:
         print("Confirm reset error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/save-template", methods=["POST"])
+def save_template():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+
+        if not phone or not pin:
+            return jsonify({"error": "Phone and PIN required"}), 401
+
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data:
+            return jsonify({"error": "Profile not found"}), 404
+
+        profile = result.data[0]
+        if str(profile.get("pin", "")) != str(pin):
+            return jsonify({"error": "Invalid PIN"}), 401
+
+        sender = profile.get("sender", "")
+        data = request.json
+
+        existing = supabase.table("quote_templates").select("*").eq("sender", sender).execute()
+        if existing.data:
+            supabase.table("quote_templates").update(data).eq("sender", sender).execute()
+        else:
+            data["sender"] = sender
+            supabase.table("quote_templates").insert(data).execute()
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        print("Save template error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/get-template")
+def get_template():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+
+        if not phone or not pin:
+            return jsonify({"error": "Phone and PIN required"}), 401
+
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data:
+            return jsonify({"error": "Profile not found"}), 404
+
+        profile = result.data[0]
+        if str(profile.get("pin", "")) != str(pin):
+            return jsonify({"error": "Invalid PIN"}), 401
+
+        sender = profile.get("sender", "")
+        template = supabase.table("quote_templates").select("*").eq("sender", sender).execute()
+
+        return jsonify({"template": template.data[0] if template.data else None})
+
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
