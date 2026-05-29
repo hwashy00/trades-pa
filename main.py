@@ -84,68 +84,85 @@ scheduler.add_job(send_morning_summary, "cron", hour=8, minute=0)
 scheduler.start()
 
 
-@app.route("/whatsapp", methods=["POST"])
-def whatsapp():
-    incoming_msg = request.form.get("Body", "").strip()
-    sender = request.form.get("From", "")
+@app.route("/call", methods=["POST"])
+def incoming_call():
+    caller = request.form.get("From", "")
+    called = request.form.get("To", "")
 
-    from twilio.twiml.messaging_response import MessagingResponse
-    resp = MessagingResponse()
+    # Look up which tradesperson owns this Twilio number
+    try:
+        result = supabase.table("profiles").select("*").eq("twilio_number", called).execute()
+        profile = result.data[0] if result.data else None
+    except Exception as e:
+        print("Profile lookup error: " + str(e))
+        profile = None
 
-    profile = get_user_profile(sender)
+    # Log the call
+    try:
+        supabase.table("enquiries").insert({
+            "sender": caller,
+            "message": "INCOMING CALL",
+            "summary": "Call from " + caller,
+            "client_name": "",
+            "job_type": "incoming call",
+            "location": "",
+            "status": "incoming call"
+        }).execute()
+    except Exception as e:
+        print("Logging error: " + str(e))
 
-    if not profile:
-        onboarding = get_onboarding_state(sender)
+    from twilio.twiml.voice_response import VoiceResponse, Dial
+    resp = VoiceResponse()
 
-        if not onboarding:
-            question_key, question_text = ONBOARDING_QUESTIONS[0]
-            supabase.table("onboarding").insert({
-                "sender": sender,
-                "step": 0,
-                "data": {}
-            }).execute()
-            resp.message(question_text)
-            return str(resp)
+    if profile and profile.get("phone"):
+        # Forward to tradesperson's mobile
+        resp.say("Please hold while we connect your call.")
+        dial = Dial(action="/call-status", method="POST")
+        dial.number(profile.get("phone"))
+        resp.append(dial)
+    else:
+        # No profile found - leave voicemail
+        resp.say("Sorry, we are unable to connect your call right now. Please try again later.")
 
-        else:
-            step = onboarding["step"]
-            data = onboarding["data"] or {}
+    return str(resp)
 
-            question_key, _ = ONBOARDING_QUESTIONS[step]
-            data[question_key] = incoming_msg
 
-            if step + 1 < len(ONBOARDING_QUESTIONS):
-                next_step = step + 1
-                _, next_question = ONBOARDING_QUESTIONS[next_step]
+@app.route("/call-status", methods=["POST"])
+def call_status():
+    dial_status = request.form.get("DialCallStatus", "")
+    caller = request.form.get("From", "")
+    called = request.form.get("To", "")
 
-                supabase.table("onboarding").update({
-                    "step": next_step,
-                    "data": data
-                }).eq("sender", sender).execute()
+    if dial_status != "completed":
+        # Wasn't answered - send auto text to caller
+        try:
+            result = supabase.table("profiles").select("*").eq("twilio_number", called).execute()
+            profile = result.data[0] if result.data else None
+        except:
+            profile = None
 
-                resp.message(next_question)
+        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+        twilio_client = TwilioClient(account_sid, auth_token)
 
-            else:
-                try:
-                    supabase.table("profiles").insert({
-                        "sender": sender,
-                        "business_name": data.get("business_name", ""),
-                        "owner_name": data.get("owner_name", ""),
-                        "phone": data.get("phone", ""),
-                        "trade": data.get("trade", ""),
-                    }).execute()
+        try:
+            twilio_client.messages.create(
+                body="Hi, sorry I missed your call! I am currently on site. What is the job? I will get back to you as soon as I can.",
+                from_=called,
+                to=caller
+            )
+            # Log as missed call
+            supabase.table("enquiries").update({
+                "status": "missed call",
+                "job_type": "missed call",
+                "summary": "Missed call from " + caller
+            }).eq("sender", caller).eq("status", "incoming call").execute()
+        except Exception as e:
+            print("SMS error: " + str(e))
 
-                    supabase.table("onboarding").delete().eq("sender", sender).execute()
-
-                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nTry saying:\n- Quote for John Smith, kitchen fitting, 3 days labour\n- Log a call from Sarah Jones, wants bathroom tiled\n- What jobs are outstanding?")
-
-                except Exception as e:
-                    print("Profile save error: " + str(e))
-                    print(traceback.format_exc())
-                    resp.message("Sorry something went wrong. Please try again.")
-                    supabase.table("onboarding").delete().eq("sender", sender).execute()
-
-            return str(resp)
+    from twilio.twiml.voice_response import VoiceResponse
+    resp = VoiceResponse()
+    return str(resp)
 
     if sender not in conversation_history:
         conversation_history[sender] = []
