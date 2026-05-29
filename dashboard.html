@@ -21,13 +21,7 @@ html,body{height:100%;overflow:hidden}
 body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;max-width:390px;margin:0 auto;display:flex;flex-direction:column;position:relative}
 .content{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:72px;-webkit-overflow-scrolling:touch}
 .content::-webkit-scrollbar{display:none}
-
-/* LOGIN SCREENS */
-.login-screen{
-position:absolute;inset:0;z-index:999;background:var(--bg);
-display:flex;flex-direction:column;padding:72px 28px 48px;
-transition:opacity .3s,transform .3s;
-}
+.login-screen{position:absolute;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;padding:72px 28px 48px;transition:opacity .3s,transform .3s}
 .login-screen.out{opacity:0;pointer-events:none;transform:translateY(-16px)}
 .login-screen.hidden{display:none}
 .logo{font-size:2rem;font-weight:900;letter-spacing:-.06em;color:var(--t1);margin-bottom:5px}
@@ -39,29 +33,19 @@ transition:opacity .3s,transform .3s;
 .inp:focus{border-color:var(--acc)}
 .btn-cta{width:100%;padding:17px;background:var(--acc);border:none;border-radius:14px;font-family:'Inter',sans-serif;font-size:.95rem;font-weight:700;color:#fff;cursor:pointer;margin-top:4px;transition:opacity .15s,transform .1s}
 .btn-cta:active{transform:scale(.98);opacity:.85}
-.btn-cta:disabled{opacity:.5;cursor:not-allowed}
 .login-alt{text-align:center;margin-top:16px;font-size:.75rem;color:var(--t3)}
 .login-alt span{color:var(--acc2);cursor:pointer;font-weight:600}
 .login-foot{margin-top:auto;text-align:center;font-size:.6rem;color:var(--t4);line-height:1.9}
 .err-msg{color:var(--red);font-size:.75rem;text-align:center;margin-top:10px;min-height:20px}
 .back-btn{display:flex;align-items:center;gap:8px;background:none;border:none;color:var(--t3);font-family:'Inter',sans-serif;font-size:.8rem;cursor:pointer;margin-bottom:32px;padding:0}
-.back-btn:hover{color:var(--t1)}
-
-/* PIN DOTS */
 .pin-dots{display:flex;justify-content:center;gap:16px;margin:24px 0 32px}
 .pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--t3);transition:all .15s}
 .pin-dot.filled{background:var(--acc);border-color:var(--acc)}
 .pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:280px;margin:0 auto}
-.pk-btn{
-padding:18px;background:var(--s2);border:none;border-radius:14px;
-font-family:'Inter',sans-serif;font-size:1.3rem;font-weight:600;color:var(--t1);
-cursor:pointer;transition:background .15s,transform .1s;
-}
+.pk-btn{padding:18px;background:var(--s2);border:none;border-radius:14px;font-family:'Inter',sans-serif;font-size:1.3rem;font-weight:600;color:var(--t1);cursor:pointer;transition:background .15s,transform .1s}
 .pk-btn:active{transform:scale(.92);background:var(--s3)}
 .pk-btn.del{font-size:1rem;color:var(--t3)}
 .pk-btn.empty{background:none;cursor:default}
-
-/* APP */
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px;flex-shrink:0}
 .topbar-logo{font-size:1.05rem;font-weight:900;letter-spacing:-.05em}
 .topbar-logo b{color:var(--acc2)}
@@ -153,7 +137,6 @@ cursor:pointer;transition:background .15s,transform .1s;
 </head>
 <body>
 
-<!-- SCREEN 1: PHONE NUMBER -->
 <div id="screenPhone" class="login-screen">
   <div>
     <div class="logo">Van<b>Office</b></div>
@@ -169,12 +152,11 @@ cursor:pointer;transition:background .15s,transform .1s;
   <div class="login-foot">VanOffice · Built for UK tradespeople<br>Encrypted · Private · Yours</div>
 </div>
 
-<!-- SCREEN 2: PIN ENTRY -->
 <div id="screenPin" class="login-screen hidden">
   <div>
     <button class="back-btn" onclick="goBack()">← Back</button>
     <div class="logo">Van<b>Office</b></div>
-    <div class="logo-sub" id="pinSubtitle">Enter your PIN</div>
+    <div class="logo-sub">Enter your PIN</div>
   </div>
   <div>
     <div class="pin-dots">
@@ -204,12 +186,11 @@ cursor:pointer;transition:background .15s,transform .1s;
   </div>
 </div>
 
-<!-- SCREEN 3: FORGOT PIN -->
 <div id="screenForgot" class="login-screen hidden">
   <div>
     <button class="back-btn" onclick="showPinScreen()">← Back</button>
     <div class="logo">Van<b>Office</b></div>
-    <div class="logo-sub">We'll send a reset code to your WhatsApp</div>
+    <div class="logo-sub">We'll send a reset code to your phone</div>
   </div>
   <div>
     <div class="lbl">Your phone number</div>
@@ -219,28 +200,25 @@ cursor:pointer;transition:background .15s,transform .1s;
   </div>
 </div>
 
-<!-- SCREEN 4: RESET CODE -->
 <div id="screenReset" class="login-screen hidden">
   <div>
     <button class="back-btn" onclick="showForgotPin()">← Back</button>
     <div class="logo">Van<b>Office</b></div>
-    <div class="logo-sub">Enter the 6-digit code sent to your WhatsApp</div>
+    <div class="logo-sub">Enter the 6-digit code sent to your phone</div>
   </div>
   <div>
     <div class="lbl">Reset code</div>
-    <input type="number" class="inp" id="resetCode" placeholder="000000" maxlength="6">
-    <div class="lbl" style="margin-top:8px">New PIN</div>
+    <input type="number" class="inp" id="resetCode" placeholder="000000">
+    <div class="lbl" style="margin-top:4px">New PIN</div>
     <input type="password" class="inp" id="newPin" placeholder="4 digits" maxlength="4">
     <button class="btn-cta" onclick="submitReset()">Set new PIN</button>
     <div class="err-msg" id="resetErr"></div>
   </div>
 </div>
 
-<!-- APP -->
 <div id="app" class="hidden" style="display:flex;flex-direction:column;height:100%">
   <div class="content" id="content">
 
-    <!-- HOME -->
     <div id="s-home" class="scr on">
       <div class="topbar">
         <div class="topbar-logo">Van<b>Office</b></div>
@@ -250,11 +228,11 @@ cursor:pointer;transition:background .15s,transform .1s;
         </div>
       </div>
       <div class="hero">
-        <div class="hero-label">This month</div>
+        <div class="hero-label">Overview</div>
         <div class="hero-amount" id="heroAmount">—</div>
         <div class="hero-pills">
-          <div class="hpill hpill-grn"><div class="hpill-dot"></div><span id="heroNew">0 new enquiries</span></div>
-          <div class="hpill hpill-red"><div class="hpill-dot"></div><span id="heroMissed">0 missed calls</span></div>
+          <div class="hpill hpill-grn"><div class="hpill-dot"></div><span id="heroNew">0 enquiries</span></div>
+          <div class="hpill hpill-red"><div class="hpill-dot"></div><span id="heroMissed">0 missed</span></div>
         </div>
       </div>
       <div class="qa-row">
@@ -265,16 +243,19 @@ cursor:pointer;transition:background .15s,transform .1s;
       </div>
       <div class="stats">
         <div class="stat"><div class="stat-v" id="statEnq">—</div><div class="stat-l">Enquiries</div></div>
-        <div class="stat"><div class="stat-v" id="statUnpaid" style="color:var(--red)">—</div><div class="stat-l">Quoted</div></div>
+        <div class="stat"><div class="stat-v" id="statBooked" style="color:var(--acc2)">—</div><div class="stat-l">Booked</div></div>
         <div class="stat"><div class="stat-v" id="statMissed" style="color:var(--amb)">—</div><div class="stat-l">Missed</div></div>
       </div>
       <div class="sec">
         <div class="sec-head"><div class="sec-title">Recent activity</div><div class="sec-more" onclick="go('jobs')">See all</div></div>
         <div class="list" id="recentList"><div class="loading">Loading...</div></div>
       </div>
+      <div class="sec">
+        <div class="sec-head"><div class="sec-title">Upcoming jobs</div><div class="sec-more" onclick="go('calendar')">Calendar</div></div>
+        <div class="list" id="upcomingList"><div class="loading">Loading...</div></div>
+      </div>
     </div>
 
-    <!-- JOBS -->
     <div id="s-jobs" class="scr">
       <div class="ph"><div class="ph-title">Jobs</div></div>
       <div class="filters">
@@ -286,19 +267,16 @@ cursor:pointer;transition:background .15s,transform .1s;
       <div class="sec"><div class="list" id="jobsList"><div class="loading">Loading...</div></div></div>
     </div>
 
-    <!-- QUOTES -->
     <div id="s-quotes" class="scr">
       <div class="ph"><div class="ph-title">Quotes</div></div>
       <div class="sec"><div class="list" id="quotesList"><div class="loading">Loading...</div></div></div>
     </div>
 
-    <!-- INVOICES -->
     <div id="s-invoices" class="scr">
       <div class="ph"><div class="ph-title">Invoices</div></div>
       <div class="sec"><div class="empty-state">Invoice tracking coming soon.<br>Generate invoices via WhatsApp.</div></div>
     </div>
 
-    <!-- CALENDAR -->
     <div id="s-calendar" class="scr">
       <div class="ph"><div class="ph-title">Calendar</div></div>
       <div class="cal">
@@ -314,12 +292,11 @@ cursor:pointer;transition:background .15s,transform .1s;
         <div class="cal-grid" id="calGrid"></div>
       </div>
       <div class="sec">
-        <div class="sec-head"><div class="sec-title">Upcoming</div></div>
-        <div class="empty-state">No jobs booked yet.</div>
+        <div class="sec-head"><div class="sec-title">Booked jobs</div></div>
+        <div class="list" id="bookingsList"><div class="loading">Loading...</div></div>
       </div>
     </div>
 
-    <!-- PROFILE -->
     <div id="s-profile" class="scr">
       <div class="ph"><div class="ph-title">Profile</div></div>
       <div class="prof-hero">
@@ -337,7 +314,7 @@ cursor:pointer;transition:background .15s,transform .1s;
       <div class="sg">
         <div class="sg-lbl">Account</div>
         <div class="sg-list">
-          <div class="sg-row" style="cursor:pointer" onclick="changePin()"><div class="sg-row-label">Change PIN</div><div style="color:var(--t4)">›</div></div>
+          <div class="sg-row" style="cursor:pointer" onclick="showForgotPin()"><div class="sg-row-label">Change PIN</div><div style="color:var(--t4)">›</div></div>
           <div class="sg-row sg-danger" onclick="doLogout()"><div class="sg-row-label">Sign out</div><div style="color:var(--t4)">›</div></div>
         </div>
       </div>
@@ -358,9 +335,8 @@ cursor:pointer;transition:background .15s,transform .1s;
 <script>
 let cm=new Date().getMonth(),cy=new Date().getFullYear();
 let currentFilter='all';
-let allEnquiries=[];
-let userPhone='',userPin='';
-let pinBuffer='';
+let allEnquiries=[],allBookings=[];
+let userPhone='',userPin='',pinBuffer='';
 
 function submitPhone(){
   const phone=document.getElementById('phoneInput').value.trim();
@@ -371,12 +347,9 @@ function submitPhone(){
 }
 
 function showPinScreen(){
-  document.getElementById('screenPhone').classList.add('hidden');
-  document.getElementById('screenForgot').classList.add('hidden');
-  document.getElementById('screenReset').classList.add('hidden');
+  ['screenPhone','screenForgot','screenReset'].forEach(id=>document.getElementById(id).classList.add('hidden'));
   document.getElementById('screenPin').classList.remove('hidden');
-  pinBuffer='';
-  updatePinDots();
+  pinBuffer='';updatePinDots();
   document.getElementById('pinErr').textContent='';
 }
 
@@ -392,20 +365,14 @@ function goBack(){
 
 function pinKey(k){
   if(pinBuffer.length>=4)return;
-  pinBuffer+=k;
-  updatePinDots();
+  pinBuffer+=k;updatePinDots();
   if(pinBuffer.length===4)setTimeout(submitPin,150);
 }
 
-function pinDel(){
-  pinBuffer=pinBuffer.slice(0,-1);
-  updatePinDots();
-}
+function pinDel(){pinBuffer=pinBuffer.slice(0,-1);updatePinDots()}
 
 function updatePinDots(){
-  for(let i=0;i<4;i++){
-    document.getElementById('d'+i).classList.toggle('filled',i<pinBuffer.length);
-  }
+  for(let i=0;i<4;i++)document.getElementById('d'+i).classList.toggle('filled',i<pinBuffer.length);
 }
 
 async function submitPin(){
@@ -416,15 +383,12 @@ async function submitPin(){
     const data=await res.json();
     if(res.status===401||data.error){
       document.getElementById('pinErr').textContent='Incorrect PIN. Try again.';
-      pinBuffer='';
-      updatePinDots();
-      return;
+      pinBuffer='';updatePinDots();return;
     }
     showApp(data);
   }catch(e){
     document.getElementById('pinErr').textContent='Connection error. Try again.';
-    pinBuffer='';
-    updatePinDots();
+    pinBuffer='';updatePinDots();
   }
 }
 
@@ -440,44 +404,35 @@ async function sendReset(){
     document.getElementById('screenForgot').classList.add('hidden');
     document.getElementById('screenReset').classList.remove('hidden');
     document.getElementById('forgotErr').textContent='';
-  }catch(e){
-    document.getElementById('forgotErr').textContent='Error sending code. Try again.';
-  }
+  }catch(e){document.getElementById('forgotErr').textContent='Error. Try again.'}
 }
 
 async function submitReset(){
   const code=document.getElementById('resetCode').value.trim();
   const newPin=document.getElementById('newPin').value.trim();
   if(!code||!newPin){document.getElementById('resetErr').textContent='Fill in both fields';return}
-  if(newPin.length!==4||!newPin.match(/^\d+$/)){document.getElementById('resetErr').textContent='PIN must be 4 digits';return}
+  if(newPin.length!==4||!/^\d+$/.test(newPin)){document.getElementById('resetErr').textContent='PIN must be 4 digits';return}
   try{
     const res=await fetch('/api/confirm-reset?phone='+encodeURIComponent(userPhone)+'&code='+encodeURIComponent(code)+'&newpin='+encodeURIComponent(newPin));
     const data=await res.json();
     if(data.error){document.getElementById('resetErr').textContent=data.error;return}
-    document.getElementById('resetErr').textContent='';
-    userPin=newPin;
-    showPinScreen();
+    userPin=newPin;showPinScreen();
     setTimeout(()=>document.getElementById('pinErr').textContent='PIN updated. Log in with your new PIN.',100);
-  }catch(e){
-    document.getElementById('resetErr').textContent='Error. Try again.';
-  }
-}
-
-function changePin(){
-  document.getElementById('screenForgot').querySelector('.logo-sub').textContent='We will send a reset code to your WhatsApp';
-  showForgotPin();
+  }catch(e){document.getElementById('resetErr').textContent='Error. Try again.'}
 }
 
 function showApp(data){
   document.getElementById('screenPin').classList.add('hidden');
   const app=document.getElementById('app');
-  app.classList.remove('hidden');
-  app.style.display='flex';
-  updateStats(data);
-  renderRecent(data.recent||[]);
+  app.classList.remove('hidden');app.style.display='flex';
   allEnquiries=data.recent||[];
+  allBookings=data.bookings||[];
+  updateStats(data);
+  renderRecent(allEnquiries);
+  renderUpcoming(allBookings);
   renderJobs(allEnquiries,'all');
   renderQuotes(allEnquiries);
+  renderBookings(allBookings);
   if(data.profile)renderProfile(data.profile);
   const n=data.profile&&data.profile.owner_name?data.profile.owner_name[0].toUpperCase():'H';
   document.getElementById('avInit').textContent=n;
@@ -500,28 +455,32 @@ function doDemo(){
       {client_name:'Sarah Mitchell',job_type:'Missed call',location:'',status:'missed call'},
       {client_name:'Mrs Jones',job_type:'Bathroom refit',location:'Exeter',status:'quoted'}
     ],
+    bookings:[
+      {client_name:'Mrs Jones',job_type:'Bathroom refit',location:'Exeter',date:'2026-05-27',time:'09:00',duration_days:'3',status:'booked'},
+      {client_name:'Mrs Lewis',job_type:'Staircase',location:'Exeter',date:'2026-06-03',time:'08:00',duration_days:'4',status:'booked'}
+    ],
     profile:{owner_name:'Harry',business_name:"Harry's Carpentry",trade:'Carpenter',phone:'07504544469',day_rate:'300',half_day_rate:'175',hourly_rate:'45',materials_markup:'20',payment_terms:'30',vat_registered:'no'}
   });
 }
 
 function updateStats(data){
   document.getElementById('statEnq').textContent=data.enquiries||0;
-  document.getElementById('statUnpaid').textContent=data.unpaid||0;
+  document.getElementById('statBooked').textContent=(data.bookings||[]).length;
   document.getElementById('statMissed').textContent=data.missed||0;
-  document.getElementById('heroAmount').textContent=data.enquiries+data.unpaid+data.missed+' total';
-  document.getElementById('heroNew').textContent=(data.enquiries||0)+' new enquiries';
-  document.getElementById('heroMissed').textContent=(data.missed||0)+' missed calls';
+  document.getElementById('heroAmount').textContent=(data.enquiries||0)+' active';
+  document.getElementById('heroNew').textContent=(data.enquiries||0)+' enquiries';
+  document.getElementById('heroMissed').textContent=(data.missed||0)+' missed';
   if(data.missed>0)document.getElementById('notifDot').style.display='block';
 }
 
 function statusBadge(s){
-  const m={'new':'<span class="bdg b-acc">New</span>','quoted':'<span class="bdg b-amb">Quoted</span>','missed call':'<span class="bdg b-red">Missed</span>','incoming call':'<span class="bdg b-muted">Call</span>','done':'<span class="bdg b-grn">Done</span>'};
+  const m={'new':'<span class="bdg b-acc">New</span>','quoted':'<span class="bdg b-amb">Quoted</span>','missed call':'<span class="bdg b-red">Missed</span>','incoming call':'<span class="bdg b-muted">Call</span>','done':'<span class="bdg b-grn">Done</span>','booked':'<span class="bdg b-grn">Booked</span>'};
   return m[s]||'<span class="bdg b-muted">'+s+'</span>';
 }
 
 function statusIcon(s){
-  const styles={'new':'background:var(--acc-d)','quoted':'background:var(--amb-d)','missed call':'background:var(--red-d)','incoming call':'background:var(--grn-d)','done':'background:var(--grn-d)'};
-  const emojis={'new':'👤','quoted':'📋','missed call':'📞','incoming call':'📞','done':'✅'};
+  const styles={'new':'background:var(--acc-d)','quoted':'background:var(--amb-d)','missed call':'background:var(--red-d)','incoming call':'background:var(--grn-d)','done':'background:var(--grn-d)','booked':'background:var(--grn-d)'};
+  const emojis={'new':'👤','quoted':'📋','missed call':'📞','incoming call':'📞','done':'✅','booked':'📅'};
   return{style:styles[s]||'background:var(--s3)',emoji:emojis[s]||'📋'};
 }
 
@@ -530,9 +489,20 @@ function renderRecent(items){
   if(!items||!items.length){el.innerHTML='<div class="empty-state">No activity yet.<br>Send a WhatsApp to get started.</div>';return}
   el.innerHTML=items.slice(0,5).map(item=>{
     const ico=statusIcon(item.status);
-    const name=item.client_name||'Unknown caller';
-    const detail=(item.job_type||'')+(item.location?' · '+item.location:'');
-    return`<div class="li"><div class="li-ico" style="${ico.style}">${ico.emoji}</div><div class="li-body"><div class="li-name">${name}</div><div class="li-detail">${detail}</div></div><div class="li-right">${statusBadge(item.status)}</div></div>`;
+    return`<div class="li"><div class="li-ico" style="${ico.style}">${ico.emoji}</div><div class="li-body"><div class="li-name">${item.client_name||'Unknown'}</div><div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div></div><div class="li-right">${statusBadge(item.status)}</div></div>`;
+  }).join('');
+}
+
+function renderUpcoming(bookings){
+  const el=document.getElementById('upcomingList');
+  if(!bookings||!bookings.length){el.innerHTML='<div class="empty-state">No jobs booked yet.<br>Text "book in [client] [job] [date]"</div>';return}
+  const today=new Date().toISOString().split('T')[0];
+  const upcoming=bookings.filter(b=>b.date>=today).slice(0,3);
+  if(!upcoming.length){el.innerHTML='<div class="empty-state">No upcoming jobs booked.</div>';return}
+  el.innerHTML=upcoming.map(b=>{
+    const d=new Date(b.date);
+    const dateStr=d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    return`<div class="li"><div class="li-ico" style="background:var(--grn-d)">📅</div><div class="li-body"><div class="li-name">${b.client_name||'Unknown'}</div><div class="li-detail">${b.job_type||''}${b.location?' · '+b.location:''}</div></div><div class="li-right"><div class="li-amt" style="font-size:.75rem">${dateStr}</div><span class="bdg b-grn">${b.duration_days||1}d</span></div></div>`;
   }).join('');
 }
 
@@ -542,9 +512,7 @@ function renderJobs(items,filter){
   if(!f||!f.length){el.innerHTML='<div class="empty-state">No jobs found.</div>';return}
   el.innerHTML=f.map(item=>{
     const ico=statusIcon(item.status);
-    const name=item.client_name||'Unknown';
-    const detail=(item.job_type||'')+(item.location?' · '+item.location:'');
-    return`<div class="li"><div class="li-ico" style="${ico.style}">${ico.emoji}</div><div class="li-body"><div class="li-name">${name}</div><div class="li-detail">${detail}</div></div><div class="li-right">${statusBadge(item.status)}</div></div>`;
+    return`<div class="li"><div class="li-ico" style="${ico.style}">${ico.emoji}</div><div class="li-body"><div class="li-name">${item.client_name||'Unknown'}</div><div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div></div><div class="li-right">${statusBadge(item.status)}</div></div>`;
   }).join('');
 }
 
@@ -553,6 +521,16 @@ function renderQuotes(items){
   const q=items.filter(i=>i.status==='quoted');
   if(!q||!q.length){el.innerHTML='<div class="empty-state">No quotes yet.<br>Generate quotes via WhatsApp.</div>';return}
   el.innerHTML=q.map(item=>`<div class="li"><div class="li-ico" style="background:var(--amb-d)">📋</div><div class="li-body"><div class="li-name">${item.client_name||'Unknown'}</div><div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div></div><div class="li-right"><span class="bdg b-amb">Quoted</span></div></div>`).join('');
+}
+
+function renderBookings(bookings){
+  const el=document.getElementById('bookingsList');
+  if(!bookings||!bookings.length){el.innerHTML='<div class="empty-state">No jobs booked yet.<br>Text "book in [client] [job] [date]"</div>';return}
+  el.innerHTML=bookings.map(b=>{
+    const d=new Date(b.date);
+    const dateStr=d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+    return`<div class="li"><div class="li-ico" style="background:var(--grn-d)">📅</div><div class="li-body"><div class="li-name">${b.client_name||'Unknown'}</div><div class="li-detail">${b.job_type||''}${b.location?' · '+b.location:''}<br>${dateStr} at ${b.time||'TBC'} · ${b.duration_days||1} day(s)</div></div><div class="li-right"><span class="bdg b-grn">Booked</span></div></div>`;
+  }).join('');
 }
 
 function renderProfile(p){
@@ -581,12 +559,12 @@ function go(name){
   document.getElementById('content').scrollTop=0;
   if(name==='jobs')renderJobs(allEnquiries,currentFilter);
   if(name==='quotes')renderQuotes(allEnquiries);
+  if(name==='calendar'){renderBookings(allBookings);renderCal()}
 }
 
 function filt(el,filter){
   el.closest('.filters').querySelectorAll('.fp').forEach(f=>f.classList.remove('on'));
-  el.classList.add('on');
-  currentFilter=filter;
+  el.classList.add('on');currentFilter=filter;
   renderJobs(allEnquiries,filter);
 }
 
@@ -602,14 +580,31 @@ function renderCal(){
   document.getElementById('calMon').textContent=months[cm]+' '+cy;
   const g=document.getElementById('calGrid');
   g.innerHTML='';
+
+  const bookedDates=new Set();
+  allBookings.forEach(b=>{
+    if(!b.date)return;
+    const start=new Date(b.date);
+    const days=parseInt(b.duration_days)||1;
+    for(let i=0;i<days;i++){
+      const d=new Date(start);
+      d.setDate(d.getDate()+i);
+      if(d.getMonth()===cm&&d.getFullYear()===cy){
+        bookedDates.add(d.getDate());
+      }
+    }
+  });
+
   const fd=new Date(cy,cm,1).getDay();
   const off=fd===0?6:fd-1;
   const dim=new Date(cy,cm+1,0).getDate();
   const td=new Date();
+
   for(let i=0;i<off;i++){const el=document.createElement('div');el.className='cd empty';g.appendChild(el)}
   for(let d=1;d<=dim;d++){
     const el=document.createElement('div');el.className='cd';el.textContent=d;
     if(d===td.getDate()&&cm===td.getMonth()&&cy===td.getFullYear())el.classList.add('today');
+    else if(bookedDates.has(d))el.classList.add('hj');
     g.appendChild(el);
   }
 }
