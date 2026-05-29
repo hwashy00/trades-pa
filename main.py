@@ -307,26 +307,6 @@ def dashboard():
 @app.route("/api/stats")
 def api_stats():
     try:
-        enquiries = supabase.table("enquiries").select("*").eq("status", "new").execute().data
-        unpaid = supabase.table("enquiries").select("*").eq("status", "quoted").execute().data
-        missed = supabase.table("enquiries").select("*").eq("status", "missed call").execute().data
-        return {
-            "enquiries": len(enquiries),
-            "unpaid": len(unpaid),
-            "missed": len(missed),
-            "recent": enquiries[:10] + missed[:5]
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.route("/dashboard")
-def dashboard():
-    with open("dashboard.html", "r") as f:
-        return f.read()
-
-@app.route("/api/stats")
-def api_stats():
-    try:
         phone = request.args.get("phone", "")
         sender = "whatsapp:" + phone.replace(" ", "")
         
