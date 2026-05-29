@@ -9,7 +9,7 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
---bg:#0c0c0c;--s1:#111;--s2:#161616;--s3:#1c1c1c;--s4:#242424;--s5:#2c2c2c;
+--bg:#0c0c0c;--s1:#111;--s2:#161616;--s3:#1c1c1c;--s4:#242424;
 --t1:#fff;--t2:rgba(255,255,255,0.6);--t3:rgba(255,255,255,0.25);--t4:rgba(255,255,255,0.1);
 --br:rgba(255,255,255,0.08);
 --acc:#5b6cff;--acc2:#7b8bff;--acc-d:rgba(91,108,255,0.15);
@@ -21,8 +21,15 @@ html,body{height:100%;overflow:hidden}
 body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;max-width:390px;margin:0 auto;display:flex;flex-direction:column;position:relative}
 .content{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:72px;-webkit-overflow-scrolling:touch}
 .content::-webkit-scrollbar{display:none}
-#login{position:absolute;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;padding:72px 28px 48px;transition:opacity .3s,transform .3s}
-#login.out{opacity:0;pointer-events:none;transform:translateY(-16px)}
+
+/* LOGIN SCREENS */
+.login-screen{
+position:absolute;inset:0;z-index:999;background:var(--bg);
+display:flex;flex-direction:column;padding:72px 28px 48px;
+transition:opacity .3s,transform .3s;
+}
+.login-screen.out{opacity:0;pointer-events:none;transform:translateY(-16px)}
+.login-screen.hidden{display:none}
 .logo{font-size:2rem;font-weight:900;letter-spacing:-.06em;color:var(--t1);margin-bottom:5px}
 .logo b{color:var(--acc2);font-weight:900}
 .logo-sub{font-size:.75rem;color:var(--t3);margin-bottom:56px}
@@ -32,15 +39,35 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
 .inp:focus{border-color:var(--acc)}
 .btn-cta{width:100%;padding:17px;background:var(--acc);border:none;border-radius:14px;font-family:'Inter',sans-serif;font-size:.95rem;font-weight:700;color:#fff;cursor:pointer;margin-top:4px;transition:opacity .15s,transform .1s}
 .btn-cta:active{transform:scale(.98);opacity:.85}
-.login-alt{text-align:center;margin-top:20px;font-size:.75rem;color:var(--t3)}
+.btn-cta:disabled{opacity:.5;cursor:not-allowed}
+.login-alt{text-align:center;margin-top:16px;font-size:.75rem;color:var(--t3)}
 .login-alt span{color:var(--acc2);cursor:pointer;font-weight:600}
 .login-foot{margin-top:auto;text-align:center;font-size:.6rem;color:var(--t4);line-height:1.9}
+.err-msg{color:var(--red);font-size:.75rem;text-align:center;margin-top:10px;min-height:20px}
+.back-btn{display:flex;align-items:center;gap:8px;background:none;border:none;color:var(--t3);font-family:'Inter',sans-serif;font-size:.8rem;cursor:pointer;margin-bottom:32px;padding:0}
+.back-btn:hover{color:var(--t1)}
+
+/* PIN DOTS */
+.pin-dots{display:flex;justify-content:center;gap:16px;margin:24px 0 32px}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--t3);transition:all .15s}
+.pin-dot.filled{background:var(--acc);border-color:var(--acc)}
+.pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:280px;margin:0 auto}
+.pk-btn{
+padding:18px;background:var(--s2);border:none;border-radius:14px;
+font-family:'Inter',sans-serif;font-size:1.3rem;font-weight:600;color:var(--t1);
+cursor:pointer;transition:background .15s,transform .1s;
+}
+.pk-btn:active{transform:scale(.92);background:var(--s3)}
+.pk-btn.del{font-size:1rem;color:var(--t3)}
+.pk-btn.empty{background:none;cursor:default}
+
+/* APP */
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px;flex-shrink:0}
 .topbar-logo{font-size:1.05rem;font-weight:900;letter-spacing:-.05em}
 .topbar-logo b{color:var(--acc2)}
 .topbar-right{display:flex;align-items:center;gap:10px}
 .ib{width:34px;height:34px;border-radius:50%;background:var(--s3);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1rem;position:relative;color:var(--t2)}
-.ndot{width:7px;height:7px;background:var(--acc);border-radius:50%;position:absolute;top:6px;right:6px;border:2px solid var(--bg)}
+.ndot{width:7px;height:7px;background:var(--acc);border-radius:50%;position:absolute;top:6px;right:6px;border:2px solid var(--bg);display:none}
 .av{width:34px;height:34px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:#fff;cursor:pointer}
 .hero{padding:6px 20px 28px}
 .hero-label{font-size:.65rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:10px}
@@ -126,24 +153,91 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
 </head>
 <body>
 
-<div id="login">
+<!-- SCREEN 1: PHONE NUMBER -->
+<div id="screenPhone" class="login-screen">
   <div>
     <div class="logo">Van<b>Office</b></div>
     <div class="logo-sub">Your office. In the van.</div>
   </div>
   <div>
     <div class="lbl">Phone number</div>
-    <input type="tel" class="inp" id="loginPhone" placeholder="+44 7700 000000">
-    <div class="lbl">PIN</div>
-    <input type="password" class="inp" id="loginPin" placeholder="••••" maxlength="4">
-    <button class="btn-cta" onclick="doLogin()">Continue</button>
+    <input type="tel" class="inp" id="phoneInput" placeholder="+44 7700 000000">
+    <button class="btn-cta" onclick="submitPhone()">Continue</button>
+    <div class="err-msg" id="phoneErr"></div>
     <div class="login-alt">No account? <span onclick="doDemo()">Try demo</span></div>
   </div>
   <div class="login-foot">VanOffice · Built for UK tradespeople<br>Encrypted · Private · Yours</div>
 </div>
 
-<div id="app" class="hidden" style="display:flex;flex-direction:column;height:100%">
+<!-- SCREEN 2: PIN ENTRY -->
+<div id="screenPin" class="login-screen hidden">
+  <div>
+    <button class="back-btn" onclick="goBack()">← Back</button>
+    <div class="logo">Van<b>Office</b></div>
+    <div class="logo-sub" id="pinSubtitle">Enter your PIN</div>
+  </div>
+  <div>
+    <div class="pin-dots">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div class="err-msg" id="pinErr"></div>
+    <div class="pin-keypad">
+      <button class="pk-btn" onclick="pinKey('1')">1</button>
+      <button class="pk-btn" onclick="pinKey('2')">2</button>
+      <button class="pk-btn" onclick="pinKey('3')">3</button>
+      <button class="pk-btn" onclick="pinKey('4')">4</button>
+      <button class="pk-btn" onclick="pinKey('5')">5</button>
+      <button class="pk-btn" onclick="pinKey('6')">6</button>
+      <button class="pk-btn" onclick="pinKey('7')">7</button>
+      <button class="pk-btn" onclick="pinKey('8')">8</button>
+      <button class="pk-btn" onclick="pinKey('9')">9</button>
+      <button class="pk-btn empty"></button>
+      <button class="pk-btn" onclick="pinKey('0')">0</button>
+      <button class="pk-btn del" onclick="pinDel()">⌫</button>
+    </div>
+    <div style="text-align:center;margin-top:24px">
+      <span style="font-size:.75rem;color:var(--t3);cursor:pointer" onclick="showForgotPin()">Forgot PIN?</span>
+    </div>
+  </div>
+</div>
 
+<!-- SCREEN 3: FORGOT PIN -->
+<div id="screenForgot" class="login-screen hidden">
+  <div>
+    <button class="back-btn" onclick="showPinScreen()">← Back</button>
+    <div class="logo">Van<b>Office</b></div>
+    <div class="logo-sub">We'll send a reset code to your WhatsApp</div>
+  </div>
+  <div>
+    <div class="lbl">Your phone number</div>
+    <input type="tel" class="inp" id="forgotPhone" placeholder="+44 7700 000000">
+    <button class="btn-cta" onclick="sendReset()">Send reset code</button>
+    <div class="err-msg" id="forgotErr"></div>
+  </div>
+</div>
+
+<!-- SCREEN 4: RESET CODE -->
+<div id="screenReset" class="login-screen hidden">
+  <div>
+    <button class="back-btn" onclick="showForgotPin()">← Back</button>
+    <div class="logo">Van<b>Office</b></div>
+    <div class="logo-sub">Enter the 6-digit code sent to your WhatsApp</div>
+  </div>
+  <div>
+    <div class="lbl">Reset code</div>
+    <input type="number" class="inp" id="resetCode" placeholder="000000" maxlength="6">
+    <div class="lbl" style="margin-top:8px">New PIN</div>
+    <input type="password" class="inp" id="newPin" placeholder="4 digits" maxlength="4">
+    <button class="btn-cta" onclick="submitReset()">Set new PIN</button>
+    <div class="err-msg" id="resetErr"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden" style="display:flex;flex-direction:column;height:100%">
   <div class="content" id="content">
 
     <!-- HOME -->
@@ -151,28 +245,28 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
       <div class="topbar">
         <div class="topbar-logo">Van<b>Office</b></div>
         <div class="topbar-right">
-          <button class="ib">🔔<div class="ndot" id="notifDot" style="display:none"></div></button>
+          <button class="ib">🔔<div class="ndot" id="notifDot"></div></button>
           <div class="av" id="avInit">H</div>
         </div>
       </div>
       <div class="hero">
         <div class="hero-label">This month</div>
-        <div class="hero-amount" id="heroAmount">£0</div>
+        <div class="hero-amount" id="heroAmount">—</div>
         <div class="hero-pills">
-          <div class="hpill hpill-grn"><div class="hpill-dot"></div><span id="heroReceived">£0 received</span></div>
-          <div class="hpill hpill-red"><div class="hpill-dot"></div><span id="heroOutstanding">£0 outstanding</span></div>
+          <div class="hpill hpill-grn"><div class="hpill-dot"></div><span id="heroNew">0 new enquiries</span></div>
+          <div class="hpill hpill-red"><div class="hpill-dot"></div><span id="heroMissed">0 missed calls</span></div>
         </div>
       </div>
       <div class="qa-row">
         <button class="qa" onclick="go('jobs')"><div class="qa-box">🔨</div><div class="qa-lbl">Jobs</div></button>
-        <button class="qa" onclick="go('quotes')"><div class="qa-box">📋</div><div class="qa-lbl">Quote</div></button>
-        <button class="qa" onclick="go('invoices')"><div class="qa-box">💳</div><div class="qa-lbl">Invoice</div></button>
+        <button class="qa" onclick="go('quotes')"><div class="qa-box">📋</div><div class="qa-lbl">Quotes</div></button>
+        <button class="qa" onclick="go('invoices')"><div class="qa-box">💳</div><div class="qa-lbl">Invoices</div></button>
         <button class="qa" onclick="go('calendar')"><div class="qa-box">📅</div><div class="qa-lbl">Calendar</div></button>
       </div>
       <div class="stats">
-        <div class="stat"><div class="stat-v" id="statEnq">0</div><div class="stat-l">Enquiries</div></div>
-        <div class="stat"><div class="stat-v" id="statUnpaid" style="color:var(--red)">0</div><div class="stat-l">Unpaid</div></div>
-        <div class="stat"><div class="stat-v" id="statMissed" style="color:var(--amb)">0</div><div class="stat-l">Missed</div></div>
+        <div class="stat"><div class="stat-v" id="statEnq">—</div><div class="stat-l">Enquiries</div></div>
+        <div class="stat"><div class="stat-v" id="statUnpaid" style="color:var(--red)">—</div><div class="stat-l">Quoted</div></div>
+        <div class="stat"><div class="stat-v" id="statMissed" style="color:var(--amb)">—</div><div class="stat-l">Missed</div></div>
       </div>
       <div class="sec">
         <div class="sec-head"><div class="sec-title">Recent activity</div><div class="sec-more" onclick="go('jobs')">See all</div></div>
@@ -189,25 +283,19 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
         <button class="fp" onclick="filt(this,'missed call')">Missed</button>
         <button class="fp" onclick="filt(this,'quoted')">Quoted</button>
       </div>
-      <div class="sec">
-        <div class="list" id="jobsList"><div class="loading">Loading...</div></div>
-      </div>
+      <div class="sec"><div class="list" id="jobsList"><div class="loading">Loading...</div></div></div>
     </div>
 
     <!-- QUOTES -->
     <div id="s-quotes" class="scr">
       <div class="ph"><div class="ph-title">Quotes</div></div>
-      <div class="sec">
-        <div class="list" id="quotesList"><div class="loading">Loading...</div></div>
-      </div>
+      <div class="sec"><div class="list" id="quotesList"><div class="loading">Loading...</div></div></div>
     </div>
 
     <!-- INVOICES -->
     <div id="s-invoices" class="scr">
       <div class="ph"><div class="ph-title">Invoices</div></div>
-      <div class="sec">
-        <div class="empty-state">Invoice tracking coming soon.<br>Generate invoices via WhatsApp.</div>
-      </div>
+      <div class="sec"><div class="empty-state">Invoice tracking coming soon.<br>Generate invoices via WhatsApp.</div></div>
     </div>
 
     <!-- CALENDAR -->
@@ -216,7 +304,7 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
       <div class="cal">
         <div class="cal-top">
           <button class="cal-nav" onclick="chM(-1)">&#8249;</button>
-          <div class="cal-mon" id="calMon">May 2026</div>
+          <div class="cal-mon" id="calMon"></div>
           <button class="cal-nav" onclick="chM(1)">&#8250;</button>
         </div>
         <div class="cal-hd">
@@ -227,7 +315,7 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
       </div>
       <div class="sec">
         <div class="sec-head"><div class="sec-title">Upcoming</div></div>
-        <div class="empty-state">No jobs booked yet.<br>Book jobs via WhatsApp.</div>
+        <div class="empty-state">No jobs booked yet.</div>
       </div>
     </div>
 
@@ -240,19 +328,16 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
       </div>
       <div class="sg">
         <div class="sg-lbl">Business</div>
-        <div class="sg-list" id="profDetails">
-          <div class="sg-row"><div class="sg-row-label">Loading...</div></div>
-        </div>
+        <div class="sg-list" id="profDetails"><div class="sg-row"><div class="sg-row-label">Loading...</div></div></div>
       </div>
       <div class="sg">
         <div class="sg-lbl">Rates</div>
-        <div class="sg-list" id="profRates">
-          <div class="sg-row"><div class="sg-row-label">Set rates via WhatsApp</div></div>
-        </div>
+        <div class="sg-list" id="profRates"><div class="sg-row"><div class="sg-row-label">Set rates via WhatsApp</div></div></div>
       </div>
       <div class="sg">
         <div class="sg-lbl">Account</div>
         <div class="sg-list">
+          <div class="sg-row" style="cursor:pointer" onclick="changePin()"><div class="sg-row-label">Change PIN</div><div style="color:var(--t4)">›</div></div>
           <div class="sg-row sg-danger" onclick="doLogout()"><div class="sg-row-label">Sign out</div><div style="color:var(--t4)">›</div></div>
         </div>
       </div>
@@ -268,178 +353,223 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
     <button class="ni" id="n-calendar" onclick="go('calendar')"><div class="ni-ico">📅</div><div class="ni-lbl">Calendar</div></button>
     <button class="ni" id="n-profile" onclick="go('profile')"><div class="ni-ico">👤</div><div class="ni-lbl">Profile</div></button>
   </nav>
-
 </div>
 
 <script>
-let cm=4,cy=2026;
+let cm=new Date().getMonth(),cy=new Date().getFullYear();
 let currentFilter='all';
 let allEnquiries=[];
-let userPhone='';
-let isDemo=false;
+let userPhone='',userPin='';
+let pinBuffer='';
 
-const DEMO_DATA={
-  enquiries:3,unpaid:2,missed:1,
-  recent:[
-    {client_name:'Dave Thompson',job_type:'Kitchen fitting',location:'Tiverton',status:'new',sender:'demo'},
-    {client_name:'Sarah Mitchell',job_type:'missed call',location:'',status:'missed call',sender:'demo'},
-    {client_name:'Mrs Jones',job_type:'Bathroom refit',location:'Exeter',status:'quoted',sender:'demo'}
-  ]
-};
-
-function doDemo(){
-  isDemo=true;
-  showApp('Demo');
-  loadDemoData();
-}
-
-function doLogin(){
-  const phone=document.getElementById('loginPhone').value.trim();
-  if(!phone){alert('Please enter your phone number');return}
+function submitPhone(){
+  const phone=document.getElementById('phoneInput').value.trim();
+  if(!phone){document.getElementById('phoneErr').textContent='Please enter your phone number';return}
   userPhone=phone;
-  isDemo=false;
-  showApp(phone);
-  loadRealData(phone);
+  document.getElementById('forgotPhone').value=phone;
+  showPinScreen();
 }
 
-function showApp(name){
-  document.getElementById('login').classList.add('out');
-  setTimeout(()=>{
-    document.getElementById('login').classList.add('hidden');
-    const app=document.getElementById('app');
-    app.classList.remove('hidden');
-    app.style.display='flex';
-    const initial=name[0].toUpperCase();
-    document.getElementById('avInit').textContent=initial;
-    renderCal();
-  },300);
+function showPinScreen(){
+  document.getElementById('screenPhone').classList.add('hidden');
+  document.getElementById('screenForgot').classList.add('hidden');
+  document.getElementById('screenReset').classList.add('hidden');
+  document.getElementById('screenPin').classList.remove('hidden');
+  pinBuffer='';
+  updatePinDots();
+  document.getElementById('pinErr').textContent='';
+}
+
+function showForgotPin(){
+  document.getElementById('screenPin').classList.add('hidden');
+  document.getElementById('screenForgot').classList.remove('hidden');
+}
+
+function goBack(){
+  document.getElementById('screenPin').classList.add('hidden');
+  document.getElementById('screenPhone').classList.remove('hidden');
+}
+
+function pinKey(k){
+  if(pinBuffer.length>=4)return;
+  pinBuffer+=k;
+  updatePinDots();
+  if(pinBuffer.length===4)setTimeout(submitPin,150);
+}
+
+function pinDel(){
+  pinBuffer=pinBuffer.slice(0,-1);
+  updatePinDots();
+}
+
+function updatePinDots(){
+  for(let i=0;i<4;i++){
+    document.getElementById('d'+i).classList.toggle('filled',i<pinBuffer.length);
+  }
+}
+
+async function submitPin(){
+  userPin=pinBuffer;
+  document.getElementById('pinErr').textContent='';
+  try{
+    const res=await fetch('/api/stats?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin));
+    const data=await res.json();
+    if(res.status===401||data.error){
+      document.getElementById('pinErr').textContent='Incorrect PIN. Try again.';
+      pinBuffer='';
+      updatePinDots();
+      return;
+    }
+    showApp(data);
+  }catch(e){
+    document.getElementById('pinErr').textContent='Connection error. Try again.';
+    pinBuffer='';
+    updatePinDots();
+  }
+}
+
+async function sendReset(){
+  const phone=document.getElementById('forgotPhone').value.trim();
+  if(!phone){document.getElementById('forgotErr').textContent='Enter your phone number';return}
+  document.getElementById('forgotErr').textContent='Sending...';
+  try{
+    const res=await fetch('/api/reset-pin?phone='+encodeURIComponent(phone));
+    const data=await res.json();
+    if(data.error){document.getElementById('forgotErr').textContent=data.error;return}
+    userPhone=phone;
+    document.getElementById('screenForgot').classList.add('hidden');
+    document.getElementById('screenReset').classList.remove('hidden');
+    document.getElementById('forgotErr').textContent='';
+  }catch(e){
+    document.getElementById('forgotErr').textContent='Error sending code. Try again.';
+  }
+}
+
+async function submitReset(){
+  const code=document.getElementById('resetCode').value.trim();
+  const newPin=document.getElementById('newPin').value.trim();
+  if(!code||!newPin){document.getElementById('resetErr').textContent='Fill in both fields';return}
+  if(newPin.length!==4||!newPin.match(/^\d+$/)){document.getElementById('resetErr').textContent='PIN must be 4 digits';return}
+  try{
+    const res=await fetch('/api/confirm-reset?phone='+encodeURIComponent(userPhone)+'&code='+encodeURIComponent(code)+'&newpin='+encodeURIComponent(newPin));
+    const data=await res.json();
+    if(data.error){document.getElementById('resetErr').textContent=data.error;return}
+    document.getElementById('resetErr').textContent='';
+    userPin=newPin;
+    showPinScreen();
+    setTimeout(()=>document.getElementById('pinErr').textContent='PIN updated. Log in with your new PIN.',100);
+  }catch(e){
+    document.getElementById('resetErr').textContent='Error. Try again.';
+  }
+}
+
+function changePin(){
+  document.getElementById('screenForgot').querySelector('.logo-sub').textContent='We will send a reset code to your WhatsApp';
+  showForgotPin();
+}
+
+function showApp(data){
+  document.getElementById('screenPin').classList.add('hidden');
+  const app=document.getElementById('app');
+  app.classList.remove('hidden');
+  app.style.display='flex';
+  updateStats(data);
+  renderRecent(data.recent||[]);
+  allEnquiries=data.recent||[];
+  renderJobs(allEnquiries,'all');
+  renderQuotes(allEnquiries);
+  if(data.profile)renderProfile(data.profile);
+  const n=data.profile&&data.profile.owner_name?data.profile.owner_name[0].toUpperCase():'H';
+  document.getElementById('avInit').textContent=n;
+  renderCal();
 }
 
 function doLogout(){
   document.getElementById('app').style.display='none';
   document.getElementById('app').classList.add('hidden');
-  const l=document.getElementById('login');
-  l.classList.remove('hidden','out');
+  document.getElementById('screenPin').classList.add('hidden');
+  document.getElementById('screenPhone').classList.remove('hidden');
+  pinBuffer='';userPhone='';userPin='';
 }
 
-async function loadRealData(phone){
-  try{
-    const res=await fetch('/api/stats?phone='+encodeURIComponent(phone));
-    const data=await res.json();
-    if(data.error){loadDemoData();return}
-    updateStats(data);
-    renderRecent(data.recent||[]);
-    allEnquiries=data.recent||[];
-    renderJobs(allEnquiries,'all');
-    renderQuotes(allEnquiries);
-    if(data.profile){renderProfile(data.profile)}
-  }catch(e){
-    loadDemoData();
-  }
-}
-
-function loadDemoData(){
-  updateStats(DEMO_DATA);
-  renderRecent(DEMO_DATA.recent);
-  allEnquiries=DEMO_DATA.recent;
-  renderJobs(allEnquiries,'all');
-  renderQuotes(allEnquiries);
+function doDemo(){
+  showApp({
+    enquiries:3,unpaid:2,missed:1,
+    recent:[
+      {client_name:'Dave Thompson',job_type:'Kitchen fitting',location:'Tiverton',status:'new'},
+      {client_name:'Sarah Mitchell',job_type:'Missed call',location:'',status:'missed call'},
+      {client_name:'Mrs Jones',job_type:'Bathroom refit',location:'Exeter',status:'quoted'}
+    ],
+    profile:{owner_name:'Harry',business_name:"Harry's Carpentry",trade:'Carpenter',phone:'07504544469',day_rate:'300',half_day_rate:'175',hourly_rate:'45',materials_markup:'20',payment_terms:'30',vat_registered:'no'}
+  });
 }
 
 function updateStats(data){
   document.getElementById('statEnq').textContent=data.enquiries||0;
   document.getElementById('statUnpaid').textContent=data.unpaid||0;
   document.getElementById('statMissed').textContent=data.missed||0;
-  if(data.missed>0){document.getElementById('notifDot').style.display='block'}
+  document.getElementById('heroAmount').textContent=data.enquiries+data.unpaid+data.missed+' total';
+  document.getElementById('heroNew').textContent=(data.enquiries||0)+' new enquiries';
+  document.getElementById('heroMissed').textContent=(data.missed||0)+' missed calls';
+  if(data.missed>0)document.getElementById('notifDot').style.display='block';
 }
 
-function statusBadge(status){
-  const map={
-    'new':'<span class="bdg b-acc">New</span>',
-    'quoted':'<span class="bdg b-amb">Quoted</span>',
-    'missed call':'<span class="bdg b-red">Missed</span>',
-    'incoming call':'<span class="bdg b-muted">Call</span>',
-    'done':'<span class="bdg b-grn">Done</span>'
-  };
-  return map[status]||'<span class="bdg b-muted">'+status+'</span>';
+function statusBadge(s){
+  const m={'new':'<span class="bdg b-acc">New</span>','quoted':'<span class="bdg b-amb">Quoted</span>','missed call':'<span class="bdg b-red">Missed</span>','incoming call':'<span class="bdg b-muted">Call</span>','done':'<span class="bdg b-grn">Done</span>'};
+  return m[s]||'<span class="bdg b-muted">'+s+'</span>';
 }
 
-function statusIcon(status){
-  const map={
-    'new':'background:var(--acc-d)',
-    'quoted':'background:var(--amb-d)',
-    'missed call':'background:var(--red-d)',
-    'incoming call':'background:var(--grn-d)',
-    'done':'background:var(--grn-d)'
-  };
-  const emoji={
-    'new':'👤','quoted':'📋','missed call':'📞','incoming call':'📞','done':'✅'
-  };
-  return {style:map[status]||'background:var(--s3)',emoji:emoji[status]||'📋'};
+function statusIcon(s){
+  const styles={'new':'background:var(--acc-d)','quoted':'background:var(--amb-d)','missed call':'background:var(--red-d)','incoming call':'background:var(--grn-d)','done':'background:var(--grn-d)'};
+  const emojis={'new':'👤','quoted':'📋','missed call':'📞','incoming call':'📞','done':'✅'};
+  return{style:styles[s]||'background:var(--s3)',emoji:emojis[s]||'📋'};
 }
 
 function renderRecent(items){
   const el=document.getElementById('recentList');
-  if(!items||items.length===0){el.innerHTML='<div class="empty-state">No activity yet.<br>Send a WhatsApp to get started.</div>';return}
+  if(!items||!items.length){el.innerHTML='<div class="empty-state">No activity yet.<br>Send a WhatsApp to get started.</div>';return}
   el.innerHTML=items.slice(0,5).map(item=>{
     const ico=statusIcon(item.status);
     const name=item.client_name||'Unknown caller';
-    const detail=(item.job_type||'')+(item.location?(' · '+item.location):'');
-    return `<div class="li">
-      <div class="li-ico" style="${ico.style}">${ico.emoji}</div>
-      <div class="li-body"><div class="li-name">${name}</div><div class="li-detail">${detail}</div></div>
-      <div class="li-right"><div class="li-amt" style="font-size:.75rem">${item.status}</div>${statusBadge(item.status)}</div>
-    </div>`;
+    const detail=(item.job_type||'')+(item.location?' · '+item.location:'');
+    return`<div class="li"><div class="li-ico" style="${ico.style}">${ico.emoji}</div><div class="li-body"><div class="li-name">${name}</div><div class="li-detail">${detail}</div></div><div class="li-right">${statusBadge(item.status)}</div></div>`;
   }).join('');
 }
 
 function renderJobs(items,filter){
   const el=document.getElementById('jobsList');
-  let filtered=items;
-  if(filter!=='all')filtered=items.filter(i=>i.status===filter);
-  if(!filtered||filtered.length===0){el.innerHTML='<div class="empty-state">No jobs found.<br>Log enquiries via WhatsApp.</div>';return}
-  el.innerHTML=filtered.map(item=>{
+  let f=filter==='all'?items:items.filter(i=>i.status===filter);
+  if(!f||!f.length){el.innerHTML='<div class="empty-state">No jobs found.</div>';return}
+  el.innerHTML=f.map(item=>{
     const ico=statusIcon(item.status);
     const name=item.client_name||'Unknown';
-    const detail=(item.job_type||'')+(item.location?(' · '+item.location):'');
-    return `<div class="li">
-      <div class="li-ico" style="${ico.style}">${ico.emoji}</div>
-      <div class="li-body"><div class="li-name">${name}</div><div class="li-detail">${detail}</div></div>
-      <div class="li-right">${statusBadge(item.status)}</div>
-    </div>`;
+    const detail=(item.job_type||'')+(item.location?' · '+item.location:'');
+    return`<div class="li"><div class="li-ico" style="${ico.style}">${ico.emoji}</div><div class="li-body"><div class="li-name">${name}</div><div class="li-detail">${detail}</div></div><div class="li-right">${statusBadge(item.status)}</div></div>`;
   }).join('');
 }
 
 function renderQuotes(items){
   const el=document.getElementById('quotesList');
-  const quotes=items.filter(i=>i.status==='quoted');
-  if(!quotes||quotes.length===0){el.innerHTML='<div class="empty-state">No quotes yet.<br>Generate quotes via WhatsApp.</div>';return}
-  el.innerHTML=quotes.map(item=>{
-    return `<div class="li">
-      <div class="li-ico" style="background:var(--amb-d)">📋</div>
-      <div class="li-body"><div class="li-name">${item.client_name||'Unknown'}</div><div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div></div>
-      <div class="li-right"><span class="bdg b-amb">Quoted</span></div>
-    </div>`;
-  }).join('');
+  const q=items.filter(i=>i.status==='quoted');
+  if(!q||!q.length){el.innerHTML='<div class="empty-state">No quotes yet.<br>Generate quotes via WhatsApp.</div>';return}
+  el.innerHTML=q.map(item=>`<div class="li"><div class="li-ico" style="background:var(--amb-d)">📋</div><div class="li-body"><div class="li-name">${item.client_name||'Unknown'}</div><div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div></div><div class="li-right"><span class="bdg b-amb">Quoted</span></div></div>`).join('');
 }
 
-function renderProfile(profile){
-  document.getElementById('profName').textContent=profile.owner_name||'Unknown';
-  document.getElementById('profTrade').textContent=(profile.trade||'Tradesperson')+' · Devon';
-  document.getElementById('profAv').textContent=(profile.owner_name||'?')[0].toUpperCase();
+function renderProfile(p){
+  document.getElementById('profName').textContent=p.owner_name||'Unknown';
+  document.getElementById('profTrade').textContent=(p.trade||'Tradesperson')+' · Devon';
+  document.getElementById('profAv').textContent=(p.owner_name||'?')[0].toUpperCase();
   document.getElementById('profDetails').innerHTML=`
-    <div class="sg-row"><div class="sg-row-label">Business</div><input class="sg-val" value="${profile.business_name||''}"></div>
-    <div class="sg-row"><div class="sg-row-label">Trade</div><input class="sg-val" value="${profile.trade||''}"></div>
-    <div class="sg-row"><div class="sg-row-label">Phone</div><input class="sg-val" value="${profile.phone||''}"></div>
-  `;
+    <div class="sg-row"><div class="sg-row-label">Business</div><input class="sg-val" value="${p.business_name||''}"></div>
+    <div class="sg-row"><div class="sg-row-label">Trade</div><input class="sg-val" value="${p.trade||''}"></div>
+    <div class="sg-row"><div class="sg-row-label">Phone</div><input class="sg-val" value="${p.phone||''}"></div>`;
   document.getElementById('profRates').innerHTML=`
-    <div class="sg-row"><div class="sg-row-label">Day rate</div><input class="sg-val" value="£${profile.day_rate||0}"></div>
-    <div class="sg-row"><div class="sg-row-label">Half day</div><input class="sg-val" value="£${profile.half_day_rate||0}"></div>
-    <div class="sg-row"><div class="sg-row-label">Hourly</div><input class="sg-val" value="£${profile.hourly_rate||0}"></div>
-    <div class="sg-row"><div class="sg-row-label">Materials markup</div><input class="sg-val" value="${profile.materials_markup||20}%"></div>
-    <div class="sg-row"><div class="sg-row-label">Payment terms</div><input class="sg-val" value="${profile.payment_terms||30} days"></div>
-    <div class="sg-row"><div class="sg-row-label">VAT</div><input class="sg-val" value="${profile.vat_registered||'No'}"></div>
-  `;
+    <div class="sg-row"><div class="sg-row-label">Day rate</div><input class="sg-val" value="£${p.day_rate||0}"></div>
+    <div class="sg-row"><div class="sg-row-label">Half day</div><input class="sg-val" value="£${p.half_day_rate||0}"></div>
+    <div class="sg-row"><div class="sg-row-label">Hourly</div><input class="sg-val" value="£${p.hourly_rate||0}"></div>
+    <div class="sg-row"><div class="sg-row-label">Markup</div><input class="sg-val" value="${p.materials_markup||20}%"></div>
+    <div class="sg-row"><div class="sg-row-label">Terms</div><input class="sg-val" value="${p.payment_terms||30} days"></div>
+    <div class="sg-row"><div class="sg-row-label">VAT</div><input class="sg-val" value="${p.vat_registered||'No'}"></div>`;
 }
 
 function go(name){
@@ -451,7 +581,6 @@ function go(name){
   document.getElementById('content').scrollTop=0;
   if(name==='jobs')renderJobs(allEnquiries,currentFilter);
   if(name==='quotes')renderQuotes(allEnquiries);
-  if(!isDemo&&userPhone&&name==='home')loadRealData(userPhone);
 }
 
 function filt(el,filter){
@@ -479,8 +608,7 @@ function renderCal(){
   const td=new Date();
   for(let i=0;i<off;i++){const el=document.createElement('div');el.className='cd empty';g.appendChild(el)}
   for(let d=1;d<=dim;d++){
-    const el=document.createElement('div');
-    el.className='cd';el.textContent=d;
+    const el=document.createElement('div');el.className='cd';el.textContent=d;
     if(d===td.getDate()&&cm===td.getMonth()&&cy===td.getFullYear())el.classList.add('today');
     g.appendChild(el);
   }
