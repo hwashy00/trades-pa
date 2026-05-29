@@ -358,7 +358,59 @@ def api_stats():
     except Exception as e:
         print("API stats error: " + str(e))
         return jsonify({"error": str(e)}), 500
+        
+@app.route("/api/reset-pin")
+def reset_pin():
+    import random
+    try:
+        phone = request.args.get("phone", "").strip()
+        if not phone:
+            return jsonify({"error": "Phone required"}), 400
 
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data:
+            return jsonify({"error": "No account found with that number"}), 404
+
+        code = str(random.randint(100000, 999999))
+        supabase.table("profiles").update({"reset_code": code}).eq("phone", phone).execute()
+
+        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+        twilio_number = os.environ.get("TWILIO_NUMBER")
+        twilio_client = TwilioClient(account_sid, auth_token)
+        twilio_client.messages.create(
+            body="Your VanOffice reset code is: " + code + ". Valid for 10 minutes.",
+            from_=twilio_number,
+            to=phone
+        )
+
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/confirm-reset")
+def confirm_reset():
+    try:
+        phone = request.args.get("phone", "").strip()
+        code = request.args.get("code", "").strip()
+        newpin = request.args.get("newpin", "").strip()
+
+        if not phone or not code or not newpin:
+            return jsonify({"error": "All fields required"}), 400
+
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data:
+            return jsonify({"error": "Account not found"}), 404
+
+        profile = result.data[0]
+        if str(profile.get("reset_code", "")) != str(code):
+            return jsonify({"error": "Invalid reset code"}), 401
+
+        supabase.table("profiles").update({"pin": newpin, "reset_code": ""}).eq("phone", phone).execute()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
