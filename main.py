@@ -3,6 +3,7 @@ import random
 import traceback
 import datetime
 import io
+import json
 from flask import Flask, request, jsonify, send_file
 import anthropic
 from supabase import create_client
@@ -74,7 +75,6 @@ def send_morning_summary():
             summary = "Good morning!\n\nOutstanding enquiries: " + str(len(enquiries)) + "\n\n"
             for e in enquiries[:5]:
                 summary += "- " + e.get("client_name", "Unknown") + " - " + e.get("job_type", "Unknown") + " - " + e.get("location", "Unknown") + "\n"
-            summary += "\nReply with any job details to log them."
         else:
             summary = "Good morning!\n\nNo outstanding enquiries. Have a great day!"
         twilio_client.messages.create(from_="whatsapp:" + twilio_number, to="whatsapp:" + your_whatsapp, body=summary)
@@ -105,6 +105,12 @@ def generate_quote_pdf(quote, profile, template):
         brand = colors.HexColor("#1a1a2e")
 
     styles = getSampleStyleSheet()
+    s_normal = styles["Normal"]
+    s_right = ParagraphStyle("right", parent=s_normal, alignment=TA_RIGHT)
+    s_center = ParagraphStyle("center", parent=s_normal, alignment=TA_CENTER)
+    s_small = ParagraphStyle("small", parent=s_normal, fontSize=8, textColor=colors.grey)
+    s_small_right = ParagraphStyle("small_right", parent=s_normal, fontSize=8, textColor=colors.grey, alignment=TA_RIGHT)
+
     story = []
 
     biz_name = (template.get("business_name") if template else None) or profile.get("business_name", "")
@@ -116,64 +122,170 @@ def generate_quote_pdf(quote, profile, template):
     terms_text = (template.get("terms") if template else None) or ""
     footer_text = (template.get("footer_text") if template else None) or "Thank you for your business."
 
-    header_data = [
-        [Paragraph("<font size=18><b>" + biz_name + "</b></font>", styles["Normal"]),
-         Paragraph("<font size=16><b>QUOTE</b></font>", ParagraphStyle("right", parent=styles["Normal"], alignment=TA_RIGHT))]
-    ]
+    # HEADER BAR
+    header_data = [[
+        Paragraph("<font size=16><b>" + biz_name.upper() + "</b></font>", s_normal),
+        Paragraph("<font size=14><b>QUOTATION</b></font>", s_right)
+    ]]
     header_table = Table(header_data, colWidths=[100*mm, 70*mm])
     header_table.setStyle(TableStyle([
         ("BACKGROUND", (0,0), (-1,-1), brand),
         ("TEXTCOLOR", (0,0), (-1,-1), colors.white),
-        ("PADDING", (0,0), (-1,-1), 12),
+        ("TOPPADDING", (0,0), (-1,-1), 14),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 14),
+        ("LEFTPADDING", (0,0), (0,-1), 16),
+        ("RIGHTPADDING", (-1,0), (-1,-1), 16),
         ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
     ]))
     story.append(header_table)
-    story.append(Spacer(1, 6*mm))
+    story.append(Spacer(1, 8*mm))
 
-    today = datetime.date.today().strftime("%d %B %Y")
+    # FROM / QUOTE INFO
+    today_str = datetime.date.today().strftime("%d %B %Y")
     quote_num = quote.get("quote_number", "QU-001")
 
-    info_data = [
-        [Paragraph("<b>From</b><br/>" + biz_name + "<br/>" + biz_address + "<br/>" + biz_phone + "<br/>" + biz_email, styles["Normal"]),
-         Paragraph("<b>Quote No:</b> " + quote_num + "<br/><b>Date:</b> " + today + "<br/><b>Valid for:</b> " + str(validity) + " days", ParagraphStyle("right", parent=styles["Normal"], alignment=TA_RIGHT))]
-    ]
-    info_table = Table(info_data, colWidths=[85*mm, 85*mm])
+    from_text = biz_name
+    if biz_address:
+        from_text += "<br/>" + biz_address
+    if biz_phone:
+        from_text += "<br/>" + biz_phone
+    if biz_email:
+        from_text += "<br/>" + biz_email
+
+    info_data = [[
+        Paragraph("<font size=8 color='grey'>FROM</font><br/><br/>" + from_text, s_normal),
+        Paragraph(
+            "<font size=8 color='grey'>QUOTE NUMBER</font><br/>" + quote_num +
+            "<br/><br/><font size=8 color='grey'>DATE</font><br/>" + today_str +
+            "<br/><br/><font size=8 color='grey'>VALID FOR</font><br/>" + str(validity) + " days",
+            s_right
+        )
+    ]]
+    info_table = Table(info_data, colWidths=[95*mm, 75*mm])
+    info_table.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP")]))
     story.append(info_table)
     story.append(Spacer(1, 6*mm))
 
-    story.append(Paragraph("<b>Prepared for</b>", styles["Normal"]))
-    story.append(Paragraph(quote.get("client_name", "") + "<br/>" + quote.get("client_address", ""), styles["Normal"]))
-    story.append(Spacer(1, 6*mm))
+    # TO
+    client_name = quote.get("client_name", "")
+    client_address = quote.get("client_address", "")
+    to_text = "<font size=8 color='grey'>PREPARED FOR</font><br/><br/>"
+    to_text += "<b>" + client_name + "</b>"
+    if client_address:
+        to_text += "<br/>" + client_address
+    story.append(Paragraph(to_text, s_normal))
+    story.append(Spacer(1, 8*mm))
+
+    # LINE ITEMS TABLE
+    line_items = quote.get("line_items", [])
+    if line_items and len(line_items) > 0:
+        table_data = [["Description", "Qty", "Unit Price", "Amount"]]
+        subtotal = 0
+        for item in line_items:
+            desc = item.get("description", "")
+            qty = item.get("qty", 1)
+            unit_price = item.get("unit_price", 0)
+            amount = float(qty) * float(unit_price)
+            subtotal += amount
+            table_data.append([
+                desc,
+                str(qty),
+                "£{:.2f}".format(float(unit_price)),
+                "£{:.2f}".format(amount)
+            ])
+
+        items_table = Table(table_data, colWidths=[85*mm, 20*mm, 30*mm, 35*mm])
+        items_table.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,0), brand),
+            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+            ("FONTSIZE", (0,0), (-1,0), 9),
+            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+            ("TOPPADDING", (0,0), (-1,-1), 8),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+            ("LEFTPADDING", (0,0), (-1,-1), 8),
+            ("GRID", (0,0), (-1,-1), 0.5, colors.Color(0.85, 0.85, 0.85)),
+            ("ALIGN", (1,0), (-1,-1), "RIGHT"),
+            ("FONTSIZE", (0,1), (-1,-1), 9),
+            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.Color(0.97, 0.97, 0.97)]),
+        ]))
+        story.append(items_table)
+        story.append(Spacer(1, 4*mm))
+
+        # TOTALS
+        vat_rate = 0.2 if profile.get("vat_registered", "no").lower() in ["yes", "y", "true"] else 0
+        vat_amount = subtotal * vat_rate
+        total = subtotal + vat_amount
+
+        totals_data = [["Subtotal", "£{:.2f}".format(subtotal)]]
+        if vat_rate > 0:
+            totals_data.append(["VAT (20%)", "£{:.2f}".format(vat_amount)])
+        totals_data.append(["TOTAL", "£{:.2f}".format(total)])
+
+        totals_table = Table(totals_data, colWidths=[135*mm, 35*mm])
+        totals_table.setStyle(TableStyle([
+            ("ALIGN", (0,0), (-1,-1), "RIGHT"),
+            ("FONTSIZE", (0,0), (-1,-1), 10),
+            ("TOPPADDING", (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+            ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
+            ("FONTSIZE", (0,-1), (-1,-1), 12),
+            ("LINEABOVE", (0,-1), (-1,-1), 1.5, brand),
+        ]))
+        story.append(totals_table)
+    else:
+        # No structured items - use quote text
+        quote_text = quote.get("quote_text", "")
+        if quote_text:
+            # Clean out conversational text
+            clean_lines = []
+            skip_phrases = ["I can't actually", "Just copy that", "copy and send", "Here's the quote formatted", "---", "Cheers,", "Let me know if"]
+            for line in quote_text.split("\n"):
+                stripped = line.strip().replace("**", "")
+                if not stripped:
+                    continue
+                skip = False
+                for phrase in skip_phrases:
+                    if phrase.lower() in stripped.lower():
+                        skip = True
+                        break
+                if not skip and not stripped.startswith("Hi ") and stripped != profile.get("owner_name", ""):
+                    clean_lines.append(stripped)
+
+            if clean_lines:
+                story.append(Paragraph("<b>Quote Details</b>", s_normal))
+                story.append(Spacer(1, 3*mm))
+
+                for line in clean_lines:
+                    if "total" in line.lower() or "TOTAL" in line:
+                        story.append(Spacer(1, 2*mm))
+                        story.append(Paragraph("<b>" + line + "</b>", s_normal))
+                    elif "labour" in line.lower() or "materials" in line.lower() or "payment" in line.lower():
+                        story.append(Paragraph(line, s_normal))
+                    else:
+                        story.append(Paragraph(line, s_normal))
+
+    story.append(Spacer(1, 10*mm))
     story.append(HRFlowable(width="100%", thickness=1, color=brand))
     story.append(Spacer(1, 4*mm))
 
-    story.append(Paragraph("<b>Job Description</b>", styles["Normal"]))
-    story.append(Paragraph(quote.get("job_description", ""), styles["Normal"]))
-    story.append(Spacer(1, 6*mm))
-
-    quote_text = quote.get("quote_text", "")
-    if quote_text:
-        for line in quote_text.split("\n"):
-            if line.strip():
-                story.append(Paragraph(line, styles["Normal"]))
+    # PAYMENT DETAILS
+    if payment_details:
+        story.append(Paragraph("<font size=8 color='grey'>PAYMENT DETAILS</font>", s_normal))
+        story.append(Spacer(1, 2*mm))
+        story.append(Paragraph(payment_details.replace("\n", "<br/>"), s_normal))
         story.append(Spacer(1, 6*mm))
 
-    story.append(HRFlowable(width="100%", thickness=1, color=brand))
-    story.append(Spacer(1, 4*mm))
-
-    if payment_details:
-        story.append(Paragraph("<b>Payment Details</b>", styles["Normal"]))
-        story.append(Paragraph(payment_details.replace("\n", "<br/>"), styles["Normal"]))
-        story.append(Spacer(1, 4*mm))
-
+    # TERMS
     if terms_text:
-        story.append(Paragraph("<b>Terms & Conditions</b>", styles["Normal"]))
-        story.append(Paragraph(terms_text.replace("\n", "<br/>"), styles["Normal"]))
-        story.append(Spacer(1, 4*mm))
+        story.append(Paragraph("<font size=8 color='grey'>TERMS & CONDITIONS</font>", s_normal))
+        story.append(Spacer(1, 2*mm))
+        story.append(Paragraph("<font size=8>" + terms_text.replace("\n", "<br/>") + "</font>", s_normal))
+        story.append(Spacer(1, 6*mm))
 
-    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.grey))
-    story.append(Spacer(1, 3*mm))
-    story.append(Paragraph(footer_text, ParagraphStyle("footer", parent=styles["Normal"], alignment=TA_CENTER, textColor=colors.grey, fontSize=9)))
+    # FOOTER
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.Color(0.85, 0.85, 0.85)))
+    story.append(Spacer(1, 4*mm))
+    story.append(Paragraph("<font size=9 color='grey'>" + footer_text + "</font>", s_center))
 
     doc.build(story)
     buffer.seek(0)
@@ -238,7 +350,7 @@ def whatsapp():
 
             return str(resp)
 
-    # Handle PDF request before AI processes it
+    # Handle PDF request
     if incoming_msg.strip().upper() == "PDF":
         try:
             latest_quote = supabase.table("quotes").select("*").eq("sender", sender).order("created_at", desc=True).limit(1).execute()
@@ -274,30 +386,48 @@ def whatsapp():
     system_prompt += "VAT registered: " + str(profile.get("vat_registered")) + "\n\n"
     system_prompt += "You help with:\n"
     system_prompt += "1. Logging job enquiries - extract client name, address, job type, urgency\n"
-    system_prompt += "2. Generating quotes - use their exact rates above\n"
+    system_prompt += "2. Generating quotes - use their exact rates above. Present the quote clearly to the user on WhatsApp.\n"
     system_prompt += "3. Booking in jobs - extract client, job type, location, date, time, duration\n"
     system_prompt += "4. Tracking outstanding jobs and payments\n"
     system_prompt += "5. General scheduling and reminders\n\n"
-    system_prompt += "Always be concise - this is WhatsApp.\n\n"
-    system_prompt += "If generating a QUOTE format it clearly with:\n"
-    system_prompt += "- Client name and job description\n"
-    system_prompt += "- Labour breakdown (days x day rate)\n"
-    system_prompt += "- Materials estimate with markup applied\n"
-    system_prompt += "- Total\n"
-    system_prompt += "- Payment terms\n\n"
-    system_prompt += "If logging an enquiry end your reply with:\n"
+    system_prompt += "Always be concise - this is WhatsApp. Do NOT say you cannot send messages. Just present the quote directly.\n\n"
+    system_prompt += "When generating a QUOTE, present it on WhatsApp like this:\n"
+    system_prompt += "Quote for [client name]\n"
+    system_prompt += "[job description] at [address]\n\n"
+    system_prompt += "Labour: [X] days @ [rate] = [amount]\n"
+    system_prompt += "Materials: [amount] + [markup]% = [amount]\n"
+    system_prompt += "TOTAL: [amount]\n"
+    system_prompt += "Payment due within [X] days\n\n"
+    system_prompt += "Reply PDF to get this as a professional PDF document.\n\n"
+    system_prompt += "Then end your reply with this data tag on a new line:\n"
+    system_prompt += "LOG:name=<client name>|job=<job type>|location=<location>|status=quoted\n"
+    system_prompt += "QUOTEDATA:" + json.dumps({"items": [{"description": "example", "qty": 1, "unit_price": 0}], "subtotal": "0", "total": "0"}) + "\n"
+    system_prompt += "Replace the QUOTEDATA with the actual quote line items as valid JSON.\n\n"
+    system_prompt += "If logging an enquiry (not a quote) end your reply with:\n"
     system_prompt += "LOG:name=<client name>|job=<job type>|location=<location>|status=new\n\n"
-    system_prompt += "If generating a quote end your reply with:\n"
-    system_prompt += "LOG:name=<client name>|job=<job type>|location=<location>|status=quoted\n\n"
     system_prompt += "If BOOKING a job, confirm the details clearly then end your reply with:\n"
     system_prompt += "BOOK:name=<client name>|job=<job type>|location=<location>|date=<YYYY-MM-DD>|time=<HH:MM>|days=<number of days>\n"
-    system_prompt += "For the date, convert relative dates like 'Tuesday 3rd June' to YYYY-MM-DD format using today's date as reference."
+    system_prompt += "For the date, convert relative dates to YYYY-MM-DD format using today's date as reference."
 
     response = client.messages.create(model="claude-sonnet-4-5", max_tokens=1500, system=system_prompt, messages=conversation_history[sender])
 
     reply = response.content[0].text
 
     conversation_history[sender].append({"role": "assistant", "content": reply})
+
+    # Parse QUOTEDATA if present
+    quote_items = []
+    quote_subtotal = "0"
+    quote_total = "0"
+    if "QUOTEDATA:" in reply:
+        try:
+            qd_line = reply.split("QUOTEDATA:")[1].strip().split("\n")[0]
+            qd = json.loads(qd_line)
+            quote_items = qd.get("items", [])
+            quote_subtotal = str(qd.get("subtotal", "0"))
+            quote_total = str(qd.get("total", "0"))
+        except Exception as e:
+            print("QUOTEDATA parse error: " + str(e))
 
     if "LOG:" in reply:
         try:
@@ -316,18 +446,19 @@ def whatsapp():
             if status == "quoted":
                 quote_count = supabase.table("quotes").select("id").eq("sender", sender).execute()
                 quote_num = "QU-" + str(len(quote_count.data) + 1).zfill(3)
+                clean_text = reply.split("LOG:")[0].split("QUOTEDATA:")[0].strip()
                 supabase.table("quotes").insert({
                     "sender": sender,
                     "client_name": parts.get("name", ""),
                     "client_address": parts.get("location", ""),
                     "job_description": parts.get("job", ""),
-                    "line_items": [],
-                    "subtotal": "0",
+                    "line_items": quote_items,
+                    "subtotal": quote_subtotal,
                     "vat": "0",
-                    "total": "0",
+                    "total": quote_total,
                     "status": "sent",
                     "quote_number": quote_num,
-                    "quote_text": reply.split("LOG:")[0].strip()
+                    "quote_text": clean_text
                 }).execute()
         except Exception as e:
             print("Logging error: " + str(e))
@@ -350,7 +481,7 @@ def whatsapp():
         except Exception as e:
             print("Booking error: " + str(e))
 
-    clean_reply = reply.split("LOG:")[0].split("BOOK:")[0].strip()
+    clean_reply = reply.split("LOG:")[0].split("BOOK:")[0].split("QUOTEDATA:")[0].strip()
     resp.message(clean_reply)
     return str(resp)
 
@@ -468,7 +599,7 @@ def reset_pin():
         auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
         twilio_number = os.environ.get("TWILIO_NUMBER")
         twilio_client = TwilioClient(account_sid, auth_token)
-        twilio_client.messages.create(body="Your VanOffice reset code is: " + code + ". Valid for 10 minutes.", from_=twilio_number, to=phone)
+        twilio_client.messages.create(body="Your VanOffice reset code is: " + code, from_=twilio_number, to=phone)
         return jsonify({"success": True})
     except Exception as e:
         print("Reset pin error: " + str(e))
@@ -520,26 +651,6 @@ def save_template():
         return jsonify({"success": True})
     except Exception as e:
         print("Save template error: " + str(e))
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/get-template")
-def get_template():
-    try:
-        phone = format_phone(request.args.get("phone", "").strip())
-        pin = request.args.get("pin", "").strip()
-        if not phone or not pin:
-            return jsonify({"error": "Phone and PIN required"}), 401
-        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
-        if not result.data:
-            return jsonify({"error": "Profile not found"}), 404
-        profile = result.data[0]
-        if str(profile.get("pin", "")) != str(pin):
-            return jsonify({"error": "Invalid PIN"}), 401
-        sender = profile.get("sender", "")
-        template = supabase.table("quote_templates").select("*").eq("sender", sender).execute()
-        return jsonify({"template": template.data[0] if template.data else None})
-    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
