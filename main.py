@@ -239,10 +239,26 @@ def whatsapp():
         "content": reply
     })
 
+
+    # Handle PDF request
+    if incoming_msg.strip().upper() == "PDF":
+        try:
+            latest_quote = supabase.table("quotes").select("*").eq("sender", sender).order("created_at", desc=True).limit(1).execute()
+            if latest_quote.data:
+                quote = latest_quote.data[0]
+                pdf_url = "https://trades-pa-trades-pa.up.railway.app/generate-pdf/" + str(quote["id"])
+                resp.message("Here is your quote PDF:\n" + pdf_url + "\n\nOpen the link to download and share with your client.")
+            else:
+                resp.message("No recent quote found. Generate a quote first.")
+            return str(resp)
+        except Exception as e:
+            print("PDF request error: " + str(e))
+
     if "LOG:" in reply:
         try:
             log_line = reply.split("LOG:")[1].strip().split("\n")[0]
             parts = dict(p.split("=") for p in log_line.split("|"))
+            status = parts.get("status", "new")
             supabase.table("enquiries").insert({
                 "sender": sender,
                 "message": incoming_msg,
@@ -250,8 +266,26 @@ def whatsapp():
                 "client_name": parts.get("name", ""),
                 "job_type": parts.get("job", ""),
                 "location": parts.get("location", ""),
-                "status": parts.get("status", "new")
+                "status": status
             }).execute()
+
+            if status == "quoted":
+                quote_count = supabase.table("quotes").select("id").eq("sender", sender).execute()
+                quote_num = "QU-" + str(len(quote_count.data) + 1).zfill(3)
+                supabase.table("quotes").insert({
+                    "sender": sender,
+                    "client_name": parts.get("name", ""),
+                    "client_address": parts.get("location", ""),
+                    "job_description": parts.get("job", ""),
+                    "line_items": [],
+                    "subtotal": "0",
+                    "vat": "0",
+                    "total": "0",
+                    "status": "sent",
+                    "quote_number": quote_num,
+                    "quote_text": reply.split("LOG:")[0].strip()
+                }).execute()
+
         except Exception as e:
             print("Logging error: " + str(e))
 
@@ -521,6 +555,137 @@ def get_template():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+def generate_quote_pdf(quote, profile, template):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
+    import io
+    import datetime
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20*mm, leftMargin=20*mm, topMargin=20*mm, bottomMargin=20*mm)
+
+    brand_colour = template.get("brand_colour", "#1a1a2e") if template else "#1a1a2e"
+    try:
+        brand = colors.HexColor(brand_colour)
+    except:
+        brand = colors.HexColor("#1a1a2e")
+
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Header
+    biz_name = (template.get("business_name") if template else None) or profile.get("business_name", "")
+    biz_address = (template.get("business_address") if template else None) or ""
+    biz_phone = (template.get("business_phone") if template else None) or profile.get("phone", "")
+    biz_email = (template.get("business_email") if template else None) or ""
+    validity = (template.get("quote_validity_days") if template else None) or profile.get("payment_terms", "30")
+    payment_details = (template.get("payment_details") if template else None) or ""
+    terms_text = (template.get("terms") if template else None) or ""
+    footer_text = (template.get("footer_text") if template else None) or "Thank you for your business."
+
+    header_data = [
+        [Paragraph("<font size=18><b>" + biz_name + "</b></font>", styles["Normal"]),
+         Paragraph("<font size=16><b>QUOTE</b></font>", ParagraphStyle("right", parent=styles["Normal"], alignment=TA_RIGHT))]
+    ]
+    header_table = Table(header_data, colWidths=[100*mm, 70*mm])
+    header_table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), brand),
+        ("TEXTCOLOR", (0,0), (-1,-1), colors.white),
+        ("PADDING", (0,0), (-1,-1), 12),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+    ]))
+    story.append(header_table)
+    story.append(Spacer(1, 6*mm))
+
+    # Business and quote details
+    today = datetime.date.today().strftime("%d %B %Y")
+    quote_num = quote.get("quote_number", "QU-001")
+
+    info_data = [
+        [Paragraph("<b>From</b><br/>" + biz_name + "<br/>" + biz_address + "<br/>" + biz_phone + "<br/>" + biz_email, styles["Normal"]),
+         Paragraph("<b>Quote No:</b> " + quote_num + "<br/><b>Date:</b> " + today + "<br/><b>Valid for:</b> " + str(validity) + " days", ParagraphStyle("right", parent=styles["Normal"], alignment=TA_RIGHT))]
+    ]
+    info_table = Table(info_data, colWidths=[85*mm, 85*mm])
+    story.append(info_table)
+    story.append(Spacer(1, 6*mm))
+
+    # Client details
+    story.append(Paragraph("<b>Prepared for</b>", styles["Normal"]))
+    story.append(Paragraph(quote.get("client_name", "") + "<br/>" + quote.get("client_address", ""), styles["Normal"]))
+    story.append(Spacer(1, 6*mm))
+    story.append(HRFlowable(width="100%", thickness=1, color=brand))
+    story.append(Spacer(1, 4*mm))
+
+    # Job description
+    story.append(Paragraph("<b>Job Description</b>", styles["Normal"]))
+    story.append(Paragraph(quote.get("job_description", ""), styles["Normal"]))
+    story.append(Spacer(1, 6*mm))
+
+    # Quote text
+    quote_text = quote.get("quote_text", "")
+    if quote_text:
+        for line in quote_text.split("\n"):
+            if line.strip():
+                story.append(Paragraph(line, styles["Normal"]))
+        story.append(Spacer(1, 6*mm))
+
+    story.append(HRFlowable(width="100%", thickness=1, color=brand))
+    story.append(Spacer(1, 4*mm))
+
+    # Payment details
+    if payment_details:
+        story.append(Paragraph("<b>Payment Details</b>", styles["Normal"]))
+        story.append(Paragraph(payment_details.replace("\n", "<br/>"), styles["Normal"]))
+        story.append(Spacer(1, 4*mm))
+
+    # Terms
+    if terms_text:
+        story.append(Paragraph("<b>Terms & Conditions</b>", styles["Normal"]))
+        story.append(Paragraph(terms_text.replace("\n", "<br/>"), styles["Normal"]))
+        story.append(Spacer(1, 4*mm))
+
+    # Footer
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.grey))
+    story.append(Spacer(1, 3*mm))
+    story.append(Paragraph(footer_text, ParagraphStyle("footer", parent=styles["Normal"], alignment=TA_CENTER, textColor=colors.grey, fontSize=9)))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+
+@app.route("/generate-pdf/<quote_id>")
+def serve_pdf(quote_id):
+    try:
+        quote_result = supabase.table("quotes").select("*").eq("id", quote_id).execute()
+        if not quote_result.data:
+            return "Quote not found", 404
+
+        quote = quote_result.data[0]
+        profile_result = supabase.table("profiles").select("*").eq("sender", quote["sender"]).execute()
+        profile = profile_result.data[0] if profile_result.data else {}
+        template_result = supabase.table("quote_templates").select("*").eq("sender", quote["sender"]).execute()
+        template = template_result.data[0] if template_result.data else None
+
+        pdf_buffer = generate_quote_pdf(quote, profile, template)
+
+        from flask import send_file
+        return send_file(
+            pdf_buffer,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name="Quote-" + quote.get("quote_number", "001") + ".pdf"
+        )
+    except Exception as e:
+        print("PDF error: " + str(e))
+        print(traceback.format_exc())
+        return "Error generating PDF: " + str(e), 500
 
 
 if __name__ == "__main__":
