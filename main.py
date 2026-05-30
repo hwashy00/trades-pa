@@ -516,7 +516,7 @@ def whatsapp():
                         "gmail_token": "", "gmail_refresh_token": ""
                     }).execute()
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
-                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nVisit your dashboard at:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard\n\nLog in with your mobile number and PIN.")
+                   resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nConnect your email so I can scan it:\nGmail: https://trades-pa-trades-pa.up.railway.app/auth/gmail?phone=" + phone + "\nOutlook: https://trades-pa-trades-pa.up.railway.app/auth/outlook?phone=" + phone + "\n\nVisit your dashboard:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard\n\nLog in with your mobile number and PIN.")
                 except Exception as e:
                     print("Profile save error: " + str(e))
                     print(traceback.format_exc())
