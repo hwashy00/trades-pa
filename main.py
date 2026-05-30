@@ -4,18 +4,23 @@ import traceback
 import datetime
 import io
 import json
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, redirect, session
 import anthropic
 from supabase import create_client
 from apscheduler.schedulers.background import BackgroundScheduler
 from twilio.rest import Client as TwilioClient
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET", "vanoffice-secret-key-change-me")
 client = anthropic.Anthropic()
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = "https://trades-pa-trades-pa.up.railway.app/auth/gmail/callback"
 
 conversation_history = {}
 
@@ -82,8 +87,93 @@ def send_morning_summary():
         print("Morning summary error: " + str(e))
 
 
+def scan_emails_for_user(profile):
+    try:
+        gmail_token = profile.get("gmail_token")
+        gmail_refresh = profile.get("gmail_refresh_token")
+        if not gmail_token:
+            return
+
+        from google.oauth2.credentials import Credentials
+        from googleapiclient.discovery import build
+
+        creds = Credentials(
+            token=gmail_token,
+            refresh_token=gmail_refresh,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=GOOGLE_CLIENT_ID,
+            client_secret=GOOGLE_CLIENT_SECRET
+        )
+
+        if creds.expired and creds.refresh_token:
+            from google.auth.transport.requests import Request
+            creds.refresh(Request())
+            supabase.table("profiles").update({
+                "gmail_token": creds.token
+            }).eq("sender", profile["sender"]).execute()
+
+        service = build("gmail", "v1", credentials=creds)
+        results = service.users().messages().list(userId="me", maxResults=10, q="is:unread newer_than:1d").execute()
+        messages = results.get("messages", [])
+
+        sender = profile.get("sender", "")
+
+        for msg in messages:
+            msg_id = msg["id"]
+            existing = supabase.table("emails").select("id").eq("gmail_id", msg_id).execute()
+            if existing.data:
+                continue
+
+            msg_data = service.users().messages().get(userId="me", id=msg_id, format="metadata", metadataHeaders=["From", "Subject"]).execute()
+            headers = {h["name"]: h["value"] for h in msg_data.get("payload", {}).get("headers", [])}
+            from_email = headers.get("From", "Unknown")
+            subject = headers.get("Subject", "No subject")
+
+            snippet = msg_data.get("snippet", "")
+
+            ai_response = client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=200,
+                system="You categorise emails for a tradesperson. Respond with ONLY valid JSON. Categories: payment, client, supplier, quote, invoice, spam, other. Also determine if important (true/false) and write a one-line summary.",
+                messages=[{"role": "user", "content": "From: " + from_email + "\nSubject: " + subject + "\nPreview: " + snippet + "\n\nRespond with JSON only: {\"category\": \"...\", \"is_important\": true/false, \"summary\": \"...\"}"}]
+            )
+
+            try:
+                ai_text = ai_response.content[0].text.strip()
+                ai_text = ai_text.replace("```json", "").replace("```", "").strip()
+                parsed = json.loads(ai_text)
+            except:
+                parsed = {"category": "other", "is_important": False, "summary": subject}
+
+            supabase.table("emails").insert({
+                "sender": sender,
+                "from_email": from_email,
+                "subject": subject,
+                "summary": parsed.get("summary", subject),
+                "category": parsed.get("category", "other"),
+                "is_important": parsed.get("is_important", False),
+                "read": False,
+                "gmail_id": msg_id
+            }).execute()
+
+    except Exception as e:
+        print("Email scan error for " + profile.get("sender", "unknown") + ": " + str(e))
+
+
+def scan_all_emails():
+    try:
+        profiles = supabase.table("profiles").select("*").neq("gmail_token", "").execute()
+        if profiles.data:
+            for profile in profiles.data:
+                if profile.get("gmail_token"):
+                    scan_emails_for_user(profile)
+    except Exception as e:
+        print("Scan all emails error: " + str(e))
+
+
 scheduler = BackgroundScheduler()
 scheduler.add_job(send_morning_summary, "cron", hour=8, minute=0)
+scheduler.add_job(scan_all_emails, "interval", minutes=15)
 scheduler.start()
 
 
@@ -108,8 +198,6 @@ def generate_quote_pdf(quote, profile, template):
     s_normal = styles["Normal"]
     s_right = ParagraphStyle("right", parent=s_normal, alignment=TA_RIGHT)
     s_center = ParagraphStyle("center", parent=s_normal, alignment=TA_CENTER)
-    s_small = ParagraphStyle("small", parent=s_normal, fontSize=8, textColor=colors.grey)
-    s_small_right = ParagraphStyle("small_right", parent=s_normal, fontSize=8, textColor=colors.grey, alignment=TA_RIGHT)
 
     story = []
 
@@ -122,7 +210,6 @@ def generate_quote_pdf(quote, profile, template):
     terms_text = (template.get("terms") if template else None) or ""
     footer_text = (template.get("footer_text") if template else None) or "Thank you for your business."
 
-    # HEADER BAR
     header_data = [[
         Paragraph("<font size=16><b>" + biz_name.upper() + "</b></font>", s_normal),
         Paragraph("<font size=14><b>QUOTATION</b></font>", s_right)
@@ -140,7 +227,6 @@ def generate_quote_pdf(quote, profile, template):
     story.append(header_table)
     story.append(Spacer(1, 8*mm))
 
-    # FROM / QUOTE INFO
     today_str = datetime.date.today().strftime("%d %B %Y")
     quote_num = quote.get("quote_number", "QU-001")
 
@@ -166,17 +252,14 @@ def generate_quote_pdf(quote, profile, template):
     story.append(info_table)
     story.append(Spacer(1, 6*mm))
 
-    # TO
     client_name = quote.get("client_name", "")
     client_address = quote.get("client_address", "")
-    to_text = "<font size=8 color='grey'>PREPARED FOR</font><br/><br/>"
-    to_text += "<b>" + client_name + "</b>"
+    to_text = "<font size=8 color='grey'>PREPARED FOR</font><br/><br/><b>" + client_name + "</b>"
     if client_address:
         to_text += "<br/>" + client_address
     story.append(Paragraph(to_text, s_normal))
     story.append(Spacer(1, 8*mm))
 
-    # LINE ITEMS TABLE
     line_items = quote.get("line_items", [])
     if line_items and len(line_items) > 0:
         table_data = [["Description", "Qty", "Unit Price", "Amount"]]
@@ -187,12 +270,7 @@ def generate_quote_pdf(quote, profile, template):
             unit_price = item.get("unit_price", 0)
             amount = float(qty) * float(unit_price)
             subtotal += amount
-            table_data.append([
-                desc,
-                str(qty),
-                "£{:.2f}".format(float(unit_price)),
-                "£{:.2f}".format(amount)
-            ])
+            table_data.append([desc, str(qty), "£{:.2f}".format(float(unit_price)), "£{:.2f}".format(amount)])
 
         items_table = Table(table_data, colWidths=[85*mm, 20*mm, 30*mm, 35*mm])
         items_table.setStyle(TableStyle([
@@ -211,7 +289,6 @@ def generate_quote_pdf(quote, profile, template):
         story.append(items_table)
         story.append(Spacer(1, 4*mm))
 
-        # TOTALS
         vat_rate = 0.2 if profile.get("vat_registered", "no").lower() in ["yes", "y", "true"] else 0
         vat_amount = subtotal * vat_rate
         total = subtotal + vat_amount
@@ -233,12 +310,11 @@ def generate_quote_pdf(quote, profile, template):
         ]))
         story.append(totals_table)
     else:
-        # No structured items - use quote text
         quote_text = quote.get("quote_text", "")
         if quote_text:
-            # Clean out conversational text
-            clean_lines = []
-            skip_phrases = ["I can't actually", "Just copy that", "copy and send", "Here's the quote formatted", "---", "Cheers,", "Let me know if"]
+            skip_phrases = ["I can't actually", "Just copy that", "copy and send", "Here's the quote formatted", "---", "Cheers,", "Let me know if", "Reply PDF", "reply pdf"]
+            story.append(Paragraph("<b>Quote Details</b>", s_normal))
+            story.append(Spacer(1, 3*mm))
             for line in quote_text.split("\n"):
                 stripped = line.strip().replace("**", "")
                 if not stripped:
@@ -249,40 +325,28 @@ def generate_quote_pdf(quote, profile, template):
                         skip = True
                         break
                 if not skip and not stripped.startswith("Hi ") and stripped != profile.get("owner_name", ""):
-                    clean_lines.append(stripped)
-
-            if clean_lines:
-                story.append(Paragraph("<b>Quote Details</b>", s_normal))
-                story.append(Spacer(1, 3*mm))
-
-                for line in clean_lines:
-                    if "total" in line.lower() or "TOTAL" in line:
+                    if "total" in stripped.lower():
                         story.append(Spacer(1, 2*mm))
-                        story.append(Paragraph("<b>" + line + "</b>", s_normal))
-                    elif "labour" in line.lower() or "materials" in line.lower() or "payment" in line.lower():
-                        story.append(Paragraph(line, s_normal))
+                        story.append(Paragraph("<b>" + stripped + "</b>", s_normal))
                     else:
-                        story.append(Paragraph(line, s_normal))
+                        story.append(Paragraph(stripped, s_normal))
 
     story.append(Spacer(1, 10*mm))
     story.append(HRFlowable(width="100%", thickness=1, color=brand))
     story.append(Spacer(1, 4*mm))
 
-    # PAYMENT DETAILS
     if payment_details:
         story.append(Paragraph("<font size=8 color='grey'>PAYMENT DETAILS</font>", s_normal))
         story.append(Spacer(1, 2*mm))
         story.append(Paragraph(payment_details.replace("\n", "<br/>"), s_normal))
         story.append(Spacer(1, 6*mm))
 
-    # TERMS
     if terms_text:
         story.append(Paragraph("<font size=8 color='grey'>TERMS & CONDITIONS</font>", s_normal))
         story.append(Spacer(1, 2*mm))
         story.append(Paragraph("<font size=8>" + terms_text.replace("\n", "<br/>") + "</font>", s_normal))
         story.append(Spacer(1, 6*mm))
 
-    # FOOTER
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.Color(0.85, 0.85, 0.85)))
     story.append(Spacer(1, 4*mm))
     story.append(Paragraph("<font size=9 color='grey'>" + footer_text + "</font>", s_center))
@@ -364,7 +428,8 @@ def whatsapp():
                         "trade": data.get("trade", ""), "day_rate": "0", "half_day_rate": "0",
                         "hourly_rate": "0", "materials_markup": "20", "payment_terms": "30",
                         "vat_registered": "no", "vat_number": "", "twilio_number": "",
-                        "pin": data.get("pin", ""), "reset_code": ""
+                        "pin": data.get("pin", ""), "reset_code": "",
+                        "gmail_token": "", "gmail_refresh_token": ""
                     }).execute()
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
                     resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nVisit your dashboard at:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard\n\nLog in with your mobile number and PIN.")
@@ -390,6 +455,24 @@ def whatsapp():
         except Exception as e:
             print("PDF request error: " + str(e))
             resp.message("Sorry, could not generate PDF. Try again.")
+            return str(resp)
+
+    # Handle email check request
+    if incoming_msg.strip().lower() in ["check emails", "check my emails", "emails", "any emails"]:
+        try:
+            scan_emails_for_user(profile)
+            important = supabase.table("emails").select("*").eq("sender", sender).eq("is_important", True).eq("read", False).order("created_at", desc=True).limit(5).execute()
+            if important.data:
+                email_summary = "You have " + str(len(important.data)) + " important email(s):\n\n"
+                for em in important.data:
+                    email_summary += "- " + em.get("from_email", "").split("<")[0].strip() + "\n  " + em.get("summary", em.get("subject", "")) + "\n\n"
+                resp.message(email_summary)
+            else:
+                resp.message("No important unread emails right now.")
+            return str(resp)
+        except Exception as e:
+            print("Email check error: " + str(e))
+            resp.message("Could not check emails. Make sure Gmail is connected in your dashboard settings.")
             return str(resp)
 
     if sender not in conversation_history:
@@ -441,7 +524,6 @@ def whatsapp():
 
     conversation_history[sender].append({"role": "assistant", "content": reply})
 
-    # Parse QUOTEDATA if present
     quote_items = []
     quote_subtotal = "0"
     quote_total = "0"
@@ -572,6 +654,54 @@ def call_status():
     return str(resp)
 
 
+@app.route("/auth/gmail")
+def gmail_auth():
+    phone = request.args.get("phone", "")
+    from google_auth_oauthlib.flow import Flow
+    flow = Flow.from_client_config(
+        {"web": {
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [GOOGLE_REDIRECT_URI]
+        }},
+        scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+        redirect_uri=GOOGLE_REDIRECT_URI
+    )
+    auth_url, state = flow.authorization_url(access_type="offline", prompt="consent", state=phone)
+    return redirect(auth_url)
+
+
+@app.route("/auth/gmail/callback")
+def gmail_callback():
+    code = request.args.get("code", "")
+    phone = request.args.get("state", "")
+
+    from google_auth_oauthlib.flow import Flow
+    flow = Flow.from_client_config(
+        {"web": {
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [GOOGLE_REDIRECT_URI]
+        }},
+        scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+        redirect_uri=GOOGLE_REDIRECT_URI
+    )
+    flow.fetch_token(code=code)
+    creds = flow.credentials
+
+    phone = format_phone(phone)
+    supabase.table("profiles").update({
+        "gmail_token": creds.token,
+        "gmail_refresh_token": creds.refresh_token
+    }).eq("phone", phone).execute()
+
+    return "<html><body style='background:#0c0c0c;color:#fff;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center'><div><h1 style='color:#5b6cff'>Gmail Connected!</h1><p style='color:#888;margin-top:16px'>You can close this window and go back to your dashboard.</p></div></body></html>"
+
+
 @app.route("/dashboard")
 def dashboard():
     with open("dashboard.html", "r") as f:
@@ -601,9 +731,13 @@ def api_stats():
         bookings = supabase.table("bookings").select("*").eq("sender", profile.get("sender", "")).order("date").execute().data
         template_result = supabase.table("quote_templates").select("*").eq("sender", profile.get("sender", "")).execute()
         template = template_result.data[0] if template_result.data else None
+        emails_result = supabase.table("emails").select("*").eq("sender", profile.get("sender", "")).eq("read", False).order("created_at", desc=True).limit(10).execute()
+        emails = emails_result.data if emails_result.data else []
+        gmail_connected = bool(profile.get("gmail_token"))
         return jsonify({
             "enquiries": len(new_enq), "unpaid": len(quoted), "missed": len(missed),
-            "recent": recent, "bookings": bookings, "profile": profile, "template": template
+            "recent": recent, "bookings": bookings, "profile": profile, "template": template,
+            "emails": emails, "gmail_connected": gmail_connected
         })
     except Exception as e:
         print("API stats error: " + str(e))
