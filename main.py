@@ -657,13 +657,6 @@ def call_status():
 @app.route("/auth/gmail")
 def gmail_auth():
     phone = request.args.get("phone", "")
-    import hashlib
-    import base64
-    import secrets
-    code_verifier = secrets.token_urlsafe(64)
-    code_challenge = base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode()).digest()).rstrip(b"=").decode()
-    session["code_verifier"] = code_verifier
-    session["auth_phone"] = phone
     auth_url = "https://accounts.google.com/o/oauth2/auth"
     auth_url += "?client_id=" + GOOGLE_CLIENT_ID
     auth_url += "&redirect_uri=" + GOOGLE_REDIRECT_URI
@@ -671,8 +664,6 @@ def gmail_auth():
     auth_url += "&scope=https://www.googleapis.com/auth/gmail.readonly"
     auth_url += "&access_type=offline"
     auth_url += "&prompt=consent"
-    auth_url += "&code_challenge=" + code_challenge
-    auth_url += "&code_challenge_method=S256"
     auth_url += "&state=" + phone
     return redirect(auth_url)
 
@@ -681,15 +672,13 @@ def gmail_auth():
 def gmail_callback():
     code = request.args.get("code", "")
     phone = request.args.get("state", "")
-    code_verifier = session.get("code_verifier", "")
     import requests as req
     token_response = req.post("https://oauth2.googleapis.com/token", data={
         "code": code,
         "client_id": GOOGLE_CLIENT_ID,
         "client_secret": GOOGLE_CLIENT_SECRET,
         "redirect_uri": GOOGLE_REDIRECT_URI,
-        "grant_type": "authorization_code",
-        "code_verifier": code_verifier
+        "grant_type": "authorization_code"
     })
     tokens = token_response.json()
     if "access_token" not in tokens:
