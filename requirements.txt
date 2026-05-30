@@ -5,3 +5,4 @@ supabase
 apscheduler
 reportlab
 openai
+requests
