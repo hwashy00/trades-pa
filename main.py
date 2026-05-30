@@ -657,19 +657,23 @@ def call_status():
 @app.route("/auth/gmail")
 def gmail_auth():
     phone = request.args.get("phone", "")
-    from google_auth_oauthlib.flow import Flow
-    flow = Flow.from_client_config(
-        {"web": {
-            "client_id": GOOGLE_CLIENT_ID,
-            "client_secret": GOOGLE_CLIENT_SECRET,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [GOOGLE_REDIRECT_URI]
-        }},
-        scopes=["https://www.googleapis.com/auth/gmail.readonly"],
-        redirect_uri=GOOGLE_REDIRECT_URI
-    )
-    auth_url, state = flow.authorization_url(access_type="offline", prompt="consent", state=phone)
+    import hashlib
+    import base64
+    import secrets
+    code_verifier = secrets.token_urlsafe(64)
+    code_challenge = base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode()).digest()).rstrip(b"=").decode()
+    session["code_verifier"] = code_verifier
+    session["auth_phone"] = phone
+    auth_url = "https://accounts.google.com/o/oauth2/auth"
+    auth_url += "?client_id=" + GOOGLE_CLIENT_ID
+    auth_url += "&redirect_uri=" + GOOGLE_REDIRECT_URI
+    auth_url += "&response_type=code"
+    auth_url += "&scope=https://www.googleapis.com/auth/gmail.readonly"
+    auth_url += "&access_type=offline"
+    auth_url += "&prompt=consent"
+    auth_url += "&code_challenge=" + code_challenge
+    auth_url += "&code_challenge_method=S256"
+    auth_url += "&state=" + phone
     return redirect(auth_url)
 
 
@@ -677,30 +681,25 @@ def gmail_auth():
 def gmail_callback():
     code = request.args.get("code", "")
     phone = request.args.get("state", "")
-
-    from google_auth_oauthlib.flow import Flow
-    flow = Flow.from_client_config(
-        {"web": {
-            "client_id": GOOGLE_CLIENT_ID,
-            "client_secret": GOOGLE_CLIENT_SECRET,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [GOOGLE_REDIRECT_URI]
-        }},
-        scopes=["https://www.googleapis.com/auth/gmail.readonly"],
-        redirect_uri=GOOGLE_REDIRECT_URI
-    )
-    flow.fetch_token(code=code)
-    creds = flow.credentials
-
+    code_verifier = session.get("code_verifier", "")
+    import requests as req
+    token_response = req.post("https://oauth2.googleapis.com/token", data={
+        "code": code,
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "grant_type": "authorization_code",
+        "code_verifier": code_verifier
+    })
+    tokens = token_response.json()
+    if "access_token" not in tokens:
+        return "Error connecting Gmail: " + str(tokens.get("error_description", "Unknown error")), 400
     phone = format_phone(phone)
     supabase.table("profiles").update({
-        "gmail_token": creds.token,
-        "gmail_refresh_token": creds.refresh_token
+        "gmail_token": tokens.get("access_token", ""),
+        "gmail_refresh_token": tokens.get("refresh_token", "")
     }).eq("phone", phone).execute()
-
     return "<html><body style='background:#0c0c0c;color:#fff;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center'><div><h1 style='color:#5b6cff'>Gmail Connected!</h1><p style='color:#888;margin-top:16px'>You can close this window and go back to your dashboard.</p></div></body></html>"
-
 
 @app.route("/dashboard")
 def dashboard():
