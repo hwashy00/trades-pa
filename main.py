@@ -656,7 +656,8 @@ def call_status():
 
 @app.route("/auth/gmail")
 def gmail_auth():
-    phone = request.args.get("phone", "")
+    phone = request.args.get("phone", "").strip()
+    digits = "".join(c for c in phone if c.isdigit())
     auth_url = "https://accounts.google.com/o/oauth2/auth"
     auth_url += "?client_id=" + GOOGLE_CLIENT_ID
     auth_url += "&redirect_uri=" + GOOGLE_REDIRECT_URI
@@ -664,14 +665,14 @@ def gmail_auth():
     auth_url += "&scope=https://www.googleapis.com/auth/gmail.readonly"
     auth_url += "&access_type=offline"
     auth_url += "&prompt=consent"
-    auth_url += "&state=" + phone.replace("+", "00")
+    auth_url += "&state=" + digits
     return redirect(auth_url)
 
 
 @app.route("/auth/gmail/callback")
 def gmail_callback():
     code = request.args.get("code", "")
-    phone = request.args.get("state", "").replace("00", "+", 1)
+    phone = "+" + request.args.get("state", "").strip()
     import requests as req
     token_response = req.post("https://oauth2.googleapis.com/token", data={
         "code": code,
