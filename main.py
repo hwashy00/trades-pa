@@ -296,6 +296,32 @@ def generate_quote_pdf(quote, profile, template):
 def whatsapp():
     incoming_msg = request.form.get("Body", "").strip()
     sender = request.form.get("From", "")
+    num_media = int(request.form.get("NumMedia", 0))
+
+    if num_media > 0:
+        media_type = request.form.get("MediaContentType0", "")
+        media_url = request.form.get("MediaUrl0", "")
+        if "audio" in media_type or "ogg" in media_type:
+            try:
+                import requests as req
+                from openai import OpenAI
+                account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+                auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+                audio_response = req.get(media_url, auth=(account_sid, auth_token))
+                audio_path = "/tmp/voice_" + sender.replace("+", "").replace(":", "") + ".ogg"
+                with open(audio_path, "wb") as f:
+                    f.write(audio_response.content)
+                openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+                with open(audio_path, "rb") as audio_file:
+                    transcript = openai_client.audio.transcriptions.create(model="whisper-1", file=audio_file)
+                incoming_msg = transcript.text.strip()
+                print("Voice note transcribed: " + incoming_msg)
+            except Exception as e:
+                print("Voice transcription error: " + str(e))
+                from twilio.twiml.messaging_response import MessagingResponse
+                resp = MessagingResponse()
+                resp.message("Sorry, could not transcribe your voice note. Try again or type your message.")
+                return str(resp)
 
     from twilio.twiml.messaging_response import MessagingResponse
     resp = MessagingResponse()
