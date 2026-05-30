@@ -22,6 +22,10 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = "https://trades-pa-trades-pa.up.railway.app/auth/gmail/callback"
 
+MICROSOFT_CLIENT_ID = os.environ.get("MICROSOFT_CLIENT_ID")
+MICROSOFT_CLIENT_SECRET = os.environ.get("MICROSOFT_CLIENT_SECRET")
+MICROSOFT_REDIRECT_URI = "https://trades-pa-trades-pa.up.railway.app/auth/outlook/callback"
+
 conversation_history = {}
 
 ONBOARDING_QUESTIONS = [
@@ -160,13 +164,93 @@ def scan_emails_for_user(profile):
         print("Email scan error for " + profile.get("sender", "unknown") + ": " + str(e))
 
 
+def scan_outlook_for_user(profile):
+    try:
+        outlook_token = profile.get("outlook_token")
+        outlook_refresh = profile.get("outlook_refresh_token")
+        if not outlook_token:
+            return
+
+        import requests as req
+
+        # Refresh token if needed
+        headers = {"Authorization": "Bearer " + outlook_token}
+        test = req.get("https://graph.microsoft.com/v1.0/me", headers=headers)
+        if test.status_code == 401 and outlook_refresh:
+            refresh_response = req.post("https://login.microsoftonline.com/common/oauth2/v2.0/token", data={
+                "client_id": MICROSOFT_CLIENT_ID,
+                "client_secret": MICROSOFT_CLIENT_SECRET,
+                "refresh_token": outlook_refresh,
+                "grant_type": "refresh_token",
+                "scope": "Mail.Read"
+            })
+            tokens = refresh_response.json()
+            if "access_token" in tokens:
+                outlook_token = tokens["access_token"]
+                supabase.table("profiles").update({"outlook_token": outlook_token}).eq("sender", profile["sender"]).execute()
+                headers = {"Authorization": "Bearer " + outlook_token}
+
+        response = req.get(
+            "https://graph.microsoft.com/v1.0/me/messages?$filter=isRead eq false&$top=10&$orderby=receivedDateTime desc&$select=from,subject,bodyPreview,id",
+            headers=headers
+        )
+
+        if response.status_code != 200:
+            print("Outlook API error: " + str(response.status_code))
+            return
+
+        messages = response.json().get("value", [])
+        sender = profile.get("sender", "")
+
+        for msg in messages:
+            msg_id = msg.get("id", "")
+            existing = supabase.table("emails").select("id").eq("gmail_id", msg_id).execute()
+            if existing.data:
+                continue
+
+            from_email = msg.get("from", {}).get("emailAddress", {}).get("address", "Unknown")
+            from_name = msg.get("from", {}).get("emailAddress", {}).get("name", "")
+            subject = msg.get("subject", "No subject")
+            snippet = msg.get("bodyPreview", "")
+
+            ai_response = client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=200,
+                system="You categorise emails for a tradesperson. Respond with ONLY valid JSON. Categories: payment, client, supplier, quote, invoice, spam, other. Also determine if important (true/false) and write a one-line summary.",
+                messages=[{"role": "user", "content": "From: " + from_name + " <" + from_email + ">\nSubject: " + subject + "\nPreview: " + snippet + "\n\nRespond with JSON only: {\"category\": \"...\", \"is_important\": true/false, \"summary\": \"...\"}"}]
+            )
+
+            try:
+                ai_text = ai_response.content[0].text.strip()
+                ai_text = ai_text.replace("```json", "").replace("```", "").strip()
+                parsed = json.loads(ai_text)
+            except:
+                parsed = {"category": "other", "is_important": False, "summary": subject}
+
+            supabase.table("emails").insert({
+                "sender": sender,
+                "from_email": from_name + " <" + from_email + ">",
+                "subject": subject,
+                "summary": parsed.get("summary", subject),
+                "category": parsed.get("category", "other"),
+                "is_important": parsed.get("is_important", False),
+                "read": False,
+                "gmail_id": msg_id
+            }).execute()
+
+    except Exception as e:
+        print("Outlook scan error for " + profile.get("sender", "unknown") + ": " + str(e))
+
+
 def scan_all_emails():
     try:
-        profiles = supabase.table("profiles").select("*").neq("gmail_token", "").execute()
+        profiles = supabase.table("profiles").select("*").execute()
         if profiles.data:
             for profile in profiles.data:
                 if profile.get("gmail_token"):
                     scan_emails_for_user(profile)
+                if profile.get("outlook_token"):
+                    scan_outlook_for_user(profile)
     except Exception as e:
         print("Scan all emails error: " + str(e))
 
@@ -461,6 +545,7 @@ def whatsapp():
     if incoming_msg.strip().lower() in ["check emails", "check my emails", "emails", "any emails"]:
         try:
             scan_emails_for_user(profile)
+            scan_outlook_for_user(profile)
             important = supabase.table("emails").select("*").eq("sender", sender).eq("is_important", True).eq("read", False).order("created_at", desc=True).limit(5).execute()
             if important.data:
                 email_summary = "You have " + str(len(important.data)) + " important email(s):\n\n"
@@ -656,40 +741,88 @@ def call_status():
 
 @app.route("/auth/gmail")
 def gmail_auth():
-    phone = request.args.get("phone", "").strip()
-    digits = "".join(c for c in phone if c.isdigit())
-    auth_url = "https://accounts.google.com/o/oauth2/auth"
-    auth_url += "?client_id=" + GOOGLE_CLIENT_ID
-    auth_url += "&redirect_uri=" + GOOGLE_REDIRECT_URI
-    auth_url += "&response_type=code"
-    auth_url += "&scope=https://www.googleapis.com/auth/gmail.readonly"
-    auth_url += "&access_type=offline"
-    auth_url += "&prompt=consent"
-    auth_url += "&state=" + digits
+    phone = request.args.get("phone", "")
+    from google_auth_oauthlib.flow import Flow
+    flow = Flow.from_client_config(
+        {"web": {
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [GOOGLE_REDIRECT_URI]
+        }},
+        scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+        redirect_uri=GOOGLE_REDIRECT_URI
+    )
+    auth_url, state = flow.authorization_url(access_type="offline", prompt="consent", state=phone)
     return redirect(auth_url)
 
 
 @app.route("/auth/gmail/callback")
 def gmail_callback():
     code = request.args.get("code", "")
+    phone = request.args.get("state", "")
+
+    from google_auth_oauthlib.flow import Flow
+    flow = Flow.from_client_config(
+        {"web": {
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [GOOGLE_REDIRECT_URI]
+        }},
+        scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+        redirect_uri=GOOGLE_REDIRECT_URI
+    )
+    flow.fetch_token(code=code)
+    creds = flow.credentials
+
+    phone = format_phone(phone)
+    supabase.table("profiles").update({
+        "gmail_token": creds.token,
+        "gmail_refresh_token": creds.refresh_token
+    }).eq("phone", phone).execute()
+
+    return "<html><body style='background:#0c0c0c;color:#fff;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center'><div><h1 style='color:#5b6cff'>Gmail Connected!</h1><p style='color:#888;margin-top:16px'>You can close this window and go back to your dashboard.</p></div></body></html>"
+
+
+@app.route("/auth/outlook")
+def outlook_auth():
+    phone = request.args.get("phone", "").strip()
+    digits = "".join(c for c in phone if c.isdigit())
+    auth_url = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+    auth_url += "?client_id=" + MICROSOFT_CLIENT_ID
+    auth_url += "&redirect_uri=" + MICROSOFT_REDIRECT_URI
+    auth_url += "&response_type=code"
+    auth_url += "&scope=Mail.Read offline_access"
+    auth_url += "&state=" + digits
+    return redirect(auth_url)
+
+
+@app.route("/auth/outlook/callback")
+def outlook_callback():
+    code = request.args.get("code", "")
     phone = "+" + request.args.get("state", "").strip()
     import requests as req
-    token_response = req.post("https://oauth2.googleapis.com/token", data={
+    token_response = req.post("https://login.microsoftonline.com/common/oauth2/v2.0/token", data={
         "code": code,
-        "client_id": GOOGLE_CLIENT_ID,
-        "client_secret": GOOGLE_CLIENT_SECRET,
-        "redirect_uri": GOOGLE_REDIRECT_URI,
-        "grant_type": "authorization_code"
+        "client_id": MICROSOFT_CLIENT_ID,
+        "client_secret": MICROSOFT_CLIENT_SECRET,
+        "redirect_uri": MICROSOFT_REDIRECT_URI,
+        "grant_type": "authorization_code",
+        "scope": "Mail.Read offline_access"
     })
     tokens = token_response.json()
     if "access_token" not in tokens:
-        return "Error connecting Gmail: " + str(tokens.get("error_description", "Unknown error")), 400
+        return "Error connecting Outlook: " + str(tokens.get("error_description", "Unknown error")), 400
     phone = format_phone(phone)
     supabase.table("profiles").update({
-        "gmail_token": tokens.get("access_token", ""),
-        "gmail_refresh_token": tokens.get("refresh_token", "")
+        "outlook_token": tokens.get("access_token", ""),
+        "outlook_refresh_token": tokens.get("refresh_token", "")
     }).eq("phone", phone).execute()
-    return "<html><body style='background:#0c0c0c;color:#fff;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center'><div><h1 style='color:#5b6cff'>Gmail Connected!</h1><p style='color:#888;margin-top:16px'>You can close this window and go back to your dashboard.</p></div></body></html>"
+    return "<html><body style='background:#0c0c0c;color:#fff;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center'><div><h1 style='color:#5b6cff'>Outlook Connected!</h1><p style='color:#888;margin-top:16px'>You can close this window and go back to your dashboard.</p></div></body></html>"
+
 
 @app.route("/dashboard")
 def dashboard():
@@ -723,10 +856,11 @@ def api_stats():
         emails_result = supabase.table("emails").select("*").eq("sender", profile.get("sender", "")).eq("read", False).order("created_at", desc=True).limit(10).execute()
         emails = emails_result.data if emails_result.data else []
         gmail_connected = bool(profile.get("gmail_token"))
+        outlook_connected = bool(profile.get("outlook_token"))
         return jsonify({
             "enquiries": len(new_enq), "unpaid": len(quoted), "missed": len(missed),
             "recent": recent, "bookings": bookings, "profile": profile, "template": template,
-            "emails": emails, "gmail_connected": gmail_connected
+            "emails": emails, "gmail_connected": gmail_connected, "outlook_connected": outlook_connected
         })
     except Exception as e:
         print("API stats error: " + str(e))
