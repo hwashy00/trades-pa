@@ -3,3 +3,4 @@ anthropic
 twilio
 supabase
 apscheduler
+reportlab
