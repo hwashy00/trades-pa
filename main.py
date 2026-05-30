@@ -197,7 +197,63 @@ def whatsapp():
             print("PDF request error: " + str(e))
             resp.message("Sorry, could not generate PDF. Try again.")
             return str(resp)
+if "LOG:" in reply:
+        try:
+            log_line = reply.split("LOG:")[1].strip().split("\n")[0]
+            parts = dict(p.split("=") for p in log_line.split("|"))
+            status = parts.get("status", "new")
+            supabase.table("enquiries").insert({
+                "sender": sender,
+                "message": incoming_msg,
+                "summary": reply.split("LOG:")[0].strip(),
+                "client_name": parts.get("name", ""),
+                "job_type": parts.get("job", ""),
+                "location": parts.get("location", ""),
+                "status": status
+            }).execute()
 
+            if status == "quoted":
+                quote_count = supabase.table("quotes").select("id").eq("sender", sender).execute()
+                quote_num = "QU-" + str(len(quote_count.data) + 1).zfill(3)
+                supabase.table("quotes").insert({
+                    "sender": sender,
+                    "client_name": parts.get("name", ""),
+                    "client_address": parts.get("location", ""),
+                    "job_description": parts.get("job", ""),
+                    "line_items": [],
+                    "subtotal": "0",
+                    "vat": "0",
+                    "total": "0",
+                    "status": "sent",
+                    "quote_number": quote_num,
+                    "quote_text": reply.split("LOG:")[0].strip()
+                }).execute()
+
+        except Exception as e:
+            print("Logging error: " + str(e))
+
+    if "BOOK:" in reply:
+        try:
+            book_line = reply.split("BOOK:")[1].strip().split("\n")[0]
+            parts = dict(p.split("=") for p in book_line.split("|"))
+            supabase.table("bookings").insert({
+                "sender": sender,
+                "client_name": parts.get("name", ""),
+                "job_type": parts.get("job", ""),
+                "location": parts.get("location", ""),
+                "date": parts.get("date", ""),
+                "time": parts.get("time", ""),
+                "duration_days": parts.get("days", "1"),
+                "notes": "",
+                "status": "booked"
+            }).execute()
+        except Exception as e:
+            print("Booking error: " + str(e))
+
+    clean_reply = reply.split("LOG:")[0].split("BOOK:")[0].strip()
+    resp.message(clean_reply)
+    return str(resp)
+    
     if sender not in conversation_history:
         conversation_history[sender] = []
 
