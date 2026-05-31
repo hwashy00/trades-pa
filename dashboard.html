@@ -775,6 +775,26 @@ async function saveProfile(){
 
 let chatHistory=[];
 
+  async function refreshData(){
+  try{
+    const res=await fetch('/api/stats?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin));
+    const data=await res.json();
+    if(!data.error){
+      allEnquiries=data.recent||[];
+      allBookings=data.bookings||[];
+      updateStats(data);
+      renderRecent(allEnquiries);
+      renderUpcoming(allBookings);
+      renderJobs(allEnquiries,'all');
+      renderQuotes(allEnquiries);
+      renderBookings(allBookings);
+      if(data.profile)renderProfile(data.profile);
+      if(data.template)loadTemplate(data.template);
+      renderCal();
+    }
+  }catch(e){console.log('Refresh error:',e)}
+}
+  
 function toggleChat(){
   const w=document.getElementById('chatWindow');
   const o=document.getElementById('chatOverlay');
