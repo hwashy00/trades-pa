@@ -942,7 +942,8 @@ def whatsapp():
                 inv_id = result.data[0]["id"]
                 pdf_url = "https://trades-pa-trades-pa.up.railway.app/generate-invoice-pdf/" + str(inv_id)
                 clean_reply = reply.split("INV:")[0].split("INVOICEDATA:")[0].strip()
-                clean_reply += "\n\nYour invoice PDF: " + pdf_url
+                resp.message(clean_reply)
+                return str(resp)
         except Exception as e:
             print("Invoice logging error: " + str(e))
 
