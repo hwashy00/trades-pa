@@ -701,7 +701,8 @@ def whatsapp():
                         twilio_client = TwilioClient(account_sid, auth_token)
                         available = twilio_client.available_phone_numbers("GB").mobile.list(limit=1)
                         if available:
-                            purchased = twilio_client.incoming_phone_numbers.create(phone_number=available[0].phone_number, voice_url="https://trades-pa-trades-pa.up.railway.app/call", voice_method="POST", sms_url="https://trades-pa-trades-pa.up.railway.app/whatsapp", sms_method="POST")
+                            bundle_sid = os.environ.get("TWILIO_BUNDLE_SID")
+                            purchased = twilio_client.incoming_phone_numbers.create(phone_number=available[0].phone_number, voice_url="https://trades-pa-trades-pa.up.railway.app/call", voice_method="POST", sms_url="https://trades-pa-trades-pa.up.railway.app/whatsapp", sms_method="POST", bundle_sid=bundle_sid)
                             new_number = purchased.phone_number
                             supabase.table("profiles").update({"twilio_number": new_number}).eq("sender", sender).execute()
                         else:
