@@ -304,13 +304,13 @@ def generate_quote_pdf(quote, profile, template):
             header_parts = logo_data.split(",", 1)
             if len(header_parts) == 2:
                 img_bytes = base64.b64decode(header_parts[1])
-                logo_image = io.BytesIO(img_bytes)
+                logo_image = ImageReader(io.BytesIO(img_bytes))
         except Exception as e:
             print("Logo error: " + str(e))
 
     if logo_image:
-        from reportlab.platypus import Image as RLImage
-        logo_el = RLImage(logo_image, width=30*mm, height=30*mm)
+        from reportlab.platypus import Image
+        logo_el = Image(logo_image, width=30*mm, height=30*mm)
         logo_el.hAlign = 'LEFT'
         story.append(logo_el)
         story.append(Spacer(1, 4*mm))
@@ -502,13 +502,13 @@ def generate_invoice_pdf(invoice, profile, template):
             header_parts = logo_data.split(",", 1)
             if len(header_parts) == 2:
                 img_bytes = base64.b64decode(header_parts[1])
-                logo_image = io.BytesIO(img_bytes)
+                logo_image = ImageReader(io.BytesIO(img_bytes))
         except Exception as e:
             print("Logo error: " + str(e))
 
     if logo_image:
-        from reportlab.platypus import Image as RLImage
-        logo_el = RLImage(logo_image, width=30*mm, height=30*mm)
+        from reportlab.platypus import Image
+        logo_el = Image(logo_image, width=30*mm, height=30*mm)
         logo_el.hAlign = 'LEFT'
         story.append(logo_el)
         story.append(Spacer(1, 4*mm))
@@ -1197,25 +1197,6 @@ def confirm_reset():
         print("Confirm reset error: " + str(e))
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/save-profile", methods=["POST"])
-def save_profile():
-    try:
-        phone = format_phone(request.args.get("phone", "").strip())
-        pin = request.args.get("pin", "").strip()
-        if not phone or not pin:
-            return jsonify({"error": "Phone and PIN required"}), 401
-        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
-        if not result.data:
-            return jsonify({"error": "Profile not found"}), 404
-        profile = result.data[0]
-        if str(profile.get("pin", "")) != str(pin):
-            return jsonify({"error": "Invalid PIN"}), 401
-        data = request.json
-        supabase.table("profiles").update(data).eq("phone", phone).execute()
-        return jsonify({"success": True})
-    except Exception as e:
-        print("Save profile error: " + str(e))
-        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/save-template", methods=["POST"])
 def save_template():
@@ -1280,6 +1261,78 @@ def serve_invoice_pdf(invoice_id):
         print("Invoice PDF error: " + str(e))
         print(traceback.format_exc())
         return "Error generating invoice PDF: " + str(e), 500
+
+
+@app.route("/api/chat", methods=["POST"])
+def api_chat():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        if not phone or not pin:
+            return jsonify({"error": "Auth required"}), 401
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data:
+            return jsonify({"error": "Profile not found"}), 404
+        profile = result.data[0]
+        if str(profile.get("pin", "")) != str(pin):
+            return jsonify({"error": "Invalid PIN"}), 401
+
+        data = request.json
+        message = data.get("message", "")
+        history = data.get("history", [])
+
+        sender = profile.get("sender", "")
+        enquiries = supabase.table("enquiries").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
+        bookings = supabase.table("bookings").select("*").eq("sender", sender).order("date").execute().data
+        quotes = supabase.table("quotes").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
+        invoices = supabase.table("invoices").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
+
+        system = "You are VanOffice AI, a helpful assistant for a tradesperson. Be friendly, concise and practical.\n\n"
+        system += "User details:\n"
+        system += "Name: " + str(profile.get("owner_name")) + "\n"
+        system += "Business: " + str(profile.get("business_name")) + "\n"
+        system += "Trade: " + str(profile.get("trade")) + "\n"
+        system += "Day rate: " + str(profile.get("day_rate")) + "\n"
+        system += "Hourly rate: " + str(profile.get("hourly_rate")) + "\n\n"
+
+        if enquiries:
+            system += "Recent enquiries:\n"
+            for e in enquiries[:5]:
+                system += "- " + e.get("client_name", "") + " - " + e.get("job_type", "") + " - " + e.get("status", "") + "\n"
+            system += "\n"
+
+        if bookings:
+            system += "Booked jobs:\n"
+            for b in bookings[:5]:
+                system += "- " + b.get("client_name", "") + " - " + b.get("job_type", "") + " - " + b.get("date", "") + "\n"
+            system += "\n"
+
+        if quotes:
+            system += "Recent quotes:\n"
+            for q in quotes[:5]:
+                system += "- " + q.get("quote_number", "") + " - " + q.get("client_name", "") + " - " + q.get("total", "") + " - " + q.get("status", "") + "\n"
+            system += "\n"
+
+        if invoices:
+            system += "Recent invoices:\n"
+            for i in invoices[:5]:
+                system += "- " + i.get("invoice_number", "") + " - " + i.get("client_name", "") + " - " + i.get("total", "") + " - " + i.get("status", "") + "\n"
+            system += "\n"
+
+        system += "Help the user with any questions about their business, jobs, quotes, invoices, scheduling or general trade advice."
+
+        messages = []
+        for h in history[-10:]:
+            messages.append({"role": h["role"], "content": h["content"]})
+
+        response = client.messages.create(model="claude-sonnet-4-5", max_tokens=1000, system=system, messages=messages)
+        reply = response.content[0].text.strip()
+
+        return jsonify({"reply": reply})
+
+    except Exception as e:
+        print("Chat API error: " + str(e))
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
