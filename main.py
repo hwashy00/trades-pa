@@ -695,24 +695,7 @@ def whatsapp():
                         "gmail_token": "", "gmail_refresh_token": ""
                     }).execute()
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
-                    try:
-                        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-                        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-                        twilio_client = TwilioClient(account_sid, auth_token)
-                        available = twilio_client.available_phone_numbers("GB").mobile.list(limit=1)
-                        if available:
-                            bundle_sid = os.environ.get("TWILIO_BUNDLE_SID")
-                            purchased = twilio_client.incoming_phone_numbers.create(phone_number=available[0].phone_number, voice_url="https://trades-pa-trades-pa.up.railway.app/call", voice_method="POST", sms_url="https://trades-pa-trades-pa.up.railway.app/whatsapp", sms_method="POST", bundle_sid=bundle_sid)
-                            new_number = purchased.phone_number
-                            supabase.table("profiles").update({"twilio_number": new_number}).eq("sender", sender).execute()
-                        else:
-                            new_number = "pending"
-                    except Exception as e:
-                        import traceback as tb
-                        print("Auto number purchase error: " + str(e))
-                        print(tb.format_exc())
-                        new_number = "pending"
-                    resp.message("All set " + data.get("owner_name", "") + "! Your VanOffice business number is:\n" + new_number + "\n\nPut this number on your van, website and cards. When clients call:\n- You answer as normal on your mobile\n- Missed calls get auto-texted\n- Every call and text is logged automatically\n\nConnect email:\nGmail: https://trades-pa-trades-pa.up.railway.app/auth/gmail?phone=" + phone + "\nOutlook: https://trades-pa-trades-pa.up.railway.app/auth/outlook?phone=" + phone + "\n\nDashboard: https://trades-pa-trades-pa.up.railway.app/dashboard\nLogin with your number and PIN.")
+                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nVisit your dashboard at:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard\n\nLog in with your mobile number and PIN.")
                 except Exception as e:
                     print("Profile save error: " + str(e))
                     print(traceback.format_exc())
@@ -796,7 +779,7 @@ def whatsapp():
     system_prompt += "3. Booking in jobs - extract client, job type, location, date, time, duration\n"
     system_prompt += "4. Tracking outstanding jobs and payments\n"
     system_prompt += "5. General scheduling and reminders\n\n"
-    system_prompt += "Always be concise - this is WhatsApp. Do NOT say you cannot send messages or generate PDFs. The system handles PDFs automatically. Never apologise or say you cannot do something. Just present the information directly.\n\n"
+    system_prompt += "Always be concise - this is WhatsApp. Do NOT say you cannot send messages. Just present the quote directly.\n\n"
     system_prompt += "When generating a QUOTE, present it on WhatsApp like this:\n"
     system_prompt += "Quote for [client name]\n"
     system_prompt += "[job description] at [address]\n\n"
@@ -806,7 +789,7 @@ def whatsapp():
     system_prompt += "Payment due within [X] days\n\n"
     system_prompt += "Reply PDF to get this as a professional PDF document.\n\n"
     system_prompt += "Then end your reply with this data tag on a new line:\n"
-    system_prompt += "LOG:name=<client name>|job=<job type>|location=<location>|status=quoted\n"   
+    system_prompt += "LOG:name=<client name>|job=<job type>|location=<location>|status=quoted\n"
     system_prompt += "QUOTEDATA:" + json.dumps({"items": [{"description": "example", "qty": 1, "unit_price": 0}], "subtotal": "0", "total": "0"}) + "\n"
     system_prompt += "Replace the QUOTEDATA with the actual quote line items as valid JSON.\n\n"
     system_prompt += "If logging an enquiry (not a quote) end your reply with:\n"
@@ -818,80 +801,20 @@ def whatsapp():
     system_prompt += "Materials: [total amount after markup already applied]\n"
     system_prompt += "TOTAL DUE: [amount]\n"
     system_prompt += "Payment due by [date based on payment terms]\n\n"
-    system_prompt += "A PDF will be generated automatically.\\n\\n"
+    system_prompt += "Reply INVPDF to get this as a professional PDF invoice.\n\n"
     system_prompt += "Then end your reply with:\n"
     system_prompt += "INV:name=<client name>|job=<job type>|location=<location>|total=<total amount>|due=<YYYY-MM-DD>\n"
-    system_prompt += "You MUST include the INV: tag on a new line at the end of every invoice. This is critical - without it the PDF cannot be generated. Never skip it.\n"
     system_prompt += "INVOICEDATA:" + json.dumps({"items": [{"description": "example", "qty": 1, "unit_price": 0}], "subtotal": "0", "total": "0"}) + "\n"
     system_prompt += "Replace the INVOICEDATA with the actual invoice line items as valid JSON.\n\n"
     system_prompt += "If BOOKING a job, confirm the details clearly then end your reply with:\n"
     system_prompt += "BOOK:name=<client name>|job=<job type>|location=<location>|date=<YYYY-MM-DD>|time=<HH:MM>|days=<number of days>\n"
     system_prompt += "For the date, convert relative dates to YYYY-MM-DD format using today's date as reference."
 
-    # Fetch existing quotes and bookings for context
-    existing_quotes = supabase.table("quotes").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
-    existing_bookings = supabase.table("bookings").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
-    existing_invoices = supabase.table("invoices").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
-
-    if existing_quotes:
-        system_prompt += "\n\nExisting quotes:\n"
-        for q in existing_quotes:
-            system_prompt += "- " + q.get("quote_number", "") + ": " + q.get("client_name", "") + " - " + q.get("job_description", "") + " at " + q.get("client_address", "") + " - Total: " + str(q.get("total", "0")) + "\n"
-
-    if existing_bookings:
-        system_prompt += "\nBooked jobs:\n"
-        for b in existing_bookings:
-            system_prompt += "- " + b.get("client_name", "") + " - " + b.get("job_type", "") + " at " + b.get("location", "") + " - " + b.get("date", "") + "\n"
-
-    if existing_invoices:
-        system_prompt += "\nExisting invoices:\n"
-        for i in existing_invoices:
-            system_prompt += "- " + i.get("invoice_number", "") + ": " + i.get("client_name", "") + " - " + i.get("job_description", "") + " - " + i.get("status", "") + "\n"
-
-    system_prompt += "\nWhen asked to invoice a job, match it to the existing quote or booking and use those exact details. Do not ask the user to repeat information that is already in the quote.\n"
-    
     response = client.messages.create(model="claude-sonnet-4-5", max_tokens=1500, system=system_prompt, messages=conversation_history[sender])
 
     reply = response.content[0].text
 
     conversation_history[sender].append({"role": "assistant", "content": reply})
-
-    # Auto-detect invoice and extract data
-    if any(word in incoming_msg.lower() for word in ["invoice", "inv "]):
-        try:
-            extract = client.messages.create(
-                model="claude-sonnet-4-5",
-                max_tokens=500,
-                system="Extract invoice details from this text. Respond with ONLY valid JSON: {\"client_name\": \"\", \"location\": \"\", \"job\": \"\", \"total\": \"\", \"due_date\": \"YYYY-MM-DD\", \"items\": [{\"description\": \"\", \"qty\": 1, \"unit_price\": 0}]}",
-                messages=[{"role": "user", "content": reply}]
-            )
-            extract_text = extract.content[0].text.strip().replace("```json", "").replace("```", "").strip()
-            inv_data = json.loads(extract_text)
-            inv_count = supabase.table("invoices").select("id").eq("sender", sender).execute()
-            inv_num = "INV-" + str(len(inv_count.data) + 1).zfill(3)
-            clean_text = reply.split("INV:")[0].split("INVOICEDATA:")[0].strip()
-            result = supabase.table("invoices").insert({
-                "sender": sender,
-                "client_name": inv_data.get("client_name", ""),
-                "client_address": inv_data.get("location", ""),
-                "job_description": inv_data.get("job", ""),
-                "line_items": inv_data.get("items", []),
-                "subtotal": str(inv_data.get("subtotal", "0")),
-                "vat": "0",
-                "total": str(inv_data.get("total", "0")),
-                "status": "unpaid",
-                "invoice_number": inv_num,
-                "invoice_text": clean_text,
-                "due_date": inv_data.get("due_date", "")
-            }).execute()
-            if result.data:
-                inv_id = result.data[0]["id"]
-                pdf_url = "https://trades-pa-trades-pa.up.railway.app/generate-invoice-pdf/" + str(inv_id)
-                clean_reply = clean_text + "\n\n" + inv_num + " - PDF: " + pdf_url
-                resp.message(clean_reply)
-                return str(resp)
-        except Exception as e:
-            print("Auto invoice extract error: " + str(e))
 
     quote_items = []
     quote_subtotal = "0"
@@ -979,7 +902,7 @@ def whatsapp():
             inv_count = supabase.table("invoices").select("id").eq("sender", sender).execute()
             inv_num = "INV-" + str(len(inv_count.data) + 1).zfill(3)
             clean_text = reply.split("INV:")[0].split("INVOICEDATA:")[0].strip()
-            result = supabase.table("invoices").insert({
+            supabase.table("invoices").insert({
                 "sender": sender,
                 "client_name": parts.get("name", ""),
                 "client_address": parts.get("location", ""),
@@ -993,12 +916,6 @@ def whatsapp():
                 "invoice_text": clean_text,
                 "due_date": parts.get("due", "")
             }).execute()
-            if result.data:
-                inv_id = result.data[0]["id"]
-                pdf_url = "https://trades-pa-trades-pa.up.railway.app/generate-invoice-pdf/" + str(inv_id)
-                clean_reply = reply.split("INV:")[0].split("INVOICEDATA:")[0].strip()
-                resp.message(clean_reply)
-                return str(resp)
         except Exception as e:
             print("Invoice logging error: " + str(e))
 
@@ -1029,7 +946,7 @@ def incoming_call():
     resp = VoiceResponse()
     if profile and profile.get("phone"):
         resp.say("Please hold while we connect your call. This call may be recorded for quality purposes.")
-        dial = Dial(action="/call-status", method="POST", record="record-from-answer-dual", recording_status_callback="/recording-callback", recording_status_callback_method="POST")
+        dial = Dial(action="/call-status", method="POST")
         dial.number(profile.get("phone"))
         resp.append(dial)
     else:
@@ -1151,74 +1068,6 @@ def outlook_callback():
     }).eq("phone", phone).execute()
     return "<html><body style='background:#0c0c0c;color:#fff;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center'><div><h1 style='color:#5b6cff'>Outlook Connected!</h1><p style='color:#888;margin-top:16px'>You can close this window and go back to your dashboard.</p></div></body></html>"
 
-@app.route("/recording-callback", methods=["POST"])
-def recording_callback():
-    recording_url = request.form.get("RecordingUrl", "")
-    call_sid = request.form.get("CallSid", "")
-    caller = request.form.get("From", "")
-    called = request.form.get("To", "")
-
-    if not recording_url:
-        return "No recording", 200
-
-    try:
-        import requests as req
-        from openai import OpenAI
-
-        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-
-        audio_response = req.get(recording_url + ".mp3", auth=(account_sid, auth_token))
-        audio_path = "/tmp/call_" + call_sid + ".mp3"
-        with open(audio_path, "wb") as f:
-            f.write(audio_response.content)
-
-        openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        with open(audio_path, "rb") as audio_file:
-            transcript = openai_client.audio.transcriptions.create(model="whisper-1", file=audio_file)
-        call_text = transcript.text.strip()
-        print("Call transcribed: " + call_text[:100])
-
-        summary_response = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=300,
-            system="You summarise phone calls for a tradesperson. Extract: caller name, job type, location, urgency, any dates mentioned. Be concise. Format as a clear summary.",
-            messages=[{"role": "user", "content": "Transcribe this phone call and summarise the key details:\n\n" + call_text}]
-        )
-        summary = summary_response.content[0].text.strip()
-
-        supabase.table("enquiries").insert({
-            "sender": caller,
-            "message": "CALL RECORDING",
-            "summary": summary,
-            "client_name": "",
-            "job_type": "phone call",
-            "location": "",
-            "status": "new"
-        }).execute()
-
-        profile = None
-        try:
-            result = supabase.table("profiles").select("*").eq("twilio_number", called).execute()
-            if result.data:
-                profile = result.data[0]
-        except:
-            pass
-
-        if profile and profile.get("phone"):
-            twilio_client = TwilioClient(account_sid, auth_token)
-            twilio_client.messages.create(
-                body="Call summary:\n\n" + summary + "\n\nFull transcript saved to your dashboard.",
-                from_=called,
-                to=profile.get("phone")
-            )
-
-    except Exception as e:
-        print("Recording callback error: " + str(e))
-        import traceback as tb
-        print(tb.format_exc())
-
-    return "OK", 200
 
 @app.route("/dashboard")
 def dashboard():
@@ -1372,25 +1221,6 @@ def serve_invoice_pdf(invoice_id):
         print(traceback.format_exc())
         return "Error generating invoice PDF: " + str(e), 500
 
-@app.route("/api/save-profile", methods=["POST"])
-def save_profile():
-    try:
-        phone = format_phone(request.args.get("phone", "").strip())
-        pin = request.args.get("pin", "").strip()
-        if not phone or not pin:
-            return jsonify({"error": "Phone and PIN required"}), 401
-        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
-        if not result.data:
-            return jsonify({"error": "Profile not found"}), 404
-        profile = result.data[0]
-        if str(profile.get("pin", "")) != str(pin):
-            return jsonify({"error": "Invalid PIN"}), 401
-        data = request.json
-        supabase.table("profiles").update(data).eq("phone", phone).execute()
-        return jsonify({"success": True})
-    except Exception as e:
-        print("Save profile error: " + str(e))
-        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
