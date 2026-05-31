@@ -699,7 +699,7 @@ def whatsapp():
                         account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
                         auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
                         twilio_client = TwilioClient(account_sid, auth_token)
-                        available = twilio_client.available_phone_numbers("GB").local.list(limit=1)
+                        available = twilio_client.available_phone_numbers("GB").mobile.list(limit=1)
                         if available:
                             purchased = twilio_client.incoming_phone_numbers.create(phone_number=available[0].phone_number, voice_url="https://trades-pa-trades-pa.up.railway.app/call", voice_method="POST", sms_url="https://trades-pa-trades-pa.up.railway.app/whatsapp", sms_method="POST")
                             new_number = purchased.phone_number
