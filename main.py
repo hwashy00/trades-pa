@@ -707,7 +707,9 @@ def whatsapp():
                         else:
                             new_number = "pending"
                     except Exception as e:
+                        import traceback as tb
                         print("Auto number purchase error: " + str(e))
+                        print(tb.format_exc())
                         new_number = "pending"
                     resp.message("All set " + data.get("owner_name", "") + "! Your VanOffice number: " + new_number + "\n\nTo forward missed calls dial:\n**61*" + new_number + "#\nthen press call.\n\nConnect email:\nGmail: https://trades-pa-trades-pa.up.railway.app/auth/gmail?phone=" + phone + "\nOutlook: https://trades-pa-trades-pa.up.railway.app/auth/outlook?phone=" + phone + "\n\nDashboard: https://trades-pa-trades-pa.up.railway.app/dashboard\nLogin with your number and PIN.")
                 except Exception as e:
