@@ -1340,8 +1340,8 @@ def incoming_sms():
                 twilio_client = TwilioClient(account_sid, auth_token)
                 twilio_client.messages.create(
                     body="New enquiry from " + client_number + ":\n" + parts.get("name", "Unknown") + " - " + parts.get("job", "") + " - " + parts.get("location", "") + "\n\nHandled automatically by VanOffice.",
-                    from_=twilio_number,
-                    to=profile.get("phone", "")
+                    from_="whatsapp:+14155238886",
+                    to="whatsapp:" + profile.get("phone", "")
                 )
             except Exception as e:
                 print("Job extraction error: " + str(e))
