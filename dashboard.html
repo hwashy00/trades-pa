@@ -612,7 +612,8 @@ function renderProfile(p){
   document.getElementById('profDetails').innerHTML=`
     <div class="sg-row"><div class="sg-row-label">Business</div><input class="sg-val" id="p-business" value="${p.business_name||''}"></div>
     <div class="sg-row"><div class="sg-row-label">Trade</div><input class="sg-val" id="p-trade" value="${p.trade||''}"></div>
-    <div class="sg-row"><div class="sg-row-label">Phone</div><input class="sg-val" id="p-phone" value="${p.phone||''}"></div>`;
+    <div class="sg-row"><div class="sg-row-label">Phone</div><input class="sg-val" id="p-phone" value="${p.phone||''}"></div>
+    <div class="sg-row"><div class="sg-row-label">VanOffice number</div><input class="sg-val" id="p-twilio" value="${p.twilio_number||'Not set'}" readonly style="color:var(--grn)"></div>`;
   document.getElementById('profRates').innerHTML=`
     <div class="sg-row"><div class="sg-row-label">Day rate</div><input class="sg-val" id="p-dayrate" value="${p.day_rate||0}"></div>
     <div class="sg-row"><div class="sg-row-label">Half day</div><input class="sg-val" id="p-halfday" value="${p.half_day_rate||0}"></div>
