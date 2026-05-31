@@ -840,7 +840,7 @@ def whatsapp():
     conversation_history[sender].append({"role": "assistant", "content": reply})
 
     # Auto-detect invoice and extract data
-    if any(word in incoming_msg.lower() for word in ["invoice", "inv "]) and "INV:" not in reply:
+    if any(word in incoming_msg.lower() for word in ["invoice", "inv "]):
         try:
             extract = client.messages.create(
                 model="claude-sonnet-4-5",
