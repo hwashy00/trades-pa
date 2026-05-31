@@ -695,7 +695,31 @@ def whatsapp():
                         "gmail_token": "", "gmail_refresh_token": ""
                     }).execute()
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
-                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nVisit your dashboard at:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard\n\nLog in with your mobile number and PIN.")
+                    welcome = "Welcome to VanOffice, " + data.get("owner_name", "") + "! Here is everything you need to know:\n\n"
+                    welcome += "YOUR VANOFFICE NUMBER\n"
+                    welcome += new_number + "\n"
+                    welcome += "Put this on your van, cards, website and social media. When clients call this number you answer on your mobile as normal. Missed calls are auto-texted and logged. All calls through this number are automatically transcribed and logged so you dont have to remember a thing.\n\n"
+                    welcome += "FIRST THINGS FIRST\n"
+                    welcome += "Go to your dashboard and update your profile with your rates, markup and payment terms. Without these your quotes wont calculate correctly.\n"
+                    welcome += "Dashboard: https://trades-pa-trades-pa.up.railway.app/dashboard\n"
+                    welcome += "Login: your mobile number + PIN\n\n"
+                    welcome += "ADD TO HOME SCREEN\n"
+                    welcome += "Open the dashboard link above in Safari, tap the Share button (box with arrow), then tap Add to Home Screen. This gives you an app icon so you can open it like a normal app.\n\n"
+                    welcome += "CONNECT YOUR EMAIL\n"
+                    welcome += "Link your email and VanOffice will scan it for you automatically. It flags important messages like client replies, payment confirmations and supplier quotes. Just text me check emails anytime for a summary.\n"
+                    welcome += "Gmail: https://trades-pa-trades-pa.up.railway.app/auth/gmail?phone=" + phone + "\n"
+                    welcome += "Outlook: https://trades-pa-trades-pa.up.railway.app/auth/outlook?phone=" + phone + "\n\n"
+                    welcome += "WHAT I CAN DO\n"
+                    welcome += "Just text or voice note me like you would a mate. Here are some examples:\n\n"
+                    welcome += "Log a job: Had a call from Dave, wants a kitchen fitted in Exeter\n"
+                    welcome += "Get a quote: Quote Dave for the kitchen, 3 days labour, materials around 500\n"
+                    welcome += "Book a job: Book in Dave for Thursday 9am, 2 days\n"
+                    welcome += "Invoice: Invoice Dave for the kitchen job\n"
+                    welcome += "Check emails: Check emails\n"
+                    welcome += "Check jobs: What jobs are outstanding\n\n"
+                    welcome += "Everything gets logged automatically. Check your dashboard anytime to see all your jobs, quotes, invoices and calendar in one place.\n\n"
+                    welcome += "Any questions just text me. Lets get to work."
+                    resp.message(welcome)
                 except Exception as e:
                     print("Profile save error: " + str(e))
                     print(traceback.format_exc())
