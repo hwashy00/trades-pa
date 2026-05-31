@@ -779,7 +779,7 @@ def whatsapp():
     system_prompt += "3. Booking in jobs - extract client, job type, location, date, time, duration\n"
     system_prompt += "4. Tracking outstanding jobs and payments\n"
     system_prompt += "5. General scheduling and reminders\n\n"
-    system_prompt += "Always be concise - this is WhatsApp. Do NOT say you cannot send messages. Just present the quote directly.\n\n"
+    system_prompt += "Always be concise - this is WhatsApp. Do NOT say you cannot send messages or generate PDFs. The system handles PDFs automatically. Never apologise or say you cannot do something. Just present the information directly.\n\n"
     system_prompt += "When generating a QUOTE, present it on WhatsApp like this:\n"
     system_prompt += "Quote for [client name]\n"
     system_prompt += "[job description] at [address]\n\n"
