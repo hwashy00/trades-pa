@@ -708,13 +708,23 @@ let currentLogo='';
 function handleLogo(input){
   if(!input.files||!input.files[0])return;
   const file=input.files[0];
-  if(file.size>500000){alert('Logo must be under 500KB');return}
   const reader=new FileReader();
   reader.onload=function(e){
-    currentLogo=e.target.result;
-    document.getElementById('logoImg').src=currentLogo;
-    document.getElementById('logoImg').style.display='block';
-    document.getElementById('logoPlaceholder').style.display='none';
+    const img=new window.Image();
+    img.onload=function(){
+      const canvas=document.createElement('canvas');
+      const maxSize=300;
+      let w=img.width,h=img.height;
+      if(w>h){h=h*(maxSize/w);w=maxSize}
+      else{w=w*(maxSize/h);h=maxSize}
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      currentLogo=canvas.toDataURL('image/png',0.8);
+      document.getElementById('logoImg').src=currentLogo;
+      document.getElementById('logoImg').style.display='block';
+      document.getElementById('logoPlaceholder').style.display='none';
+    };
+    img.src=e.target.result;
   };
   reader.readAsDataURL(file);
 }
