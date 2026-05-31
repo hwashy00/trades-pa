@@ -695,7 +695,21 @@ def whatsapp():
                         "gmail_token": "", "gmail_refresh_token": ""
                     }).execute()
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
-                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nVisit your dashboard at:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard\n\nLog in with your mobile number and PIN.")
+                    try:
+                        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+                        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+                        twilio_client = TwilioClient(account_sid, auth_token)
+                        available = twilio_client.available_phone_numbers("GB").local.list(limit=1)
+                        if available:
+                            purchased = twilio_client.incoming_phone_numbers.create(phone_number=available[0].phone_number, voice_url="https://trades-pa-trades-pa.up.railway.app/call", voice_method="POST", sms_url="https://trades-pa-trades-pa.up.railway.app/whatsapp", sms_method="POST")
+                            new_number = purchased.phone_number
+                            supabase.table("profiles").update({"twilio_number": new_number}).eq("sender", sender).execute()
+                        else:
+                            new_number = "pending"
+                    except Exception as e:
+                        print("Auto number purchase error: " + str(e))
+                        new_number = "pending"
+                    resp.message("All set " + data.get("owner_name", "") + "! Your VanOffice number: " + new_number + "\n\nTo forward missed calls dial:\n**61*" + new_number + "#\nthen press call.\n\nConnect email:\nGmail: https://trades-pa-trades-pa.up.railway.app/auth/gmail?phone=" + phone + "\nOutlook: https://trades-pa-trades-pa.up.railway.app/auth/outlook?phone=" + phone + "\n\nDashboard: https://trades-pa-trades-pa.up.railway.app/dashboard\nLogin with your number and PIN.")
                 except Exception as e:
                     print("Profile save error: " + str(e))
                     print(traceback.format_exc())
