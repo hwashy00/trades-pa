@@ -406,6 +406,23 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
 
   </div>
 
+  <!-- CHAT -->
+  <div id="chatOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200" onclick="toggleChat()"></div>
+  <div id="chatWindow" style="display:none;position:fixed;bottom:80px;right:12px;left:12px;max-width:370px;height:65vh;background:var(--bg);border:1px solid var(--br);border-radius:20px;z-index:201;display:none;flex-direction:column;overflow:hidden">
+    <div style="padding:16px 18px;border-bottom:1px solid var(--br);display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:.9rem;font-weight:700">VanOffice AI</div>
+      <button onclick="toggleChat()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+    <div id="chatMessages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px">
+      <div style="background:var(--acc-d);color:var(--acc2);padding:12px 16px;border-radius:14px 14px 14px 4px;font-size:.82rem;line-height:1.5;max-width:85%;align-self:flex-start">Hi! I'm your VanOffice assistant. Ask me anything about your jobs, quotes, invoices or business.</div>
+    </div>
+    <div style="padding:12px;border-top:1px solid var(--br);display:flex;gap:8px">
+      <input type="text" id="chatInput" placeholder="Type a message..." style="flex:1;padding:12px 16px;background:var(--s2);border:1px solid var(--br);border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;color:var(--t1);outline:none" onkeypress="if(event.key==='Enter')sendChat()">
+      <button onclick="sendChat()" style="width:44px;height:44px;border-radius:12px;background:var(--acc);border:none;color:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">→</button>
+    </div>
+  </div>
+  <button id="chatBtn" onclick="toggleChat()" style="display:none;position:fixed;bottom:90px;right:16px;width:56px;height:56px;border-radius:50%;background:var(--acc);border:none;color:#fff;font-size:1.5rem;cursor:pointer;z-index:199;box-shadow:0 4px 20px rgba(91,108,255,0.4);transition:transform .15s">💬</button>
+
   <nav class="nav">
     <button class="ni on" id="n-home" onclick="go('home')"><div class="ni-ico">🏠</div><div class="ni-lbl">Home</div></button>
     <button class="ni" id="n-jobs" onclick="go('jobs')"><div class="ni-ico">🔨</div><div class="ni-lbl">Jobs</div></button>
@@ -506,6 +523,7 @@ async function submitReset(){
 }
 
 function showApp(data){
+  document.getElementById('chatBtn').style.display='block';
   document.getElementById('screenPin').classList.add('hidden');
   const app=document.getElementById('app');
   app.classList.remove('hidden');app.style.display='flex';
@@ -527,6 +545,9 @@ function showApp(data){
 }
 
 function doLogout(){
+  document.getElementById('chatBtn').style.display='none';
+  document.getElementById('chatWindow').style.display='none';
+  document.getElementById('chatOverlay').style.display='none';
   document.getElementById('app').style.display='none';
   document.getElementById('app').classList.add('hidden');
   document.getElementById('screenPin').classList.add('hidden');
@@ -708,23 +729,13 @@ let currentLogo='';
 function handleLogo(input){
   if(!input.files||!input.files[0])return;
   const file=input.files[0];
+  if(file.size>500000){alert('Logo must be under 500KB');return}
   const reader=new FileReader();
   reader.onload=function(e){
-    const img=new window.Image();
-    img.onload=function(){
-      const canvas=document.createElement('canvas');
-      const maxSize=300;
-      let w=img.width,h=img.height;
-      if(w>h){h=h*(maxSize/w);w=maxSize}
-      else{w=w*(maxSize/h);h=maxSize}
-      canvas.width=w;canvas.height=h;
-      canvas.getContext('2d').drawImage(img,0,0,w,h);
-      currentLogo=canvas.toDataURL('image/png',0.8);
-      document.getElementById('logoImg').src=currentLogo;
-      document.getElementById('logoImg').style.display='block';
-      document.getElementById('logoPlaceholder').style.display='none';
-    };
-    img.src=e.target.result;
+    currentLogo=e.target.result;
+    document.getElementById('logoImg').src=currentLogo;
+    document.getElementById('logoImg').style.display='block';
+    document.getElementById('logoPlaceholder').style.display='none';
   };
   reader.readAsDataURL(file);
 }
@@ -759,6 +770,55 @@ async function saveProfile(){
     btn.textContent='Save profile & rates';
     btn.disabled=false;
   }
+}
+
+let chatHistory=[];
+
+function toggleChat(){
+  const w=document.getElementById('chatWindow');
+  const o=document.getElementById('chatOverlay');
+  const isOpen=w.style.display==='flex';
+  w.style.display=isOpen?'none':'flex';
+  o.style.display=isOpen?'none':'block';
+  if(!isOpen)document.getElementById('chatInput').focus();
+}
+
+async function sendChat(){
+  const input=document.getElementById('chatInput');
+  const msg=input.value.trim();
+  if(!msg)return;
+  input.value='';
+
+  const messages=document.getElementById('chatMessages');
+  messages.innerHTML+='<div style="background:var(--s3);color:var(--t1);padding:12px 16px;border-radius:14px 14px 4px 14px;font-size:.82rem;line-height:1.5;max-width:85%;align-self:flex-end">'+msg+'</div>';
+  messages.innerHTML+='<div id="chatTyping" style="color:var(--t3);font-size:.75rem;padding:4px 8px">Thinking...</div>';
+  messages.scrollTop=messages.scrollHeight;
+
+  chatHistory.push({role:"user",content:msg});
+
+  try{
+    const res=await fetch('/api/chat?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:msg,history:chatHistory})
+    });
+    const data=await res.json();
+    const typing=document.getElementById('chatTyping');
+    if(typing)typing.remove();
+
+    if(data.reply){
+      chatHistory.push({role:"assistant",content:data.reply});
+      const formatted=data.reply.replace(/\n/g,'<br>');
+      messages.innerHTML+='<div style="background:var(--acc-d);color:var(--acc2);padding:12px 16px;border-radius:14px 14px 14px 4px;font-size:.82rem;line-height:1.5;max-width:85%;align-self:flex-start">'+formatted+'</div>';
+    }else{
+      messages.innerHTML+='<div style="color:var(--red);font-size:.75rem;padding:4px 8px">Error getting response</div>';
+    }
+  }catch(e){
+    const typing=document.getElementById('chatTyping');
+    if(typing)typing.remove();
+    messages.innerHTML+='<div style="color:var(--red);font-size:.75rem;padding:4px 8px">Connection error</div>';
+  }
+  messages.scrollTop=messages.scrollHeight;
 }
 
 function go(name){
