@@ -1372,6 +1372,25 @@ def serve_invoice_pdf(invoice_id):
         print(traceback.format_exc())
         return "Error generating invoice PDF: " + str(e), 500
 
+@app.route("/api/save-profile", methods=["POST"])
+def save_profile():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        if not phone or not pin:
+            return jsonify({"error": "Phone and PIN required"}), 401
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data:
+            return jsonify({"error": "Profile not found"}), 404
+        profile = result.data[0]
+        if str(profile.get("pin", "")) != str(pin):
+            return jsonify({"error": "Invalid PIN"}), 401
+        data = request.json
+        supabase.table("profiles").update(data).eq("phone", phone).execute()
+        return jsonify({"success": True})
+    except Exception as e:
+        print("Save profile error: " + str(e))
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
