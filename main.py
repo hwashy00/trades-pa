@@ -440,6 +440,185 @@ def generate_quote_pdf(quote, profile, template):
     return buffer
 
 
+def generate_invoice_pdf(invoice, profile, template):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20*mm, leftMargin=20*mm, topMargin=20*mm, bottomMargin=20*mm)
+
+    brand_colour = template.get("brand_colour", "#1a1a2e") if template else "#1a1a2e"
+    try:
+        brand = colors.HexColor(brand_colour)
+    except:
+        brand = colors.HexColor("#1a1a2e")
+
+    styles = getSampleStyleSheet()
+    s_normal = styles["Normal"]
+    s_right = ParagraphStyle("right_inv", parent=s_normal, alignment=TA_RIGHT)
+    s_center = ParagraphStyle("center_inv", parent=s_normal, alignment=TA_CENTER)
+
+    story = []
+
+    biz_name = (template.get("business_name") if template else None) or profile.get("business_name", "")
+    biz_address = (template.get("business_address") if template else None) or ""
+    biz_phone = (template.get("business_phone") if template else None) or profile.get("phone", "")
+    biz_email = (template.get("business_email") if template else None) or ""
+    payment_details = (template.get("payment_details") if template else None) or ""
+    terms_text = (template.get("terms") if template else None) or ""
+    footer_text = (template.get("footer_text") if template else None) or "Thank you for your business."
+
+    header_data = [[
+        Paragraph("<font size=16><b>" + biz_name.upper() + "</b></font>", s_normal),
+        Paragraph("<font size=14><b>INVOICE</b></font>", s_right)
+    ]]
+    header_table = Table(header_data, colWidths=[100*mm, 70*mm])
+    header_table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), brand),
+        ("TEXTCOLOR", (0,0), (-1,-1), colors.white),
+        ("TOPPADDING", (0,0), (-1,-1), 14),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 14),
+        ("LEFTPADDING", (0,0), (0,-1), 16),
+        ("RIGHTPADDING", (-1,0), (-1,-1), 16),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+    ]))
+    story.append(header_table)
+    story.append(Spacer(1, 8*mm))
+
+    inv_num = invoice.get("invoice_number", "INV-001")
+    due_date = invoice.get("due_date", "")
+    today_str = datetime.date.today().strftime("%d %B %Y")
+
+    from_text = biz_name
+    if biz_address:
+        from_text += "<br/>" + biz_address
+    if biz_phone:
+        from_text += "<br/>" + biz_phone
+    if biz_email:
+        from_text += "<br/>" + biz_email
+
+    info_data = [[
+        Paragraph("<font size=8 color='grey'>FROM</font><br/><br/>" + from_text, s_normal),
+        Paragraph(
+            "<font size=8 color='grey'>INVOICE NUMBER</font><br/>" + inv_num +
+            "<br/><br/><font size=8 color='grey'>DATE</font><br/>" + today_str +
+            "<br/><br/><font size=8 color='grey'>DUE DATE</font><br/>" + due_date,
+            s_right
+        )
+    ]]
+    info_table = Table(info_data, colWidths=[95*mm, 75*mm])
+    info_table.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP")]))
+    story.append(info_table)
+    story.append(Spacer(1, 6*mm))
+
+    client_name = invoice.get("client_name", "")
+    client_address = invoice.get("client_address", "")
+    to_text = "<font size=8 color='grey'>BILL TO</font><br/><br/><b>" + client_name + "</b>"
+    if client_address:
+        to_text += "<br/>" + client_address
+    story.append(Paragraph(to_text, s_normal))
+    story.append(Spacer(1, 8*mm))
+
+    line_items = invoice.get("line_items", [])
+    if line_items and len(line_items) > 0:
+        table_data = [["Description", "Qty", "Unit Price", "Amount"]]
+        subtotal = 0
+        for item in line_items:
+            desc = item.get("description", "")
+            qty = item.get("qty", 1)
+            unit_price = item.get("unit_price", 0)
+            amount = float(qty) * float(unit_price)
+            subtotal += amount
+            table_data.append([desc, str(qty), "\u00a3{:.2f}".format(float(unit_price)), "\u00a3{:.2f}".format(amount)])
+
+        items_table = Table(table_data, colWidths=[85*mm, 20*mm, 30*mm, 35*mm])
+        items_table.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,0), brand),
+            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+            ("FONTSIZE", (0,0), (-1,0), 9),
+            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+            ("TOPPADDING", (0,0), (-1,-1), 8),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+            ("LEFTPADDING", (0,0), (-1,-1), 8),
+            ("GRID", (0,0), (-1,-1), 0.5, colors.Color(0.85, 0.85, 0.85)),
+            ("ALIGN", (1,0), (-1,-1), "RIGHT"),
+            ("FONTSIZE", (0,1), (-1,-1), 9),
+            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.Color(0.97, 0.97, 0.97)]),
+        ]))
+        story.append(items_table)
+        story.append(Spacer(1, 4*mm))
+
+        vat_rate = 0.2 if profile.get("vat_registered", "no").lower() in ["yes", "y", "true"] else 0
+        vat_amount = subtotal * vat_rate
+        total = subtotal + vat_amount
+
+        totals_data = [["Subtotal", "\u00a3{:.2f}".format(subtotal)]]
+        if vat_rate > 0:
+            totals_data.append(["VAT (20%)", "\u00a3{:.2f}".format(vat_amount)])
+        totals_data.append(["TOTAL DUE", "\u00a3{:.2f}".format(total)])
+
+        totals_table = Table(totals_data, colWidths=[135*mm, 35*mm])
+        totals_table.setStyle(TableStyle([
+            ("ALIGN", (0,0), (-1,-1), "RIGHT"),
+            ("FONTSIZE", (0,0), (-1,-1), 10),
+            ("TOPPADDING", (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+            ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
+            ("FONTSIZE", (0,-1), (-1,-1), 12),
+            ("LINEABOVE", (0,-1), (-1,-1), 1.5, brand),
+        ]))
+        story.append(totals_table)
+    else:
+        invoice_text = invoice.get("invoice_text", "")
+        if invoice_text:
+            skip_phrases = ["Reply INVPDF", "reply invpdf", "---"]
+            story.append(Paragraph("<b>Invoice Details</b>", s_normal))
+            story.append(Spacer(1, 3*mm))
+            for line in invoice_text.split("\n"):
+                stripped = line.strip().replace("**", "")
+                if not stripped:
+                    continue
+                skip = False
+                for phrase in skip_phrases:
+                    if phrase.lower() in stripped.lower():
+                        skip = True
+                        break
+                if not skip:
+                    if "total" in stripped.lower():
+                        story.append(Spacer(1, 2*mm))
+                        story.append(Paragraph("<b>" + stripped + "</b>", s_normal))
+                    else:
+                        story.append(Paragraph(stripped, s_normal))
+
+    story.append(Spacer(1, 10*mm))
+    story.append(HRFlowable(width="100%", thickness=1, color=brand))
+    story.append(Spacer(1, 4*mm))
+
+    if payment_details:
+        story.append(Paragraph("<font size=8 color='grey'>PAYMENT DETAILS</font>", s_normal))
+        story.append(Spacer(1, 2*mm))
+        story.append(Paragraph(payment_details.replace("\n", "<br/>"), s_normal))
+        story.append(Spacer(1, 6*mm))
+
+    if terms_text:
+        story.append(Paragraph("<font size=8 color='grey'>TERMS & CONDITIONS</font>", s_normal))
+        story.append(Spacer(1, 2*mm))
+        story.append(Paragraph("<font size=8>" + terms_text.replace("\n", "<br/>") + "</font>", s_normal))
+        story.append(Spacer(1, 6*mm))
+
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.Color(0.85, 0.85, 0.85)))
+    story.append(Spacer(1, 4*mm))
+    story.append(Paragraph("<font size=9 color='grey'>" + footer_text + "</font>", s_center))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp():
     incoming_msg = request.form.get("Body", "").strip()
@@ -516,13 +695,29 @@ def whatsapp():
                         "gmail_token": "", "gmail_refresh_token": ""
                     }).execute()
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
-                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nConnect your email so I can scan it:\nGmail: https://trades-pa-trades-pa.up.railway.app/auth/gmail?phone=" + phone + "\nOutlook: https://trades-pa-trades-pa.up.railway.app/auth/outlook?phone=" + phone + "\n\nVisit your dashboard:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard\n\nLog in with your mobile number and PIN.")
+                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nVisit your dashboard at:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard\n\nLog in with your mobile number and PIN.")
                 except Exception as e:
                     print("Profile save error: " + str(e))
                     print(traceback.format_exc())
                     resp.message("Sorry something went wrong. Please try again.")
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
 
+            return str(resp)
+
+    # Handle Invoice PDF request
+    if incoming_msg.strip().upper() == "INVPDF":
+        try:
+            latest_inv = supabase.table("invoices").select("*").eq("sender", sender).order("created_at", desc=True).limit(1).execute()
+            if latest_inv.data:
+                inv = latest_inv.data[0]
+                pdf_url = "https://trades-pa-trades-pa.up.railway.app/generate-invoice-pdf/" + str(inv["id"])
+                resp.message("Here is your invoice PDF:\n" + pdf_url + "\n\nOpen the link to download and send to your client.")
+            else:
+                resp.message("No recent invoice found. Generate an invoice first.")
+            return str(resp)
+        except Exception as e:
+            print("INVPDF request error: " + str(e))
+            resp.message("Sorry, could not generate invoice PDF. Try again.")
             return str(resp)
 
     # Handle PDF request
@@ -599,6 +794,18 @@ def whatsapp():
     system_prompt += "Replace the QUOTEDATA with the actual quote line items as valid JSON.\n\n"
     system_prompt += "If logging an enquiry (not a quote) end your reply with:\n"
     system_prompt += "LOG:name=<client name>|job=<job type>|location=<location>|status=new\n\n"
+    system_prompt += "If generating an INVOICE, present it on WhatsApp like this:\n"
+    system_prompt += "Invoice for [client name]\n"
+    system_prompt += "[job description] at [address]\n\n"
+    system_prompt += "Labour: [X] days @ [rate] = [amount]\n"
+    system_prompt += "Materials: [total amount after markup already applied]\n"
+    system_prompt += "TOTAL DUE: [amount]\n"
+    system_prompt += "Payment due by [date based on payment terms]\n\n"
+    system_prompt += "Reply INVPDF to get this as a professional PDF invoice.\n\n"
+    system_prompt += "Then end your reply with:\n"
+    system_prompt += "INV:name=<client name>|job=<job type>|location=<location>|total=<total amount>|due=<YYYY-MM-DD>\n"
+    system_prompt += "INVOICEDATA:" + json.dumps({"items": [{"description": "example", "qty": 1, "unit_price": 0}], "subtotal": "0", "total": "0"}) + "\n"
+    system_prompt += "Replace the INVOICEDATA with the actual invoice line items as valid JSON.\n\n"
     system_prompt += "If BOOKING a job, confirm the details clearly then end your reply with:\n"
     system_prompt += "BOOK:name=<client name>|job=<job type>|location=<location>|date=<YYYY-MM-DD>|time=<HH:MM>|days=<number of days>\n"
     system_prompt += "For the date, convert relative dates to YYYY-MM-DD format using today's date as reference."
@@ -674,7 +881,45 @@ def whatsapp():
         except Exception as e:
             print("Booking error: " + str(e))
 
-    clean_reply = reply.split("LOG:")[0].split("BOOK:")[0].split("QUOTEDATA:")[0].strip()
+    # Parse INVOICEDATA if present
+    inv_items = []
+    inv_subtotal = "0"
+    inv_total = "0"
+    if "INVOICEDATA:" in reply:
+        try:
+            inv_line = reply.split("INVOICEDATA:")[1].strip().split("\n")[0]
+            inv_data = json.loads(inv_line)
+            inv_items = inv_data.get("items", [])
+            inv_subtotal = str(inv_data.get("subtotal", "0"))
+            inv_total = str(inv_data.get("total", "0"))
+        except Exception as e:
+            print("INVOICEDATA parse error: " + str(e))
+
+    if "INV:" in reply:
+        try:
+            inv_line = reply.split("INV:")[1].strip().split("\n")[0]
+            parts = dict(p.split("=") for p in inv_line.split("|"))
+            inv_count = supabase.table("invoices").select("id").eq("sender", sender).execute()
+            inv_num = "INV-" + str(len(inv_count.data) + 1).zfill(3)
+            clean_text = reply.split("INV:")[0].split("INVOICEDATA:")[0].strip()
+            supabase.table("invoices").insert({
+                "sender": sender,
+                "client_name": parts.get("name", ""),
+                "client_address": parts.get("location", ""),
+                "job_description": parts.get("job", ""),
+                "line_items": inv_items,
+                "subtotal": inv_subtotal,
+                "vat": "0",
+                "total": parts.get("total", inv_total),
+                "status": "unpaid",
+                "invoice_number": inv_num,
+                "invoice_text": clean_text,
+                "due_date": parts.get("due", "")
+            }).execute()
+        except Exception as e:
+            print("Invoice logging error: " + str(e))
+
+    clean_reply = reply.split("LOG:")[0].split("BOOK:")[0].split("QUOTEDATA:")[0].split("INV:")[0].split("INVOICEDATA:")[0].strip()
     resp.message(clean_reply)
     return str(resp)
 
@@ -855,12 +1100,14 @@ def api_stats():
         template = template_result.data[0] if template_result.data else None
         emails_result = supabase.table("emails").select("*").eq("sender", profile.get("sender", "")).eq("read", False).order("created_at", desc=True).limit(10).execute()
         emails = emails_result.data if emails_result.data else []
+        invoices_result = supabase.table("invoices").select("*").eq("sender", profile.get("sender", "")).order("created_at", desc=True).execute()
+        invoices = invoices_result.data if invoices_result.data else []
         gmail_connected = bool(profile.get("gmail_token"))
         outlook_connected = bool(profile.get("outlook_token"))
         return jsonify({
             "enquiries": len(new_enq), "unpaid": len(quoted), "missed": len(missed),
             "recent": recent, "bookings": bookings, "profile": profile, "template": template,
-            "emails": emails, "gmail_connected": gmail_connected, "outlook_connected": outlook_connected
+            "emails": emails, "invoices": invoices, "gmail_connected": gmail_connected, "outlook_connected": outlook_connected
         })
     except Exception as e:
         print("API stats error: " + str(e))
@@ -954,6 +1201,25 @@ def serve_pdf(quote_id):
         print("PDF error: " + str(e))
         print(traceback.format_exc())
         return "Error generating PDF: " + str(e), 500
+
+
+@app.route("/generate-invoice-pdf/<invoice_id>")
+def serve_invoice_pdf(invoice_id):
+    try:
+        inv_result = supabase.table("invoices").select("*").eq("id", invoice_id).execute()
+        if not inv_result.data:
+            return "Invoice not found", 404
+        invoice = inv_result.data[0]
+        profile_result = supabase.table("profiles").select("*").eq("sender", invoice["sender"]).execute()
+        profile = profile_result.data[0] if profile_result.data else {}
+        template_result = supabase.table("quote_templates").select("*").eq("sender", invoice["sender"]).execute()
+        template = template_result.data[0] if template_result.data else None
+        pdf_buffer = generate_invoice_pdf(invoice, profile, template)
+        return send_file(pdf_buffer, mimetype="application/pdf", as_attachment=True, download_name="Invoice-" + invoice.get("invoice_number", "001") + ".pdf")
+    except Exception as e:
+        print("Invoice PDF error: " + str(e))
+        print(traceback.format_exc())
+        return "Error generating invoice PDF: " + str(e), 500
 
 
 if __name__ == "__main__":
