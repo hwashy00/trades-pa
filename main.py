@@ -294,6 +294,27 @@ def generate_quote_pdf(quote, profile, template):
     terms_text = (template.get("terms") if template else None) or ""
     footer_text = (template.get("footer_text") if template else None) or "Thank you for your business."
 
+    # Logo
+    logo_data = profile.get("logo") or (template.get("logo") if template else None) or ""
+    logo_image = None
+    if logo_data and logo_data.startswith("data:image"):
+        try:
+            import base64
+            from reportlab.lib.utils import ImageReader
+            header_parts = logo_data.split(",", 1)
+            if len(header_parts) == 2:
+                img_bytes = base64.b64decode(header_parts[1])
+                logo_image = ImageReader(io.BytesIO(img_bytes))
+        except Exception as e:
+            print("Logo error: " + str(e))
+
+    if logo_image:
+        from reportlab.platypus import Image
+        logo_el = Image(logo_image, width=30*mm, height=30*mm)
+        logo_el.hAlign = 'LEFT'
+        story.append(logo_el)
+        story.append(Spacer(1, 4*mm))
+
     header_data = [[
         Paragraph("<font size=16><b>" + biz_name.upper() + "</b></font>", s_normal),
         Paragraph("<font size=14><b>QUOTATION</b></font>", s_right)
@@ -471,6 +492,26 @@ def generate_invoice_pdf(invoice, profile, template):
     payment_details = (template.get("payment_details") if template else None) or ""
     terms_text = (template.get("terms") if template else None) or ""
     footer_text = (template.get("footer_text") if template else None) or "Thank you for your business."
+
+    logo_data = profile.get("logo") or (template.get("logo") if template else None) or ""
+    logo_image = None
+    if logo_data and logo_data.startswith("data:image"):
+        try:
+            import base64
+            from reportlab.lib.utils import ImageReader
+            header_parts = logo_data.split(",", 1)
+            if len(header_parts) == 2:
+                img_bytes = base64.b64decode(header_parts[1])
+                logo_image = ImageReader(io.BytesIO(img_bytes))
+        except Exception as e:
+            print("Logo error: " + str(e))
+
+    if logo_image:
+        from reportlab.platypus import Image
+        logo_el = Image(logo_image, width=30*mm, height=30*mm)
+        logo_el.hAlign = 'LEFT'
+        story.append(logo_el)
+        story.append(Spacer(1, 4*mm))
 
     header_data = [[
         Paragraph("<font size=16><b>" + biz_name.upper() + "</b></font>", s_normal),
@@ -695,36 +736,7 @@ def whatsapp():
                         "gmail_token": "", "gmail_refresh_token": ""
                     }).execute()
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
-                    new_number = "pending"
-                    try:
-                        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-                        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-                        twilio_client = TwilioClient(account_sid, auth_token)
-                        available = twilio_client.available_phone_numbers("GB").mobile.list(limit=1)
-                        if available:
-                            bundle_sid = os.environ.get("TWILIO_BUNDLE_SID")
-                            purchased = twilio_client.incoming_phone_numbers.create(phone_number=available[0].phone_number, voice_url="https://trades-pa-trades-pa.up.railway.app/call", voice_method="POST", sms_url="https://trades-pa-trades-pa.up.railway.app/whatsapp", sms_method="POST", bundle_sid=bundle_sid)
-                            new_number = purchased.phone_number
-                            supabase.table("profiles").update({"twilio_number": new_number}).eq("sender", sender).execute()
-                    except Exception as e:
-                        print("Auto number purchase error: " + str(e))
-                    msg1 = "Welcome to VanOffice, " + data.get("owner_name", "") + "!\n\n"
-                    msg1 += "Your VanOffice number: " + new_number + "\n"
-                    msg1 += "Put this on your van, cards and social media. Clients call it, you answer on your mobile. Missed calls get auto-texted. All calls are transcribed and logged automatically.\n\n"
-                    msg1 += "Dashboard: https://trades-pa-trades-pa.up.railway.app/dashboard\n"
-                    msg1 += "Login: your mobile number + PIN\n\n"
-                    msg1 += "To add as an app: open the link in Safari, tap Share, then Add to Home Screen."
-                    resp.message(msg1)
-
-                    account_sid2 = os.environ.get("TWILIO_ACCOUNT_SID")
-                    auth_token2 = os.environ.get("TWILIO_AUTH_TOKEN")
-                    twilio_client2 = TwilioClient(account_sid2, auth_token2)
-                    twilio_client2.messages.create(
-                        from_="whatsapp:+14155238886",
-                        to=sender,
-                        body="QUICK START GUIDE\n\nFirst update your rates in the dashboard under Profile.\n\nConnect email:\nGmail: https://trades-pa-trades-pa.up.railway.app/auth/gmail?phone=" + phone + "\nOutlook: https://trades-pa-trades-pa.up.railway.app/auth/outlook?phone=" + phone + "\n\nJust text or voice note me:\n- Log a job: Call from Dave, wants kitchen fitted\n- Quote: Quote Dave, 3 days labour, materials 500\n- Book: Book Dave Thursday 9am, 2 days\n- Invoice: Invoice Dave for the kitchen job\n- Emails: Check emails\n\nAny questions just text me."
-                    )
-                    
+                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nVisit your dashboard at:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard\n\nLog in with your mobile number and PIN.")
                 except Exception as e:
                     print("Profile save error: " + str(e))
                     print(traceback.format_exc())
@@ -1185,25 +1197,6 @@ def confirm_reset():
         print("Confirm reset error: " + str(e))
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/save-profile", methods=["POST"])
-def save_profile():
-    try:
-        phone = format_phone(request.args.get("phone", "").strip())
-        pin = request.args.get("pin", "").strip()
-        if not phone or not pin:
-            return jsonify({"error": "Phone and PIN required"}), 401
-        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
-        if not result.data:
-            return jsonify({"error": "Profile not found"}), 404
-        profile = result.data[0]
-        if str(profile.get("pin", "")) != str(pin):
-            return jsonify({"error": "Invalid PIN"}), 401
-        data = request.json
-        supabase.table("profiles").update(data).eq("phone", phone).execute()
-        return jsonify({"success": True})
-    except Exception as e:
-        print("Save profile error: " + str(e))
-        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/save-template", methods=["POST"])
 def save_template():
