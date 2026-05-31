@@ -801,7 +801,7 @@ def whatsapp():
     system_prompt += "Materials: [total amount after markup already applied]\n"
     system_prompt += "TOTAL DUE: [amount]\n"
     system_prompt += "Payment due by [date based on payment terms]\n\n"
-    system_prompt += "Reply INVPDF to get this as a professional PDF invoice.\n\n"
+    system_prompt += "A PDF will be generated automatically.\\n\\n"
     system_prompt += "Then end your reply with:\n"
     system_prompt += "INV:name=<client name>|job=<job type>|location=<location>|total=<total amount>|due=<YYYY-MM-DD>\n"
     system_prompt += "INVOICEDATA:" + json.dumps({"items": [{"description": "example", "qty": 1, "unit_price": 0}], "subtotal": "0", "total": "0"}) + "\n"
@@ -902,7 +902,7 @@ def whatsapp():
             inv_count = supabase.table("invoices").select("id").eq("sender", sender).execute()
             inv_num = "INV-" + str(len(inv_count.data) + 1).zfill(3)
             clean_text = reply.split("INV:")[0].split("INVOICEDATA:")[0].strip()
-            supabase.table("invoices").insert({
+            result = supabase.table("invoices").insert({
                 "sender": sender,
                 "client_name": parts.get("name", ""),
                 "client_address": parts.get("location", ""),
@@ -916,6 +916,11 @@ def whatsapp():
                 "invoice_text": clean_text,
                 "due_date": parts.get("due", "")
             }).execute()
+            if result.data:
+                inv_id = result.data[0]["id"]
+                pdf_url = "https://trades-pa-trades-pa.up.railway.app/generate-invoice-pdf/" + str(inv_id)
+                clean_reply = reply.split("INV:")[0].split("INVOICEDATA:")[0].strip()
+                clean_reply += "\n\nYour invoice PDF: " + pdf_url
         except Exception as e:
             print("Invoice logging error: " + str(e))
 
