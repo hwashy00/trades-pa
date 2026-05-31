@@ -851,31 +851,6 @@ def whatsapp():
     system_prompt += "BOOK:name=<client name>|job=<job type>|location=<location>|date=<YYYY-MM-DD>|time=<HH:MM>|days=<number of days>\n"
     system_prompt += "For the date, convert relative dates to YYYY-MM-DD format using today's date as reference."
 
-    # Add business context
-    try:
-        recent_enq = supabase.table("enquiries").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
-        recent_bookings = supabase.table("bookings").select("*").eq("sender", sender).order("date").execute().data
-        recent_quotes = supabase.table("quotes").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
-        recent_invoices = supabase.table("invoices").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
-        if recent_enq:
-            system_prompt += "\nRecent enquiries:\n"
-            for e in recent_enq[:5]:
-                system_prompt += "- " + e.get("client_name", "") + " - " + e.get("job_type", "") + " - " + e.get("status", "") + "\n"
-        if recent_bookings:
-            system_prompt += "\nBooked jobs:\n"
-            for b in recent_bookings[:5]:
-                system_prompt += "- " + b.get("client_name", "") + " - " + b.get("job_type", "") + " - " + b.get("date", "") + "\n"
-        if recent_quotes:
-            system_prompt += "\nRecent quotes:\n"
-            for q in recent_quotes[:5]:
-                system_prompt += "- " + q.get("quote_number", "") + " - " + q.get("client_name", "") + " - " + q.get("total", "") + " - " + q.get("status", "") + "\n"
-        if recent_invoices:
-            system_prompt += "\nRecent invoices:\n"
-            for i in recent_invoices[:5]:
-                system_prompt += "- " + i.get("invoice_number", "") + " - " + i.get("client_name", "") + " - " + i.get("total", "") + " - " + i.get("status", "") + "\n"
-    except Exception as e:
-        print("Context fetch error: " + str(e))
-    
     response = client.messages.create(model="claude-sonnet-4-5", max_tokens=1500, system=system_prompt, messages=conversation_history[sender])
 
     reply = response.content[0].text
@@ -1286,6 +1261,109 @@ def serve_invoice_pdf(invoice_id):
         print("Invoice PDF error: " + str(e))
         print(traceback.format_exc())
         return "Error generating invoice PDF: " + str(e), 500
+
+
+@app.route("/sms", methods=["POST"])
+def incoming_sms():
+    incoming_msg = request.form.get("Body", "").strip()
+    client_number = request.form.get("From", "")
+    twilio_number = request.form.get("To", "")
+
+    from twilio.twiml.messaging_response import MessagingResponse
+    resp = MessagingResponse()
+
+    try:
+        # Find which tradesperson owns this number
+        profile_result = supabase.table("profiles").select("*").eq("twilio_number", twilio_number).execute()
+        if not profile_result.data:
+            resp.message("Sorry, this number is not currently active.")
+            return str(resp)
+
+        profile = profile_result.data[0]
+        sender = profile.get("sender", "")
+        biz_name = profile.get("business_name", "the business")
+        owner_name = profile.get("owner_name", "")
+
+        # Save incoming message
+        supabase.table("client_chats").insert({
+            "twilio_number": twilio_number,
+            "client_number": client_number,
+            "message": incoming_msg,
+            "direction": "inbound",
+            "sender_profile": sender
+        }).execute()
+
+        # Get conversation history with this client
+        history = supabase.table("client_chats").select("*").eq("twilio_number", twilio_number).eq("client_number", client_number).order("created_at").execute().data
+        chat_messages = []
+        for h in history[-10:]:
+            if h.get("direction") == "inbound":
+                chat_messages.append({"role": "user", "content": h.get("message", "")})
+            else:
+                chat_messages.append({"role": "assistant", "content": h.get("message", "")})
+
+        system = "You are the virtual assistant for " + biz_name + ", run by " + owner_name + ".\n"
+        system += "Trade: " + str(profile.get("trade", "")) + "\n\n"
+        system += "You are responding to a potential client who has texted the business number.\n"
+        system += "Rules:\n"
+        system += "- Respond as 'we' not 'I'. You represent the business, not the person.\n"
+        system += "- Be friendly, professional, and helpful.\n"
+        system += "- Collect: what job they need, where they are, when they want it done.\n"
+        system += "- Never pretend to be " + owner_name + " personally.\n"
+        system += "- If they ask something you cant answer, say you will get " + owner_name + " to call them back.\n"
+        system += "- Keep responses short - this is a text message.\n"
+        system += "- If you have collected enough details (job type, location, timing), end with:\n"
+        system += "NEWJOB:name=<client name or Unknown>|job=<job type>|location=<location>\n"
+        system += "- Only add the NEWJOB tag once you have the key details, not on every message.\n"
+
+        ai_response = client.messages.create(model="claude-sonnet-4-5", max_tokens=300, system=system, messages=chat_messages)
+        reply = ai_response.content[0].text.strip()
+
+        # Check for new job extraction
+        if "NEWJOB:" in reply:
+            try:
+                job_line = reply.split("NEWJOB:")[1].strip().split("\n")[0]
+                parts = dict(p.split("=") for p in job_line.split("|"))
+                supabase.table("enquiries").insert({
+                    "sender": sender,
+                    "message": "Client SMS from " + client_number,
+                    "summary": "New enquiry via text from " + client_number,
+                    "client_name": parts.get("name", "Unknown"),
+                    "job_type": parts.get("job", ""),
+                    "location": parts.get("location", ""),
+                    "status": "new"
+                }).execute()
+
+                # Notify tradesperson
+                account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+                auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+                twilio_client = TwilioClient(account_sid, auth_token)
+                twilio_client.messages.create(
+                    body="New enquiry from " + client_number + ":\n" + parts.get("name", "Unknown") + " - " + parts.get("job", "") + " - " + parts.get("location", "") + "\n\nHandled automatically by VanOffice.",
+                    from_=twilio_number,
+                    to=profile.get("phone", "")
+                )
+            except Exception as e:
+                print("Job extraction error: " + str(e))
+
+        clean_reply = reply.split("NEWJOB:")[0].strip()
+
+        # Save outgoing message
+        supabase.table("client_chats").insert({
+            "twilio_number": twilio_number,
+            "client_number": client_number,
+            "message": clean_reply,
+            "direction": "outbound",
+            "sender_profile": sender
+        }).execute()
+
+        resp.message(clean_reply)
+
+    except Exception as e:
+        print("SMS handler error: " + str(e))
+        resp.message("Thanks for your message. We will get back to you shortly.")
+
+    return str(resp)
 
 
 @app.route("/api/chat", methods=["POST"])
