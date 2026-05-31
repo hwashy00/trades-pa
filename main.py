@@ -304,13 +304,13 @@ def generate_quote_pdf(quote, profile, template):
             header_parts = logo_data.split(",", 1)
             if len(header_parts) == 2:
                 img_bytes = base64.b64decode(header_parts[1])
-                logo_image = ImageReader(io.BytesIO(img_bytes))
+                logo_image = io.BytesIO(img_bytes)
         except Exception as e:
             print("Logo error: " + str(e))
 
     if logo_image:
-        from reportlab.platypus import Image
-        logo_el = Image(logo_image, width=30*mm, height=30*mm)
+        from reportlab.platypus import Image as RLImage
+        logo_el = RLImage(logo_image, width=30*mm, height=30*mm)
         logo_el.hAlign = 'LEFT'
         story.append(logo_el)
         story.append(Spacer(1, 4*mm))
