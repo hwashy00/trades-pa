@@ -724,7 +724,7 @@ def whatsapp():
                         to=sender,
                         body="QUICK START GUIDE\n\nFirst update your rates in the dashboard under Profile.\n\nConnect email:\nGmail: https://trades-pa-trades-pa.up.railway.app/auth/gmail?phone=" + phone + "\nOutlook: https://trades-pa-trades-pa.up.railway.app/auth/outlook?phone=" + phone + "\n\nJust text or voice note me:\n- Log a job: Call from Dave, wants kitchen fitted\n- Quote: Quote Dave, 3 days labour, materials 500\n- Book: Book Dave Thursday 9am, 2 days\n- Invoice: Invoice Dave for the kitchen job\n- Emails: Check emails\n\nAny questions just text me."
                     )
-                    resp.message(welcome)
+                    
                 except Exception as e:
                     print("Profile save error: " + str(e))
                     print(traceback.format_exc())
