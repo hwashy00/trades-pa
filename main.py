@@ -695,6 +695,19 @@ def whatsapp():
                         "gmail_token": "", "gmail_refresh_token": ""
                     }).execute()
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
+                    new_number = "pending"
+                    try:
+                        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+                        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+                        twilio_client = TwilioClient(account_sid, auth_token)
+                        available = twilio_client.available_phone_numbers("GB").mobile.list(limit=1)
+                        if available:
+                            bundle_sid = os.environ.get("TWILIO_BUNDLE_SID")
+                            purchased = twilio_client.incoming_phone_numbers.create(phone_number=available[0].phone_number, voice_url="https://trades-pa-trades-pa.up.railway.app/call", voice_method="POST", sms_url="https://trades-pa-trades-pa.up.railway.app/whatsapp", sms_method="POST", bundle_sid=bundle_sid)
+                            new_number = purchased.phone_number
+                            supabase.table("profiles").update({"twilio_number": new_number}).eq("sender", sender).execute()
+                    except Exception as e:
+                        print("Auto number purchase error: " + str(e))
                     welcome = "Welcome to VanOffice, " + data.get("owner_name", "") + "! Here is everything you need to know:\n\n"
                     welcome += "YOUR VANOFFICE NUMBER\n"
                     welcome += new_number + "\n"
