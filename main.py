@@ -839,6 +839,43 @@ def whatsapp():
 
     conversation_history[sender].append({"role": "assistant", "content": reply})
 
+    # Auto-detect invoice and extract data
+    if any(word in incoming_msg.lower() for word in ["invoice", "inv "]) and "INV:" not in reply:
+        try:
+            extract = client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=500,
+                system="Extract invoice details from this text. Respond with ONLY valid JSON: {\"client_name\": \"\", \"location\": \"\", \"job\": \"\", \"total\": \"\", \"due_date\": \"YYYY-MM-DD\", \"items\": [{\"description\": \"\", \"qty\": 1, \"unit_price\": 0}]}",
+                messages=[{"role": "user", "content": reply}]
+            )
+            extract_text = extract.content[0].text.strip().replace("```json", "").replace("```", "").strip()
+            inv_data = json.loads(extract_text)
+            inv_count = supabase.table("invoices").select("id").eq("sender", sender).execute()
+            inv_num = "INV-" + str(len(inv_count.data) + 1).zfill(3)
+            clean_text = reply.split("INV:")[0].split("INVOICEDATA:")[0].strip()
+            result = supabase.table("invoices").insert({
+                "sender": sender,
+                "client_name": inv_data.get("client_name", ""),
+                "client_address": inv_data.get("location", ""),
+                "job_description": inv_data.get("job", ""),
+                "line_items": inv_data.get("items", []),
+                "subtotal": str(inv_data.get("subtotal", "0")),
+                "vat": "0",
+                "total": str(inv_data.get("total", "0")),
+                "status": "unpaid",
+                "invoice_number": inv_num,
+                "invoice_text": clean_text,
+                "due_date": inv_data.get("due_date", "")
+            }).execute()
+            if result.data:
+                inv_id = result.data[0]["id"]
+                pdf_url = "https://trades-pa-trades-pa.up.railway.app/generate-invoice-pdf/" + str(inv_id)
+                clean_reply = clean_text + "\n\n" + inv_num + " - PDF: " + pdf_url
+                resp.message(clean_reply)
+                return str(resp)
+        except Exception as e:
+            print("Auto invoice extract error: " + str(e))
+
     quote_items = []
     quote_subtotal = "0"
     quote_total = "0"
