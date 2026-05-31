@@ -712,7 +712,7 @@ def whatsapp():
                         print("Auto number purchase error: " + str(e))
                         print(tb.format_exc())
                         new_number = "pending"
-                    resp.message("All set " + data.get("owner_name", "") + "! Your VanOffice number: " + new_number + "\n\nTo forward missed calls dial:\n**61*" + new_number + "#\nthen press call.\n\nConnect email:\nGmail: https://trades-pa-trades-pa.up.railway.app/auth/gmail?phone=" + phone + "\nOutlook: https://trades-pa-trades-pa.up.railway.app/auth/outlook?phone=" + phone + "\n\nDashboard: https://trades-pa-trades-pa.up.railway.app/dashboard\nLogin with your number and PIN.")
+                    resp.message("All set " + data.get("owner_name", "") + "! Your VanOffice business number is:\n" + new_number + "\n\nPut this number on your van, website and cards. When clients call:\n- You answer as normal on your mobile\n- Missed calls get auto-texted\n- Every call and text is logged automatically\n\nConnect email:\nGmail: https://trades-pa-trades-pa.up.railway.app/auth/gmail?phone=" + phone + "\nOutlook: https://trades-pa-trades-pa.up.railway.app/auth/outlook?phone=" + phone + "\n\nDashboard: https://trades-pa-trades-pa.up.railway.app/dashboard\nLogin with your number and PIN.")
                 except Exception as e:
                     print("Profile save error: " + str(e))
                     print(traceback.format_exc())
