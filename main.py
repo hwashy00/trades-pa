@@ -708,30 +708,22 @@ def whatsapp():
                             supabase.table("profiles").update({"twilio_number": new_number}).eq("sender", sender).execute()
                     except Exception as e:
                         print("Auto number purchase error: " + str(e))
-                    welcome = "Welcome to VanOffice, " + data.get("owner_name", "") + "! Here is everything you need to know:\n\n"
-                    welcome += "YOUR VANOFFICE NUMBER\n"
-                    welcome += new_number + "\n"
-                    welcome += "Put this on your van, cards, website and social media. When clients call this number you answer on your mobile as normal. Missed calls are auto-texted and logged. All calls through this number are automatically transcribed and logged so you dont have to remember a thing.\n\n"
-                    welcome += "FIRST THINGS FIRST\n"
-                    welcome += "Go to your dashboard and update your profile with your rates, markup and payment terms. Without these your quotes wont calculate correctly.\n"
-                    welcome += "Dashboard: https://trades-pa-trades-pa.up.railway.app/dashboard\n"
-                    welcome += "Login: your mobile number + PIN\n\n"
-                    welcome += "ADD TO HOME SCREEN\n"
-                    welcome += "Open the dashboard link above in Safari, tap the Share button (box with arrow), then tap Add to Home Screen. This gives you an app icon so you can open it like a normal app.\n\n"
-                    welcome += "CONNECT YOUR EMAIL\n"
-                    welcome += "Link your email and VanOffice will scan it for you automatically. It flags important messages like client replies, payment confirmations and supplier quotes. Just text me check emails anytime for a summary.\n"
-                    welcome += "Gmail: https://trades-pa-trades-pa.up.railway.app/auth/gmail?phone=" + phone + "\n"
-                    welcome += "Outlook: https://trades-pa-trades-pa.up.railway.app/auth/outlook?phone=" + phone + "\n\n"
-                    welcome += "WHAT I CAN DO\n"
-                    welcome += "Just text or voice note me like you would a mate. Here are some examples:\n\n"
-                    welcome += "Log a job: Had a call from Dave, wants a kitchen fitted in Exeter\n"
-                    welcome += "Get a quote: Quote Dave for the kitchen, 3 days labour, materials around 500\n"
-                    welcome += "Book a job: Book in Dave for Thursday 9am, 2 days\n"
-                    welcome += "Invoice: Invoice Dave for the kitchen job\n"
-                    welcome += "Check emails: Check emails\n"
-                    welcome += "Check jobs: What jobs are outstanding\n\n"
-                    welcome += "Everything gets logged automatically. Check your dashboard anytime to see all your jobs, quotes, invoices and calendar in one place.\n\n"
-                    welcome += "Any questions just text me. Lets get to work."
+                    msg1 = "Welcome to VanOffice, " + data.get("owner_name", "") + "!\n\n"
+                    msg1 += "Your VanOffice number: " + new_number + "\n"
+                    msg1 += "Put this on your van, cards and social media. Clients call it, you answer on your mobile. Missed calls get auto-texted. All calls are transcribed and logged automatically.\n\n"
+                    msg1 += "Dashboard: https://trades-pa-trades-pa.up.railway.app/dashboard\n"
+                    msg1 += "Login: your mobile number + PIN\n\n"
+                    msg1 += "To add as an app: open the link in Safari, tap Share, then Add to Home Screen."
+                    resp.message(msg1)
+
+                    account_sid2 = os.environ.get("TWILIO_ACCOUNT_SID")
+                    auth_token2 = os.environ.get("TWILIO_AUTH_TOKEN")
+                    twilio_client2 = TwilioClient(account_sid2, auth_token2)
+                    twilio_client2.messages.create(
+                        from_="whatsapp:+14155238886",
+                        to=sender,
+                        body="QUICK START GUIDE\n\nFirst update your rates in the dashboard under Profile.\n\nConnect email:\nGmail: https://trades-pa-trades-pa.up.railway.app/auth/gmail?phone=" + phone + "\nOutlook: https://trades-pa-trades-pa.up.railway.app/auth/outlook?phone=" + phone + "\n\nJust text or voice note me:\n- Log a job: Call from Dave, wants kitchen fitted\n- Quote: Quote Dave, 3 days labour, materials 500\n- Book: Book Dave Thursday 9am, 2 days\n- Invoice: Invoice Dave for the kitchen job\n- Emails: Check emails\n\nAny questions just text me."
+                    )
                     resp.message(welcome)
                 except Exception as e:
                     print("Profile save error: " + str(e))
