@@ -235,7 +235,6 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
       <div class="topbar">
         <div class="topbar-logo">Van<b>Office</b></div>
         <div class="topbar-right">
-          <button class="ib" onclick="refreshData()">🔄</button>
           <button class="ib">🔔<div class="ndot" id="notifDot"></div></button>
           <div class="av" id="avInit">H</div>
         </div>
@@ -287,7 +286,13 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
 
     <div id="s-invoices" class="scr">
       <div class="ph"><div class="ph-title">Invoices</div></div>
-      <div class="sec"><div class="empty-state">Invoice tracking coming soon.<br>Generate invoices via WhatsApp.</div></div>
+      <div class="filters">
+        <button class="fp on" onclick="filtInv(this,'all')">All</button>
+        <button class="fp" onclick="filtInv(this,'unpaid')">Unpaid</button>
+        <button class="fp" onclick="filtInv(this,'paid')">Paid</button>
+        <button class="fp" onclick="filtInv(this,'overdue')">Overdue</button>
+      </div>
+      <div class="sec"><div class="list" id="invoicesList"><div class="loading">Loading...</div></div></div>
     </div>
 
     <div id="s-calendar" class="scr">
@@ -537,8 +542,9 @@ function showApp(data){
   renderJobs(allEnquiries,'all');
   renderQuotes(allEnquiries);
   renderBookings(allBookings);
+  allInvoices=data.invoices||[];
+  renderInvoices(allInvoices,'all');
   if(data.profile)renderProfile(data.profile);
-  if(data.template)loadTemplate(data.template);
   if(data.template)loadTemplate(data.template);
   const n=data.profile&&data.profile.owner_name?data.profile.owner_name[0].toUpperCase():'H';
   document.getElementById('avInit').textContent=n;
@@ -641,6 +647,35 @@ function renderBookings(bookings){
     const dateStr=d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
     return`<div class="li"><div class="li-ico" style="background:var(--grn-d)">📅</div><div class="li-body"><div class="li-name">${b.client_name||'Unknown'}</div><div class="li-detail">${b.job_type||''}${b.location?' · '+b.location:''}<br>${dateStr} at ${b.time||'TBC'} · ${b.duration_days||1} day(s)</div></div><div class="li-right"><span class="bdg b-grn">Booked</span></div></div>`;
   }).join('');
+}
+
+let allInvoices=[],currentInvFilter='all';
+
+function renderInvoices(invoices,filter){
+  const el=document.getElementById('invoicesList');
+  let f=invoices;
+  if(filter==='unpaid')f=invoices.filter(i=>i.status==='unpaid');
+  if(filter==='paid')f=invoices.filter(i=>i.status==='paid');
+  if(filter==='overdue'){
+    const today=new Date().toISOString().split('T')[0];
+    f=invoices.filter(i=>i.status==='unpaid'&&i.due_date&&i.due_date<today);
+  }
+  if(!f||!f.length){el.innerHTML='<div class="empty-state">No invoices found.<br>Generate invoices via WhatsApp.</div>';return}
+  el.innerHTML=f.map(inv=>{
+    const isPaid=inv.status==='paid';
+    const isOverdue=inv.status==='unpaid'&&inv.due_date&&inv.due_date<new Date().toISOString().split('T')[0];
+    const badge=isPaid?'<span class="bdg b-grn">Paid</span>':isOverdue?'<span class="bdg b-red">Overdue</span>':'<span class="bdg b-amb">Unpaid</span>';
+    const ico=isPaid?'background:var(--grn-d)':isOverdue?'background:var(--red-d)':'background:var(--amb-d)';
+    const emoji=isPaid?'✅':isOverdue?'⚠️':'💳';
+    const dueStr=inv.due_date?new Date(inv.due_date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
+    return`<div class="li"><div class="li-ico" style="${ico}">${emoji}</div><div class="li-body"><div class="li-name">${inv.client_name||'Unknown'}</div><div class="li-detail">${inv.invoice_number||''} · ${inv.job_description||''}${dueStr?' · Due '+dueStr:''}</div></div><div class="li-right"><div class="li-amt">£${inv.total||'0'}</div>${badge}</div></div>`;
+  }).join('');
+}
+
+function filtInv(el,filter){
+  el.closest('.filters').querySelectorAll('.fp').forEach(f=>f.classList.remove('on'));
+  el.classList.add('on');currentInvFilter=filter;
+  renderInvoices(allInvoices,filter);
 }
 
 function renderProfile(p){
@@ -775,26 +810,6 @@ async function saveProfile(){
 
 let chatHistory=[];
 
-  async function refreshData(){
-  try{
-    const res=await fetch('/api/stats?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin));
-    const data=await res.json();
-    if(!data.error){
-      allEnquiries=data.recent||[];
-      allBookings=data.bookings||[];
-      updateStats(data);
-      renderRecent(allEnquiries);
-      renderUpcoming(allBookings);
-      renderJobs(allEnquiries,'all');
-      renderQuotes(allEnquiries);
-      renderBookings(allBookings);
-      if(data.profile)renderProfile(data.profile);
-      if(data.template)loadTemplate(data.template);
-      renderCal();
-    }
-  }catch(e){console.log('Refresh error:',e)}
-}
-  
 function toggleChat(){
   const w=document.getElementById('chatWindow');
   const o=document.getElementById('chatOverlay');
@@ -851,6 +866,7 @@ function go(name){
   document.getElementById('content').scrollTop=0;
   if(name==='jobs')renderJobs(allEnquiries,currentFilter);
   if(name==='quotes')renderQuotes(allEnquiries);
+  if(name==='invoices')renderInvoices(allInvoices,currentInvFilter);
   if(name==='calendar'){renderBookings(allBookings);renderCal()}
 }
 
