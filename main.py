@@ -810,6 +810,28 @@ def whatsapp():
     system_prompt += "BOOK:name=<client name>|job=<job type>|location=<location>|date=<YYYY-MM-DD>|time=<HH:MM>|days=<number of days>\n"
     system_prompt += "For the date, convert relative dates to YYYY-MM-DD format using today's date as reference."
 
+    # Fetch existing quotes and bookings for context
+    existing_quotes = supabase.table("quotes").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
+    existing_bookings = supabase.table("bookings").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
+    existing_invoices = supabase.table("invoices").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
+
+    if existing_quotes:
+        system_prompt += "\n\nExisting quotes:\n"
+        for q in existing_quotes:
+            system_prompt += "- " + q.get("quote_number", "") + ": " + q.get("client_name", "") + " - " + q.get("job_description", "") + " at " + q.get("client_address", "") + " - Total: " + str(q.get("total", "0")) + "\n"
+
+    if existing_bookings:
+        system_prompt += "\nBooked jobs:\n"
+        for b in existing_bookings:
+            system_prompt += "- " + b.get("client_name", "") + " - " + b.get("job_type", "") + " at " + b.get("location", "") + " - " + b.get("date", "") + "\n"
+
+    if existing_invoices:
+        system_prompt += "\nExisting invoices:\n"
+        for i in existing_invoices:
+            system_prompt += "- " + i.get("invoice_number", "") + ": " + i.get("client_name", "") + " - " + i.get("job_description", "") + " - " + i.get("status", "") + "\n"
+
+    system_prompt += "\nWhen asked to invoice a job, match it to the existing quote or booking and use those exact details. Do not ask the user to repeat information that is already in the quote.\n"
+    
     response = client.messages.create(model="claude-sonnet-4-5", max_tokens=1500, system=system_prompt, messages=conversation_history[sender])
 
     reply = response.content[0].text
