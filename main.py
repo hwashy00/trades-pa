@@ -1029,7 +1029,7 @@ def incoming_call():
     resp = VoiceResponse()
     if profile and profile.get("phone"):
         resp.say("Please hold while we connect your call. This call may be recorded for quality purposes.")
-        dial = Dial(action="/call-status", method="POST")
+        dial = Dial(action="/call-status", method="POST", record="record-from-answer-dual", recording_status_callback="/recording-callback", recording_status_callback_method="POST")
         dial.number(profile.get("phone"))
         resp.append(dial)
     else:
@@ -1151,6 +1151,74 @@ def outlook_callback():
     }).eq("phone", phone).execute()
     return "<html><body style='background:#0c0c0c;color:#fff;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center'><div><h1 style='color:#5b6cff'>Outlook Connected!</h1><p style='color:#888;margin-top:16px'>You can close this window and go back to your dashboard.</p></div></body></html>"
 
+@app.route("/recording-callback", methods=["POST"])
+def recording_callback():
+    recording_url = request.form.get("RecordingUrl", "")
+    call_sid = request.form.get("CallSid", "")
+    caller = request.form.get("From", "")
+    called = request.form.get("To", "")
+
+    if not recording_url:
+        return "No recording", 200
+
+    try:
+        import requests as req
+        from openai import OpenAI
+
+        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+
+        audio_response = req.get(recording_url + ".mp3", auth=(account_sid, auth_token))
+        audio_path = "/tmp/call_" + call_sid + ".mp3"
+        with open(audio_path, "wb") as f:
+            f.write(audio_response.content)
+
+        openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        with open(audio_path, "rb") as audio_file:
+            transcript = openai_client.audio.transcriptions.create(model="whisper-1", file=audio_file)
+        call_text = transcript.text.strip()
+        print("Call transcribed: " + call_text[:100])
+
+        summary_response = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=300,
+            system="You summarise phone calls for a tradesperson. Extract: caller name, job type, location, urgency, any dates mentioned. Be concise. Format as a clear summary.",
+            messages=[{"role": "user", "content": "Transcribe this phone call and summarise the key details:\n\n" + call_text}]
+        )
+        summary = summary_response.content[0].text.strip()
+
+        supabase.table("enquiries").insert({
+            "sender": caller,
+            "message": "CALL RECORDING",
+            "summary": summary,
+            "client_name": "",
+            "job_type": "phone call",
+            "location": "",
+            "status": "new"
+        }).execute()
+
+        profile = None
+        try:
+            result = supabase.table("profiles").select("*").eq("twilio_number", called).execute()
+            if result.data:
+                profile = result.data[0]
+        except:
+            pass
+
+        if profile and profile.get("phone"):
+            twilio_client = TwilioClient(account_sid, auth_token)
+            twilio_client.messages.create(
+                body="Call summary:\n\n" + summary + "\n\nFull transcript saved to your dashboard.",
+                from_=called,
+                to=profile.get("phone")
+            )
+
+    except Exception as e:
+        print("Recording callback error: " + str(e))
+        import traceback as tb
+        print(tb.format_exc())
+
+    return "OK", 200
 
 @app.route("/dashboard")
 def dashboard():
