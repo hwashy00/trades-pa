@@ -851,6 +851,31 @@ def whatsapp():
     system_prompt += "BOOK:name=<client name>|job=<job type>|location=<location>|date=<YYYY-MM-DD>|time=<HH:MM>|days=<number of days>\n"
     system_prompt += "For the date, convert relative dates to YYYY-MM-DD format using today's date as reference."
 
+    # Add business context
+    try:
+        recent_enq = supabase.table("enquiries").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
+        recent_bookings = supabase.table("bookings").select("*").eq("sender", sender).order("date").execute().data
+        recent_quotes = supabase.table("quotes").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
+        recent_invoices = supabase.table("invoices").select("*").eq("sender", sender).order("created_at", desc=True).limit(10).execute().data
+        if recent_enq:
+            system_prompt += "\nRecent enquiries:\n"
+            for e in recent_enq[:5]:
+                system_prompt += "- " + e.get("client_name", "") + " - " + e.get("job_type", "") + " - " + e.get("status", "") + "\n"
+        if recent_bookings:
+            system_prompt += "\nBooked jobs:\n"
+            for b in recent_bookings[:5]:
+                system_prompt += "- " + b.get("client_name", "") + " - " + b.get("job_type", "") + " - " + b.get("date", "") + "\n"
+        if recent_quotes:
+            system_prompt += "\nRecent quotes:\n"
+            for q in recent_quotes[:5]:
+                system_prompt += "- " + q.get("quote_number", "") + " - " + q.get("client_name", "") + " - " + q.get("total", "") + " - " + q.get("status", "") + "\n"
+        if recent_invoices:
+            system_prompt += "\nRecent invoices:\n"
+            for i in recent_invoices[:5]:
+                system_prompt += "- " + i.get("invoice_number", "") + " - " + i.get("client_name", "") + " - " + i.get("total", "") + " - " + i.get("status", "") + "\n"
+    except Exception as e:
+        print("Context fetch error: " + str(e))
+    
     response = client.messages.create(model="claude-sonnet-4-5", max_tokens=1500, system=system_prompt, messages=conversation_history[sender])
 
     reply = response.content[0].text
