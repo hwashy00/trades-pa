@@ -1738,7 +1738,7 @@ def generate_logo():
 
         openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
         response = openai_client.images.generate(
-            model="dall-e-3",
+            model="gpt-image-1",
             prompt=prompt,
             size="1024x1024",
             quality="standard",
