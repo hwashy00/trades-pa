@@ -430,6 +430,28 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
     </div>
   </div>
 
+  <!-- JOB DETAIL DRAWER -->
+  <div id="jobDrawerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeJobDrawer()"></div>
+  <div id="jobDrawer" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-size:1rem;font-weight:800" id="drawerClientName">Client</div>
+      <button onclick="closeJobDrawer()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+    <div id="drawerStatus" style="margin-bottom:16px"></div>
+    <div style="background:var(--s2);border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="font-size:.6rem;font-weight:700;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">What they said</div>
+      <div id="drawerMessage" style="font-size:.85rem;color:var(--t2);line-height:1.6;font-style:italic"></div>
+    </div>
+    <div style="background:var(--s2);border-radius:12px;padding:14px;margin-bottom:20px">
+      <div style="font-size:.6rem;font-weight:700;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">Details</div>
+      <div id="drawerDetails" style="display:flex;flex-direction:column;gap:7px;font-size:.82rem"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button id="drawerQuoteBtn" onclick="openQuoteFromDrawer()" style="padding:14px;background:var(--amb-d);color:var(--amb);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">+ Quote</button>
+      <button id="drawerInvBtn" onclick="openInvoiceFromDrawer()" style="padding:14px;background:var(--acc-d);color:var(--acc2);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">+ Invoice</button>
+    </div>
+  </div>
+
   <!-- CREATE QUOTE MODAL -->
   <div id="quoteModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeQuoteModal()"></div>
   <div id="quoteModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px">
@@ -640,9 +662,19 @@ function statusIcon(s){
 function renderRecent(items){
   const el=document.getElementById('recentList');
   if(!items||!items.length){el.innerHTML='<div class="empty-state">No activity yet.<br>Send a WhatsApp to get started.</div>';return}
-  el.innerHTML=items.slice(0,5).map(item=>{
+  el.innerHTML=items.slice(0,5).map((item,idx)=>{
     const ico=statusIcon(item.status);
-    return`<div class="li"><div class="li-ico" style="${ico.style}">${ico.emoji}</div><div class="li-body"><div class="li-name">${item.client_name||'Unknown'}</div><div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div></div><div class="li-right">${statusBadge(item.status)}</div></div>`;
+    const snippet=item.summary||item.message||'';
+    const preview=snippet.length>55?snippet.slice(0,55)+'…':snippet;
+    return`<div class="li" onclick="openJobDrawer(${idx},allEnquiries)" style="cursor:pointer">
+      <div class="li-ico" style="${ico.style}">${ico.emoji}</div>
+      <div class="li-body">
+        <div class="li-name">${item.client_name||'Unknown'}</div>
+        <div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div>
+        ${preview?`<div class="li-detail" style="margin-top:2px;font-style:italic">"${preview}"</div>`:''}
+      </div>
+      <div class="li-right">${statusBadge(item.status)}</div>
+    </div>`;
   }).join('');
 }
 
@@ -663,11 +695,21 @@ function renderJobs(items,filter){
   const el=document.getElementById('jobsList');
   let f=filter==='all'?items:items.filter(i=>i.status===filter);
   if(!f||!f.length){el.innerHTML='<div class="empty-state">No jobs found.</div>';return}
-  el.innerHTML=f.map(item=>{
+  el.innerHTML=f.map((item,idx)=>{
     const ico=statusIcon(item.status);
-    const invBtn=`<button onclick="openInvoiceModal('${(item.client_name||'').replace(/'/g,"\\'")}','${(item.job_type||'').replace(/'/g,"\\'")}','${(item.sender||'').replace(/'/g,"\\'")}',event)" style="margin-top:6px;padding:5px 10px;background:var(--acc-d);color:var(--acc2);border:none;border-radius:8px;font-size:.6rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">+ Invoice</button>`;
-    const quoteBtn=`<button onclick="openQuoteModal('${(item.client_name||'').replace(/'/g,"\\'")}','${(item.job_type||'').replace(/'/g,"\\'")}','${(item.sender||'').replace(/'/g,"\\'")}',event)" style="margin-top:6px;margin-left:4px;padding:5px 10px;background:var(--amb-d);color:var(--amb);border:none;border-radius:8px;font-size:.6rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">+ Quote</button>`;
-    return`<div class="li"><div class="li-ico" style="${ico.style}">${ico.emoji}</div><div class="li-body"><div class="li-name">${item.client_name||'Unknown'}</div><div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div></div><div class="li-right">${statusBadge(item.status)}${quoteBtn}${invBtn}</div></div>`;
+    const snippet=item.summary||item.message||'';
+    const preview=snippet.length>60?snippet.slice(0,60)+'…':snippet;
+    return`<div class="li" onclick="openJobDrawer(${idx},${filter==='all'?'allEnquiries':'allEnquiries.filter(i=>i.status===\''+filter+'\')'})" style="flex-direction:column;align-items:stretch;gap:0;cursor:pointer">
+      <div style="display:flex;align-items:center;gap:13px">
+        <div class="li-ico" style="${ico.style}">${ico.emoji}</div>
+        <div class="li-body">
+          <div class="li-name">${item.client_name||'Unknown'}</div>
+          <div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div>
+          ${preview?`<div class="li-detail" style="margin-top:3px;font-style:italic;color:var(--t3)">"${preview}"</div>`:''}
+        </div>
+        <div class="li-right">${statusBadge(item.status)}</div>
+      </div>
+    </div>`;
   }).join('');
 }
 
@@ -943,6 +985,44 @@ function filt(el,filter){
   el.closest('.filters').querySelectorAll('.fp').forEach(f=>f.classList.remove('on'));
   el.classList.add('on');currentFilter=filter;
   renderJobs(allEnquiries,filter);
+}
+
+let activeDrawerItem=null;
+
+function openJobDrawer(idx, list){
+  const item=list[idx];
+  if(!item)return;
+  activeDrawerItem=item;
+  document.getElementById('drawerClientName').textContent=item.client_name||'Unknown';
+  document.getElementById('drawerStatus').innerHTML=statusBadge(item.status);
+  const msg=item.message||'';
+  const summary=item.summary||'';
+  document.getElementById('drawerMessage').textContent=msg||(summary||'No message recorded.');
+  const details=[];
+  if(item.job_type)details.push(`<div><span style="color:var(--t4)">Job: </span>${item.job_type}</div>`);
+  if(item.location)details.push(`<div><span style="color:var(--t4)">Location: </span>${item.location}</div>`);
+  if(item.sender)details.push(`<div><span style="color:var(--t4)">Number: </span>${item.sender}</div>`);
+  if(item.created_at){const d=new Date(item.created_at);details.push(`<div><span style="color:var(--t4)">Received: </span>${d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>`);}
+  document.getElementById('drawerDetails').innerHTML=details.join('')||'<div style="color:var(--t3)">No details recorded.</div>';
+  document.getElementById('jobDrawerOverlay').style.display='block';
+  document.getElementById('jobDrawer').style.display='block';
+}
+
+function closeJobDrawer(){
+  document.getElementById('jobDrawerOverlay').style.display='none';
+  document.getElementById('jobDrawer').style.display='none';
+}
+
+function openQuoteFromDrawer(){
+  if(!activeDrawerItem)return;
+  closeJobDrawer();
+  openQuoteModal(activeDrawerItem.client_name||'',activeDrawerItem.job_type||'',activeDrawerItem.sender||'',null);
+}
+
+function openInvoiceFromDrawer(){
+  if(!activeDrawerItem)return;
+  closeJobDrawer();
+  openInvoiceModal(activeDrawerItem.client_name||'',activeDrawerItem.job_type||'',activeDrawerItem.sender||'',null);
 }
 
 function openQuoteModal(clientName, jobType, clientNumber, e){
