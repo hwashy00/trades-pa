@@ -368,9 +368,9 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
             <button onclick="generateLogo()" style="flex:1;padding:8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;font-family:Inter,sans-serif;font-size:.72rem;font-weight:700;color:var(--t2);cursor:pointer">Regenerate</button>
           </div>
         </div>
-        <button onclick="saveDesignTemplate()" style="width:100%;padding:13px;background:var(--grn);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:#000;cursor:pointer" id="saveDesignBtn">Save</button>
+        <button onclick="generateAndPreview()" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:#fff;cursor:pointer;margin-bottom:8px" id="genPreviewBtn">✨ Generate & Preview</button>
         </div>
-        <div id="saveDesignMsg" style="text-align:center;font-size:.72rem;color:var(--grn);margin-top:8px;min-height:18px"></div>
+        <div id="saveDesignMsg" style="text-align:center;font-size:.72rem;color:var(--grn);margin-top:4px;min-height:18px"></div>
       </div>
     </div>
 
@@ -1397,10 +1397,63 @@ async function saveDesignTemplate(){
   }
 }
 
+let generatedQuoteHTML = '';
+
+async function generateAndPreview(){
+  const btn = document.getElementById('genPreviewBtn');
+  const msg = document.getElementById('saveDesignMsg');
+  btn.textContent = '⏳ Generating your quote style...';
+  btn.disabled = true;
+  msg.textContent = '';
+
+  try{
+    const res = await fetch('/api/generate-quote-html?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        phone: userPhone,
+        pin: userPin,
+        style: designerTemplate,
+        quote: {
+          client_name: 'Example Client',
+          client_address: 'Example Address, Devon',
+          total: '1,900.00',
+          quote_number: 'QU-001'
+        }
+      })
+    });
+    const data = await res.json();
+    if(data.html){
+      generatedQuoteHTML = data.html;
+      go('preview');
+      const inner = document.getElementById('previewInner');
+      inner.innerHTML = '';
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'width:100%;height:1200px;border:none';
+      iframe.srcdoc = data.html;
+      inner.appendChild(iframe);
+      msg.textContent = '✓ Template saved — generate a quote to see the full PDF';
+    } else {
+      msg.textContent = data.error || 'Error generating template';
+    }
+  } catch(e){
+    msg.textContent = 'Connection error. Try again.';
+  } finally {
+    btn.textContent = '✨ Generate & Preview';
+    btn.disabled = false;
+  }
+}
+
 function showDesignPreview(){
   go('preview');
   const inner = document.getElementById('previewInner');
-  if(designerStyle === 'george') inner.innerHTML = renderGeorgePreview();
+  if(generatedQuoteHTML){
+    inner.innerHTML = '';
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'width:100%;height:1200px;border:none';
+    iframe.srcdoc = generatedQuoteHTML;
+    inner.appendChild(iframe);
+  } else if(designerStyle === 'george') inner.innerHTML = renderGeorgePreview();
   else if(designerStyle === 'modern') inner.innerHTML = renderModernPreview();
   else inner.innerHTML = renderMinimalPreview();
 }
