@@ -343,8 +343,21 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
             <button onclick="sendDesignerMsg()" style="padding:10px 14px;background:var(--acc);border:none;border-radius:10px;font-family:Inter,sans-serif;font-size:.78rem;font-weight:700;color:#fff;cursor:pointer">→</button>
           </div>
         </div>
-        <button onclick="saveDesignTemplate()" style="width:100%;padding:13px;background:var(--grn);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:#000;cursor:pointer" id="saveDesignBtn">Save template</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <button onclick="showDesignPreview()" style="width:100%;padding:13px;background:var(--s2);border:1px solid var(--br);border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:var(--t1);cursor:pointer">👁 Preview</button>
+          <button onclick="saveDesignTemplate()" style="width:100%;padding:13px;background:var(--grn);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:#000;cursor:pointer" id="saveDesignBtn">Save</button>
+        </div>
         <div id="saveDesignMsg" style="text-align:center;font-size:.72rem;color:var(--grn);margin-top:8px;min-height:18px"></div>
+      </div>
+    </div>
+
+    <div id="s-preview" class="scr">
+      <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--br);flex-shrink:0">
+        <button onclick="go('designer')" style="background:none;border:none;color:var(--t2);font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:Inter,sans-serif;padding:0">← Back</button>
+        <div style="font-size:.92rem;font-weight:700">Preview</div>
+      </div>
+      <div id="previewContent" style="overflow-y:auto;background:#e8e8e8;padding:16px;min-height:calc(100vh - 130px)">
+        <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.15)" id="previewInner"></div>
       </div>
     </div>
 
@@ -1352,6 +1365,112 @@ async function saveDesignTemplate(){
   }finally{
     btn.textContent = 'Save template'; btn.disabled = false;
   }
+}
+
+function showDesignPreview(){
+  go('preview');
+  const inner = document.getElementById('previewInner');
+  if(designerStyle === 'george') inner.innerHTML = renderGeorgePreview();
+  else if(designerStyle === 'modern') inner.innerHTML = renderModernPreview();
+  else inner.innerHTML = renderMinimalPreview();
+}
+
+function renderGeorgePreview(){
+  const t = designerTemplate;
+  const acc = t.accent || '#c9a227';
+  const dark = t.dark || '#1a1a1a';
+  return `<div style="font-family:Inter,sans-serif;font-size:12px;line-height:1.5">
+    <div style="background:${dark};display:grid;grid-template-columns:1fr 1fr;min-height:120px">
+      <div style="padding:20px 24px;border-right:2px solid ${acc}">
+        <div style="font-size:18px;font-weight:900;color:${acc}">${t.bizName||'Your Business'}</div>
+        <div style="font-size:9px;color:${acc};letter-spacing:0.12em;text-transform:uppercase;margin-top:3px;opacity:.85">${t.trade||''}</div>
+        <div style="width:50px;height:1.5px;background:${acc};margin-top:10px"></div>
+      </div>
+      <div style="padding:20px 24px">
+        <div style="font-size:26px;font-weight:900;color:${acc};letter-spacing:0.06em;margin-bottom:12px">QUOTATION</div>
+        ${t.phone?`<div style="font-size:11px;color:#ccc;margin-bottom:5px">📞 ${t.phone}</div>`:''}
+        ${t.email?`<div style="font-size:11px;color:#ccc;margin-bottom:5px">✉ ${t.email}</div>`:''}
+        ${t.location?`<div style="font-size:11px;color:#ccc">📍 ${t.location}</div>`:''}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 200px">
+      <div style="padding:20px 24px;border-right:1px solid #e8dfc8">
+        <div style="font-size:11px;margin-bottom:4px"><span style="color:${acc};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">DATE: </span>${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
+        <div style="font-size:11px;margin-bottom:14px"><span style="color:${acc};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">CLIENT: </span>Client Name</div>
+        <div style="font-size:11px;color:#444;line-height:1.7;margin-bottom:16px">${t.intro||''}</div>
+        <div style="font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:0.04em;color:#1a1a1a;margin-bottom:12px">📋 SCOPE OF WORKS</div>
+        ${(t.scopeItems||[]).map(i=>`<div style="display:flex;gap:8px;margin-bottom:8px;font-size:11px;color:#333;line-height:1.5"><span style="color:${acc};flex-shrink:0">✓</span>${i}</div>`).join('')}
+        ${t.showNote&&t.note?`<div style="border:1.5px solid #d4b860;border-radius:6px;padding:10px 12px;margin-top:14px;background:#fffef5"><div style="font-size:9px;font-weight:800;color:${acc};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">⚠ PLEASE NOTE</div><div style="font-size:10px;color:#555;line-height:1.6">${t.note}</div></div>`:''}
+      </div>
+      <div style="padding:16px;background:#f9f7f0">
+        <div style="text-align:center;padding-bottom:16px;margin-bottom:16px;border-bottom:1.5px solid #d4b860">
+          <div style="width:48px;height:48px;border-radius:50%;border:2.5px solid ${acc};display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:20px;font-weight:900;color:${acc}">£</div>
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:${acc};margin-bottom:4px">TOTAL PRICE</div>
+          <div style="font-size:28px;font-weight:900;color:#1a1a1a;letter-spacing:-0.02em">£1,900.00</div>
+          ${t.showVat?`<div style="font-size:11px;font-weight:600;color:${acc};margin-top:4px">+ VAT</div>`:''}
+        </div>
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:${acc};margin-bottom:10px;text-align:center">INCLUSIONS</div>
+        ${(t.inclusionItems||[]).map(i=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11px;color:#333"><span style="color:${acc}">✓</span>${i}</div>`).join('')}
+      </div>
+    </div>
+    ${(t.showCommitment||t.showLeadTime)?`<div style="background:${dark};display:grid;grid-template-columns:1fr 1fr;padding:14px 20px;gap:16px">
+      ${t.showCommitment?`<div style="display:flex;gap:10px"><div style="width:28px;height:28px;border-radius:50%;border:1.5px solid ${acc};display:flex;align-items:center;justify-content:center;color:${acc};font-size:12px;flex-shrink:0">✓</div><div><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:${acc};margin-bottom:3px">OUR COMMITMENT</div><div style="font-size:9px;color:#aaa;line-height:1.55">${t.commitment||''}</div></div></div>`:''}
+      ${t.showLeadTime?`<div style="display:flex;gap:10px"><div style="width:28px;height:28px;border-radius:50%;border:1.5px solid ${acc};display:flex;align-items:center;justify-content:center;color:${acc};font-size:12px;flex-shrink:0">📅</div><div><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:${acc};margin-bottom:3px">LEAD TIME</div><div style="font-size:9px;color:#aaa;line-height:1.55">${t.leadTime||''}</div></div></div>`:''}
+    </div>`:''}
+    <div style="background:${dark};border-top:1px solid #b8960c;display:flex;justify-content:space-between;align-items:center;padding:12px 24px">
+      <div><div style="font-size:13px;font-weight:900;color:${acc};text-transform:uppercase;letter-spacing:0.08em">THANK YOU</div><div style="font-size:9px;color:#555;margin-top:1px">We look forward to working with you.</div></div>
+      <div style="text-align:right"><div style="font-size:12px;font-weight:700;color:${acc};font-style:italic">${t.bizName||''}</div></div>
+    </div>
+  </div>`;
+}
+
+function renderModernPreview(){
+  const t = designerTemplate;
+  const acc = t.accent || '#1e3a5f';
+  return `<div style="font-family:Inter,sans-serif;font-size:12px">
+    <div style="padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:4px solid ${acc}">
+      <div><div style="font-size:18px;font-weight:900;color:#111;letter-spacing:-0.02em">${t.bizName||'Your Business'}</div><div style="font-size:10px;color:#888;margin-top:2px">${t.trade||''}</div></div>
+      <div style="font-size:24px;font-weight:900;color:${acc}">QUOTATION</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 180px">
+      <div style="padding:16px 24px">
+        <div style="display:flex;gap:20px;margin-bottom:14px">
+          <div><div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Date</div><div style="font-size:11px;font-weight:600">${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div></div>
+          <div><div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Client</div><div style="font-size:11px;font-weight:600">Client Name</div></div>
+        </div>
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${acc};margin-bottom:8px">Scope of works</div>
+        ${(t.scopeItems||[]).map(i=>`<div style="display:flex;gap:8px;margin-bottom:5px;font-size:11px;color:#333;line-height:1.5"><div style="width:5px;height:5px;border-radius:50%;background:${acc};flex-shrink:0;margin-top:4px"></div>${i}</div>`).join('')}
+      </div>
+      <div style="padding:14px 16px;background:#f8f8f8">
+        <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.07em">Total price</div>
+        <div style="font-size:28px;font-weight:900;color:${acc};letter-spacing:-0.02em;margin:4px 0">£1,900</div>
+        ${t.showVat?`<div style="font-size:9px;color:#888;margin-bottom:12px">+ VAT</div>`:'<div style="margin-bottom:12px"></div>'}
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:${acc};margin-bottom:7px">Included</div>
+        ${(t.inclusionItems||[]).map(i=>`<div style="display:flex;gap:6px;margin-bottom:5px;font-size:10px;color:#333"><span style="color:${acc}">✓</span>${i}</div>`).join('')}
+      </div>
+    </div>
+    ${(t.showCommitment||t.showLeadTime)?`<div style="background:${acc};padding:12px 24px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      ${t.showCommitment?`<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.7);margin-bottom:3px">Our commitment</div><div style="font-size:9px;color:rgba(255,255,255,0.9);line-height:1.55">${t.commitment||''}</div></div>`:''}
+      ${t.showLeadTime?`<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.7);margin-bottom:3px">Lead time</div><div style="font-size:9px;color:rgba(255,255,255,0.9);line-height:1.55">${t.leadTime||''}</div></div>`:''}
+    </div>`:''}
+  </div>`;
+}
+
+function renderMinimalPreview(){
+  const t = designerTemplate;
+  return `<div style="font-family:Inter,sans-serif;font-size:12px;padding:24px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:1px solid #e8e8e8;margin-bottom:14px">
+      <div><div style="font-size:16px;font-weight:700;color:#111">${t.bizName||'Your Business'}</div><div style="font-size:10px;color:#888;margin-top:2px">${t.trade||''}</div></div>
+      <div style="text-align:right"><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:#888">Quotation</div><div style="font-size:12px;font-weight:600;color:#111;margin-top:1px">QU-001</div></div>
+    </div>
+    <div style="display:flex;gap:20px;margin-bottom:16px">
+      <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.06em;color:#888;margin-bottom:2px">Date</div><div style="font-size:11px;font-weight:500">${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div></div>
+      <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.06em;color:#888;margin-bottom:2px">Client</div><div style="font-size:11px;font-weight:500">Client Name</div></div>
+    </div>
+    <div style="margin-bottom:14px"><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.09em;color:#888;margin-bottom:7px">Scope of works</div>${(t.scopeItems||[]).map(i=>`<div style="display:flex;gap:9px;margin-bottom:4px;font-size:10px;line-height:1.5;color:#333"><span style="color:#bbb;flex-shrink:0">—</span>${i}</div>`).join('')}</div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:14px;color:#111;border-top:1px solid #e8e8e8">Total<span>£1,900.00${t.showVat?' + VAT':''}</span></div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e8e8e8;font-size:9px;color:#888;line-height:1.7">${t.paymentTerms||''}</div>
+  </div>`;
 }
 
 function chM(d){
