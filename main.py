@@ -1850,11 +1850,11 @@ Create a stunning, professional A4 quote document in HTML/CSS that:
 
 {"Include this logo image at top left of header: <img src='" + logo_data + "' style='width:80px;height:80px;object-fit:contain'>" if logo_data else "Generate a professional SVG logo/icon for the trade instead"}
 
-Return ONLY the complete HTML document, nothing else. No explanation, no markdown, just pure HTML starting with <!DOCTYPE html>."""
+IMPORTANT: Return ONLY the raw HTML. No markdown, no explanation, no code blocks. Start directly with <!DOCTYPE html> and end with </html>. Keep CSS concise. This must render correctly in a browser and convert to A4 PDF."""
 
         response = client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=8000,
+            max_tokens=4000,
             messages=[{"role": "user", "content": prompt}]
         )
 
