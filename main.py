@@ -337,8 +337,14 @@ scheduler.start()
 
 
 def generate_quote_pdf(quote, profile, template):
+    # If we have a generated HTML template, use it directly via PDFShift
+    if template and template.get("generated_html"):
+        try:
+            return generate_quote_pdf_styled(quote, profile, {}, "custom_html")
+        except Exception as e:
+            print("Styled PDF error, falling back: " + str(e))
     # Check if a custom design template is saved
-    if template and template.get("design_style") and template.get("design_template"):
+    elif template and template.get("design_style") and template.get("design_template"):
         try:
             design_tmpl = json.loads(template.get("design_template", "{}"))
             design_style = template.get("design_style", "george")
