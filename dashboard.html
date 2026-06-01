@@ -319,6 +319,15 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
       <div class="ph"><div class="ph-title">Quote Style</div></div>
       <div style="padding:0 20px 12px">
         <div style="font-size:.7rem;color:var(--t3);margin-bottom:10px">Pick a starting style then chat with AI to make it yours</div>
+        <div style="background:var(--s1);border-radius:14px;padding:14px 16px;margin-bottom:14px;border:1px dashed var(--br)">
+          <div style="font-size:.75rem;font-weight:600;margin-bottom:4px">Have your own template already?</div>
+          <div style="font-size:.68rem;color:var(--t3);margin-bottom:10px">Upload a PDF and we'll match your style automatically</div>
+          <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;background:var(--s2);border:1px solid var(--br);border-radius:10px;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--t2)">
+            📄 Upload PDF
+            <input type="file" accept="application/pdf" onchange="analyseTemplatePDF(this)" style="display:none">
+          </label>
+          <div id="pdfUploadMsg" style="text-align:center;font-size:.68rem;color:var(--t3);margin-top:8px;min-height:16px"></div>
+        </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
           <div id="ds-george" onclick="pickDesignStyle('george')" style="border:1.5px solid var(--acc);border-radius:12px;overflow:hidden;cursor:pointer">
             <div style="background:#1a1a1a;height:36px;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#c9a227">Premium Gold</div>
@@ -337,6 +346,7 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
           <div style="padding:12px 14px;border-bottom:1px solid var(--br);font-size:.75rem;font-weight:600">Chat with AI to customise</div>
           <div id="designerMsgs" style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto">
             <div style="background:var(--s2);padding:10px 12px;border-radius:4px 12px 12px 12px;font-size:.75rem;color:var(--t2);line-height:1.5;max-width:90%">Pick a style above then tell me your trade and business name — I'll tailor it for you. Or describe any changes you want.</div>
+            <div style="background:rgba(0,212,160,0.1);padding:10px 12px;border-radius:4px 12px 12px 12px;font-size:.72rem;color:var(--grn);line-height:1.5;max-width:95%">💡 Your logo appears automatically on quotes — just upload it under Profile → Business logo.</div>
           </div>
           <div style="padding:10px 12px;border-top:1px solid var(--br);display:flex;gap:8px">
             <input id="designerInp" placeholder="e.g. I'm a plumber, use dark navy..." style="flex:1;padding:10px 12px;background:var(--s3);border:1px solid var(--br);border-radius:10px;font-family:Inter,sans-serif;font-size:.78rem;color:var(--t1);outline:none" onkeypress="if(event.key==='Enter')sendDesignerMsg()">
@@ -345,7 +355,20 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
           <button onclick="showDesignPreview()" style="width:100%;padding:13px;background:var(--s2);border:1px solid var(--br);border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:var(--t1);cursor:pointer">👁 Preview</button>
-          <button onclick="saveDesignTemplate()" style="width:100%;padding:13px;background:var(--grn);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:#000;cursor:pointer" id="saveDesignBtn">Save</button>
+          <div style="background:var(--s1);border-radius:12px;padding:12px 14px;margin-bottom:8px">
+          <div style="font-size:.68rem;color:var(--t3);margin-bottom:6px">Describe your logo (optional)</div>
+          <input id="logoPromptInput" placeholder="e.g. a plastering trowel, a hammer, GW initials..." style="width:100%;padding:9px 12px;background:var(--s3);border:1px solid var(--br);border-radius:8px;font-family:Inter,sans-serif;font-size:.75rem;color:var(--t1);outline:none;margin-bottom:0">
+        </div>
+        <button onclick="generateLogo()" style="width:100%;padding:13px;background:var(--s2);border:1px solid var(--br);border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:var(--t1);cursor:pointer;margin-bottom:8px" id="genLogoBtn">🎨 Generate logo with AI</button>
+        <div id="logoGenMsg" style="text-align:center;font-size:.68rem;color:var(--t3);margin-bottom:8px;min-height:16px"></div>
+        <div id="logoGenPreview" style="display:none;text-align:center;margin-bottom:10px">
+          <img id="logoGenImg" style="width:80px;height:80px;border-radius:10px;object-fit:contain;background:var(--s2);padding:4px">
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button onclick="saveLogo()" style="flex:1;padding:8px;background:var(--grn);border:none;border-radius:8px;font-family:Inter,sans-serif;font-size:.72rem;font-weight:700;color:#000;cursor:pointer">Save to profile</button>
+            <button onclick="generateLogo()" style="flex:1;padding:8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;font-family:Inter,sans-serif;font-size:.72rem;font-weight:700;color:var(--t2);cursor:pointer">Regenerate</button>
+          </div>
+        </div>
+        <button onclick="saveDesignTemplate()" style="width:100%;padding:13px;background:var(--grn);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:#000;cursor:pointer" id="saveDesignBtn">Save</button>
         </div>
         <div id="saveDesignMsg" style="text-align:center;font-size:.72rem;color:var(--grn);margin-top:8px;min-height:18px"></div>
       </div>
@@ -1273,21 +1296,28 @@ let designerTemplate = {
 };
 
 const DESIGNER_SYSTEM = `You are a quote template designer for VanOffice, a UK trades app.
-The user wants to customise their quote template. When they describe changes, update the relevant fields.
-Fields you can change: bizName, trade, phone, email, location, accent (hex), dark (hex),
-intro, scopeItems (array), inclusionItems (array), note, commitment, leadTime, paymentTerms,
-showNote, showCommitment, showLeadTime, showVat (booleans).
-Reply with 1-2 friendly sentences, then on a new line: TMPL_JSON: followed by JSON with ONLY changed fields.
-Infer trade-appropriate scope items. Keep it concise.`;
+You help tradespeople customise how their quotes look. You can change these fields:
+bizName, trade, phone, email, location, accent (brand colour as hex), dark (dark section colour as hex),
+intro (opening paragraph), scopeItems (array), inclusionItems (array), note, commitment, leadTime, paymentTerms,
+showNote (bool), showCommitment (bool), showLeadTime (bool), showVat (bool).
+
+Always reply with 1-2 sentences then: TMPL_JSON: followed by JSON of ONLY changed fields.
+
+LOGO RULE - THIS IS CRITICAL: Logos and images are 100% supported and already working in VanOffice. The logo is uploaded via Profile > Business logo in the dashboard and automatically appears on every quote PDF. If someone mentions a logo, hammer, trowel, or any image - tell them it already works, just upload it in Profile > Business logo. NEVER say logos are unsupported. NEVER suggest emojis instead of logos. NEVER say to contact support.
+
+COLOUR RULE: Update accent for brand/gold colour, dark for background/header colour.
+
+STYLE RULE: For premium/George style use dark="#1a1a1a" accent="#c9a227". For navy use dark="#1e3a5f" accent="#ffffff". For green use dark="#2d6a4f" accent="#f0c040".`;
 
 function initDesigner(){
-  if(userPhone && designerTemplate.bizName === 'Your Business'){
-    const profile = window._vanofficeProfile;
-    if(profile){
+  const profile = window._vanofficeProfile;
+  if(profile){
+    if(designerTemplate.bizName === 'Your Business'){
       designerTemplate.bizName = profile.business_name || designerTemplate.bizName;
       designerTemplate.trade = profile.trade || designerTemplate.trade;
       designerTemplate.phone = profile.phone || '';
     }
+    if(profile.logo) window._profileLogo = profile.logo;
   }
 }
 
@@ -1382,6 +1412,7 @@ function renderGeorgePreview(){
   return `<div style="font-family:Inter,sans-serif;font-size:12px;line-height:1.5">
     <div style="background:${dark};display:grid;grid-template-columns:1fr 1fr;min-height:120px">
       <div style="padding:20px 24px;border-right:2px solid ${acc}">
+        ${window._profileLogo?`<img src="${window._profileLogo}" style="width:56px;height:56px;object-fit:contain;margin-bottom:8px;display:block">`:''}
         <div style="font-size:18px;font-weight:900;color:${acc}">${t.bizName||'Your Business'}</div>
         <div style="font-size:9px;color:${acc};letter-spacing:0.12em;text-transform:uppercase;margin-top:3px;opacity:.85">${t.trade||''}</div>
         <div style="width:50px;height:1.5px;background:${acc};margin-top:10px"></div>
@@ -1429,7 +1460,7 @@ function renderModernPreview(){
   const acc = t.accent || '#1e3a5f';
   return `<div style="font-family:Inter,sans-serif;font-size:12px">
     <div style="padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:4px solid ${acc}">
-      <div><div style="font-size:18px;font-weight:900;color:#111;letter-spacing:-0.02em">${t.bizName||'Your Business'}</div><div style="font-size:10px;color:#888;margin-top:2px">${t.trade||''}</div></div>
+      <div style="display:flex;align-items:center;gap:12px">${window._profileLogo?`<img src="${window._profileLogo}" style="width:44px;height:44px;object-fit:contain">`:''}  <div><div style="font-size:18px;font-weight:900;color:#111;letter-spacing:-0.02em">${t.bizName||'Your Business'}</div><div style="font-size:10px;color:#888;margin-top:2px">${t.trade||''}</div></div></div>
       <div style="font-size:24px;font-weight:900;color:${acc}">QUOTATION</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 180px">
@@ -1460,7 +1491,7 @@ function renderMinimalPreview(){
   const t = designerTemplate;
   return `<div style="font-family:Inter,sans-serif;font-size:12px;padding:24px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:1px solid #e8e8e8;margin-bottom:14px">
-      <div><div style="font-size:16px;font-weight:700;color:#111">${t.bizName||'Your Business'}</div><div style="font-size:10px;color:#888;margin-top:2px">${t.trade||''}</div></div>
+      <div style="display:flex;align-items:center;gap:10px">${window._profileLogo?`<img src="${window._profileLogo}" style="width:36px;height:36px;object-fit:contain">`:''}  <div><div style="font-size:16px;font-weight:700;color:#111">${t.bizName||'Your Business'}</div><div style="font-size:10px;color:#888;margin-top:2px">${t.trade||''}</div></div></div>
       <div style="text-align:right"><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:#888">Quotation</div><div style="font-size:12px;font-weight:600;color:#111;margin-top:1px">QU-001</div></div>
     </div>
     <div style="display:flex;gap:20px;margin-bottom:16px">
@@ -1471,6 +1502,141 @@ function renderMinimalPreview(){
     <div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:14px;color:#111;border-top:1px solid #e8e8e8">Total<span>£1,900.00${t.showVat?' + VAT':''}</span></div>
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e8e8e8;font-size:9px;color:#888;line-height:1.7">${t.paymentTerms||''}</div>
   </div>`;
+}
+
+async function analyseTemplatePDF(input){
+  if(!input.files||!input.files[0]) return;
+  const file = input.files[0];
+  if(file.size > 5000000){
+    document.getElementById('pdfUploadMsg').textContent = 'PDF too large — max 5MB';
+    return;
+  }
+  document.getElementById('pdfUploadMsg').textContent = 'Analysing your template...';
+
+  const reader = new FileReader();
+  reader.onload = async function(e){
+    const base64 = e.target.result.split(',')[1];
+    try{
+      const res = await fetch('/api/design-template', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          system:`You are a quote template analyser for VanOffice, a UK trades app.
+The user has uploaded their existing quote PDF. Analyse it and extract their style preferences.
+Look for: business name, trade, colours (dominant hex values), layout style (modern/minimal/premium),
+sections present (scope of works, inclusions, commitment, lead time, payment terms, please note),
+any intro text, typical scope items for their trade, inclusions listed.
+Reply with a short friendly message saying what you found, then on a new line:
+TMPL_JSON: followed by a JSON object with these fields (only include what you can confidently extract):
+bizName, trade, phone, email, location, accent (dominant brand colour as hex), dark (dark colour as hex),
+intro, scopeItems (array), inclusionItems (array), note, commitment, leadTime, paymentTerms,
+showNote, showCommitment, showLeadTime, showVat (booleans).
+Also include a "detectedStyle" field: "george" for dark/premium, "modern" for bold/coloured, "minimal" for clean/simple.`,
+          messages:[{
+            role:'user',
+            content:[
+              {type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}},
+              {type:'text', text:'Please analyse this quote template and extract the style, colours, and content structure so I can recreate it in VanOffice.'}
+            ]
+          }]
+        })
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || '';
+
+      const m = reply.match(/TMPL_JSON:\s*(\{[\s\S]+?\})\s*(?:
+|$)/m);
+      if(m){
+        try{
+          const changes = JSON.parse(m[1]);
+          const detectedStyle = changes.detectedStyle || 'george';
+          delete changes.detectedStyle;
+          if(changes.scopeItems) designerTemplate.scopeItems = changes.scopeItems;
+          if(changes.inclusionItems) designerTemplate.inclusionItems = changes.inclusionItems;
+          Object.assign(designerTemplate, changes);
+          pickDesignStyle(detectedStyle);
+          if(changes.accent) document.getElementById('ds-modern-sw').style.background = changes.accent;
+        }catch(e){}
+      }
+
+      const display = reply.replace(/TMPL_JSON:[\s\S]+$/m,'').trim();
+      addDesignerMsg('ai', display || 'I've analysed your template and matched the style. Check the preview to see how it looks!');
+      document.getElementById('pdfUploadMsg').textContent = '✓ Style matched from your PDF';
+    }catch(err){
+      document.getElementById('pdfUploadMsg').textContent = 'Error analysing PDF. Try again.';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+let generatedLogoUrl = '';
+
+async function generateLogo(){
+  const btn = document.getElementById('genLogoBtn');
+  const msg = document.getElementById('logoGenMsg');
+  const preview = document.getElementById('logoGenPreview');
+
+  const trade = designerTemplate.trade || 'tradesperson';
+  const bizName = designerTemplate.bizName || 'the business';
+  const accent = designerTemplate.accent || '#c9a227';
+
+  const prompt = document.getElementById('logoPromptInput')?.value?.trim() ||
+    `A professional logo for ${bizName}, a ${trade} business. Clean, modern, trade-appropriate icon. Single color: ${accent} on white background. No text, just the icon/symbol.`;
+
+  btn.textContent = '⏳ Generating...';
+  btn.disabled = true;
+  msg.textContent = 'Creating your logo...';
+  preview.style.display = 'none';
+
+  try{
+    const res = await fetch('/api/generate-logo', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        phone: userPhone,
+        pin: userPin,
+        prompt: prompt,
+        trade: trade,
+        biz_name: bizName
+      })
+    });
+    const data = await res.json();
+    if(data.url){
+      generatedLogoUrl = data.url;
+      document.getElementById('logoGenImg').src = data.url;
+      preview.style.display = 'block';
+      msg.textContent = 'Looking good? Save it to your profile or regenerate.';
+    } else {
+      msg.textContent = data.error || 'Error generating logo. Try again.';
+    }
+  } catch(e){
+    msg.textContent = 'Connection error. Try again.';
+  } finally {
+    btn.textContent = '🎨 Generate logo with AI';
+    btn.disabled = false;
+  }
+}
+
+async function saveLogo(){
+  if(!generatedLogoUrl) return;
+  const msg = document.getElementById('logoGenMsg');
+  msg.textContent = 'Saving...';
+  try{
+    const res = await fetch('/api/save-logo', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({phone: userPhone, pin: userPin, logo_url: generatedLogoUrl})
+    });
+    const data = await res.json();
+    if(data.ok){
+      window._profileLogo = generatedLogoUrl;
+      msg.textContent = '✓ Logo saved — it will appear on all your quotes';
+    } else {
+      msg.textContent = data.error || 'Error saving logo';
+    }
+  } catch(e){
+    msg.textContent = 'Connection error.';
+  }
 }
 
 function chM(d){
