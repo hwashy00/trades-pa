@@ -736,11 +736,10 @@ def generate_quote_pdf_styled(quote, profile, tmpl, style):
 
     buffer = io.BytesIO()
     try:
-        from weasyprint import HTML
-        HTML(string=html).write_pdf(buffer)
+        from xhtml2pdf import pisa
+        pisa.CreatePDF(html, dest=buffer)
     except Exception as e:
-        print("WeasyPrint error: " + str(e))
-        # Fallback - return html as pdf via reportlab
+        print("xhtml2pdf error: " + str(e))
         from reportlab.lib.pagesizes import A4
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
         from reportlab.lib.styles import getSampleStyleSheet
@@ -1424,10 +1423,10 @@ def outlook_callback():
 def health():
     status = {"status": "ok", "weasyprint": False}
     try:
-        from weasyprint import HTML
-        status["weasyprint"] = True
+        from xhtml2pdf import pisa
+        status["xhtml2pdf"] = True
     except Exception as e:
-        status["weasyprint_error"] = str(e)
+        status["xhtml2pdf_error"] = str(e)
     return jsonify(status)
 
 
