@@ -1354,6 +1354,7 @@ async function sendDesignerMsg(){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({system:DESIGNER_SYSTEM, messages:designerHistory})
     });
+    clearTimeout(timeout);
     const data = await res.json();
     const reply = data.content?.[0]?.text || '';
     designerHistory.push({role:'assistant', content:reply});
@@ -1402,12 +1403,15 @@ let generatedQuoteHTML = '';
 async function generateAndPreview(){
   const btn = document.getElementById('genPreviewBtn');
   const msg = document.getElementById('saveDesignMsg');
-  btn.textContent = '⏳ Generating your quote style...';
+  btn.textContent = '⏳ Generating... (takes ~20 seconds)';
   btn.disabled = true;
-  msg.textContent = '';
+  msg.textContent = 'Claude is designing your quote template...';
 
   try{
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(), 60000);
     const res = await fetch('/api/generate-quote-html?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin), {
+      signal: controller.signal,
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -1437,7 +1441,11 @@ async function generateAndPreview(){
       msg.textContent = data.error || 'Error generating template';
     }
   } catch(e){
-    msg.textContent = 'Connection error. Try again.';
+    if(e.name === 'AbortError'){
+      msg.textContent = 'Took too long — try again with simpler requirements';
+    } else {
+      msg.textContent = 'Error: ' + e.message;
+    }
   } finally {
     btn.textContent = '✨ Generate & Preview';
     btn.disabled = false;
