@@ -1718,6 +1718,69 @@ def incoming_sms():
 
     return str(resp)
 
+@app.route("/api/generate-logo", methods=["POST"])
+def generate_logo():
+    try:
+        from openai import OpenAI
+        data = request.json
+        phone = format_phone(data.get("phone", "").strip())
+        pin = data.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+
+        prompt = data.get("prompt", "")
+        trade = data.get("trade", "tradesperson")
+        biz_name = data.get("biz_name", "")
+
+        if not prompt:
+            prompt = f"A professional logo icon for {biz_name}, a {trade} business. Clean, modern, single colour on white background. No text, just the symbol or icon."
+
+        openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        response = openai_client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1
+        )
+        url = response.data[0].url
+        return jsonify({"ok": True, "url": url})
+    except Exception as e:
+        print("Generate logo error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/save-logo", methods=["POST"])
+def save_logo():
+    try:
+        import requests as req
+        import base64
+        data = request.json
+        phone = format_phone(data.get("phone", "").strip())
+        pin = data.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+
+        logo_url = data.get("logo_url", "")
+        if not logo_url:
+            return jsonify({"error": "No logo URL"}), 400
+
+        img_response = req.get(logo_url, timeout=10)
+        if img_response.status_code != 200:
+            return jsonify({"error": "Could not fetch logo"}), 400
+
+        img_b64 = "data:image/png;base64," + base64.b64encode(img_response.content).decode()
+        supabase.table("profiles").update({"logo": img_b64}).eq("sender", sender).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        print("Save logo error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/design-template", methods=["POST"])
 def design_template():
     try:
