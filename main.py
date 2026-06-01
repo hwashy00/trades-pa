@@ -1481,9 +1481,7 @@ def outlook_callback():
 
 @app.route("/dashboard")
 def dashboard():
-    import os
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard_new.html")
-    with open(path, "r") as f:
+    with open("dashboard.html", "r") as f:
         return f.read()
 
 
