@@ -736,10 +736,19 @@ def generate_quote_pdf_styled(quote, profile, tmpl, style):
 
     buffer = io.BytesIO()
     try:
-        from weasyprint import HTML
-        HTML(string=html).write_pdf(buffer)
+        import requests as req
+        api_key = os.environ.get("PDFSHIFT_API_KEY", "")
+        response = req.post(
+            "https://api.pdfshift.io/v3/convert/pdf",
+            auth=(api_key, ""),
+            json={"source": html, "format": "A4", "margin": "0"}
+        )
+        if response.status_code == 200:
+            buffer.write(response.content)
+        else:
+            raise Exception("PDFShift error: " + str(response.status_code) + " " + response.text)
     except Exception as e:
-        print("WeasyPrint error: " + str(e))
+        print("PDF generation error: " + str(e))
         from reportlab.lib.pagesizes import A4
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
         from reportlab.lib.styles import getSampleStyleSheet
@@ -1422,11 +1431,8 @@ def outlook_callback():
 @app.route("/health")
 def health():
     status = {"status": "ok", "weasyprint": False}
-    try:
-        from weasyprint import HTML
-        status["weasyprint"] = True
-    except Exception as e:
-        status["weasyprint_error"] = str(e)
+    pdfshift_key = os.environ.get("PDFSHIFT_API_KEY", "")
+    status["pdfshift"] = bool(pdfshift_key)
     return jsonify(status)
 
 
