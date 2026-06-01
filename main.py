@@ -1501,16 +1501,16 @@ def create_quote():
         quote = {
             "sender": sender,
             "client_name": data.get("client_name", ""),
+            "client_address": data.get("client_address", ""),
             "job_description": data.get("job_description", ""),
             "total": str(data.get("total", "0")),
-            "subtotal": str(data.get("total", "0")),
+            "subtotal": str(data.get("subtotal", data.get("total", "0"))),
             "vat": "0",
-            "line_items": [],
+            "line_items": data.get("line_items", []),
             "status": "sent",
             "quote_number": quote_num,
             "quote_text": "",
-            "client_number": data.get("client_number", ""),
-            "client_address": ""
+            "client_number": data.get("client_number", "")
         }
         res = supabase.table("quotes").insert(quote).execute()
         saved = res.data[0] if res.data else quote
@@ -1536,11 +1536,12 @@ def create_invoice():
         invoice = {
             "sender": sender,
             "client_name": data.get("client_name", ""),
+            "client_address": data.get("client_address", ""),
             "job_description": data.get("job_description", ""),
             "total": str(data.get("total", "0")),
-            "subtotal": str(data.get("total", "0")),
+            "subtotal": str(data.get("subtotal", data.get("total", "0"))),
             "vat": "0",
-            "line_items": [],
+            "line_items": data.get("line_items", []),
             "status": "unpaid",
             "invoice_number": inv_num,
             "due_date": data.get("due_date", ""),
