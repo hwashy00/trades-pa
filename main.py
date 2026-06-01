@@ -1481,7 +1481,7 @@ def outlook_callback():
 
 @app.route("/dashboard")
 def dashboard():
-    with open("dashboard.html", "r") as f:
+    with open("dashboard_new.html", "r") as f:
         return f.read()
 
 
