@@ -1395,29 +1395,29 @@ def incoming_sms():
         reply = ai_response.content[0].text.strip()
 
         # Check if client is confirming payment
-overdue = supabase.table("invoices").select("*").eq("sender", sender).in_("status", ["unpaid", "overdue"]).execute()
-client_invoices = [i for i in (overdue.data or []) if i.get("client_number") == client_number]
-if client_invoices:
-    most_recent = sorted(client_invoices, key=lambda x: x.get("due_date", ""), reverse=True)[0]
-    payment_check = client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=10,
-        system="You detect if a message means someone has paid an invoice. Reply with only YES or NO.",
-        messages=[{"role": "user", "content": incoming_msg}]
-    )
-    if payment_check.content[0].text.strip().upper() == "YES":
-        inv_id = most_recent["id"]
-        inv_num = most_recent.get("invoice_number", "")
-        total = most_recent.get("total", "")
-        supabase.table("invoices").update({"status": "paid"}).eq("id", inv_id).execute()
-        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-        notify_client = TwilioClient(account_sid, auth_token)
-        notify_client.messages.create(
-            from_="whatsapp:" + twilio_number,
-            to="whatsapp:" + profile.get("phone", ""),
-            body="💰 Invoice " + inv_num + " for £" + str(total) + " has been marked as paid — client replied via SMS."
-        )
+        overdue = supabase.table("invoices").select("*").eq("sender", sender).in_("status", ["unpaid", "overdue"]).execute()
+        client_invoices = [i for i in (overdue.data or []) if i.get("client_number") == client_number]
+        if client_invoices:
+            most_recent = sorted(client_invoices, key=lambda x: x.get("due_date", ""), reverse=True)[0]
+            payment_check = client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=10,
+                system="You detect if a message means someone has paid an invoice. Reply with only YES or NO.",
+                messages=[{"role": "user", "content": incoming_msg}]
+            )
+            if payment_check.content[0].text.strip().upper() == "YES":
+                inv_id = most_recent["id"]
+                inv_num = most_recent.get("invoice_number", "")
+                total = most_recent.get("total", "")
+                supabase.table("invoices").update({"status": "paid"}).eq("id", inv_id).execute()
+                account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+                auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+                notify_client = TwilioClient(account_sid, auth_token)
+                notify_client.messages.create(
+                    from_="whatsapp:" + twilio_number,
+                    to="whatsapp:" + profile.get("phone", ""),
+                    body="💰 Invoice " + inv_num + " for £" + str(total) + " has been marked as paid — client replied via SMS."
+                )
         
         # Check for new job extraction
         if "NEWJOB:" in reply:
