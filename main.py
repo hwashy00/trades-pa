@@ -1804,53 +1804,20 @@ def generate_quote_html():
         scope_text = "\n".join([f"- {item}" for item in scope_items])
         inc_text = "\n".join([f"- {item}" for item in inclusion_items])
 
-        prompt = f"""You are an expert HTML/CSS designer creating a professional quote PDF for a UK tradesperson.
+        logo_tag = f'<img src="{logo_data}" style="width:70px;height:70px;object-fit:contain">' if logo_data else f'<svg width="60" height="60" viewBox="0 0 60 60"><circle cx="30" cy="30" r="28" fill="none" stroke="{accent}" stroke-width="2"/><text x="30" y="36" text-anchor="middle" fill="{accent}" font-size="18" font-weight="bold">{biz_name[:2].upper()}</text></svg>'
 
-Business details:
-- Business name: {biz_name}
-- Trade: {trade}
-- Phone: {phone_num}
-- Email: {email}
-- Location: {location}
-- Brand colour (accent): {accent}
-- Dark colour: {dark}
+        scope_html = "".join([f'<div style="display:flex;gap:8px;margin-bottom:6px;font-size:11px"><span style="color:{accent}">✓</span>{item}</div>' for item in scope_items[:6]])
+        inc_html = "".join([f'<div style="display:flex;gap:8px;margin-bottom:5px;font-size:11px"><span style="color:{accent}">✓</span>{item}</div>' for item in inclusion_items[:5]])
+        note_html = f'<div style="border:1px solid {accent};border-radius:4px;padding:10px;margin-top:10px;font-size:10px;color:#555">{note}</div>' if show_note and note else ""
+        vat_html = f'<div style="font-size:11px;color:{accent};margin-top:4px">+ VAT</div>' if show_vat else ""
+        commitment_html = f'<div><div style="font-size:9px;font-weight:700;color:{accent};text-transform:uppercase;margin-bottom:3px">OUR COMMITMENT</div><div style="font-size:9px;color:#aaa">{commitment}</div></div>' if show_commitment and commitment else ""
+        lead_html = f'<div><div style="font-size:9px;font-weight:700;color:{accent};text-transform:uppercase;margin-bottom:3px">LEAD TIME</div><div style="font-size:9px;color:#aaa">{lead_time}</div></div>' if show_lead_time and lead_time else ""
 
-Quote details:
-- Client: {client_name}
-- Address: {client_address}
-- Date: {today_str}
-- Quote number: {quote_num}
-- Total: £{total}
-- Show VAT: {show_vat}
-
-Content:
-- Intro: {intro}
-- Scope of works:
-{scope_text}
-- Inclusions:
-{inc_text}
-- Please note: {note if show_note else ""}
-- Commitment: {commitment if show_commitment else ""}
-- Lead time: {lead_time if show_lead_time else ""}
-- Payment terms: {payment_terms}
-
-Create a stunning, professional A4 quote document in HTML/CSS that:
-1. Has a bold two-column header - dark background on full width, left side has business name and trade name, right side has "QUOTATION" title and contact details
-2. Uses the brand colours ({accent} for gold/accent elements, {dark} for dark backgrounds)
-3. Has a diagonal or angled design element between header columns for visual interest
-4. Left body column: date, client, intro paragraph, SCOPE OF WORKS heading with icon, bullet points with check circles, please note box if needed
-5. Right body column: dark background, large £ circle icon, TOTAL PRICE label, big price number, + VAT if needed, gold divider, INCLUSIONS heading, inclusion items with icons
-6. Footer: dark background with OUR COMMITMENT and LEAD TIME side by side with circular icons
-7. Thank you bar at very bottom: dark background, THANK YOU left, business name right in italic
-8. Include an inline SVG trade icon/logo appropriate for {trade} (e.g. hammer and saw for carpentry, trowel for plastering, wrench for plumbing) - make it detailed and professional
-9. Use Google Fonts Inter for typography
-10. Make it look EXACTLY like a professionally designed Canva quote - premium, polished, print-ready
-11. Width: 210mm, optimised for A4 PDF output
-12. All CSS inline or in a style tag - no external CSS files
-
-{"Include this logo image at top left of header: <img src='" + logo_data + "' style='width:80px;height:80px;object-fit:contain'>" if logo_data else "Generate a professional SVG logo/icon for the trade instead"}
-
-IMPORTANT: Return ONLY the raw HTML. No markdown, no explanation, no code blocks. Start directly with <!DOCTYPE html> and end with </html>. Keep CSS concise. This must render correctly in a browser and convert to A4 PDF."""
+        prompt = f"""Create a professional A4 quote HTML for: {biz_name} ({trade}). Accent: {accent}, Dark: {dark}.
+Header: 2 cols, dark bg. Left: logo + business name. Right: QUOTATION + contact ({phone_num}, {email}, {location}).
+Body: 2 cols. Left: Date {today_str}, Client {client_name}, intro, SCOPE OF WORKS, items, note. Right: dark bg, £ circle, TOTAL PRICE, £{total}{", +VAT" if show_vat else ""}, INCLUSIONS.
+Footer: dark bg, commitment + lead time. Thank you bar.
+Use inline CSS only. A4 width. Google Fonts Inter. Premium Canva-style design. Return ONLY raw HTML, no markdown."""
 
         response = client.messages.create(
             model="claude-sonnet-4-5",
