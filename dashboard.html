@@ -1544,8 +1544,7 @@ Also include a "detectedStyle" field: "george" for dark/premium, "modern" for bo
       const data = await res.json();
       const reply = data.content?.[0]?.text || '';
 
-      const m = reply.match(/TMPL_JSON:\s*(\{[\s\S]+?\})\s*(?:
-|$)/m);
+      const m = reply.match(/TMPL_JSON:\s*(\{[\s\S]+?\})\s*(?:\n|$)/m);
       if(m){
         try{
           const changes = JSON.parse(m[1]);
@@ -1560,7 +1559,7 @@ Also include a "detectedStyle" field: "george" for dark/premium, "modern" for bo
       }
 
       const display = reply.replace(/TMPL_JSON:[\s\S]+$/m,'').trim();
-      addDesignerMsg('ai', display || 'I've analysed your template and matched the style. Check the preview to see how it looks!');
+      addDesignerMsg('ai', display || 'Template analysed and style matched. Check the preview to see how it looks!');
       document.getElementById('pdfUploadMsg').textContent = '✓ Style matched from your PDF';
     }catch(err){
       document.getElementById('pdfUploadMsg').textContent = 'Error analysing PDF. Try again.';
