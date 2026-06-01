@@ -1,5 +1,0 @@
-[phases.setup]
-nixPkgs = ["python312", "cairo", "pango", "harfbuzz", "glib", "gdk-pixbuf", "libffi", "fontconfig", "freetype", "zlib"]
-
-[phases.install]
-cmds = ["pip install -r requirements.txt"]
