@@ -546,41 +546,12 @@ def generate_quote_pdf(quote, profile, template):
 
 
 def generate_quote_pdf_styled(quote, profile, tmpl, style):
-    """Generate a quote PDF using the tradesperson's custom design template."""
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import mm
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
+    """Generate a fully designed PDF using WeasyPrint HTML rendering."""
+    from weasyprint import HTML, CSS
     import base64
-    from reportlab.lib.utils import ImageReader
 
-    buffer = io.BytesIO()
-    W, H = A4
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=15*mm, leftMargin=15*mm, topMargin=15*mm, bottomMargin=15*mm)
-
-    accent_hex = tmpl.get("accent", "#c9a227")
-    dark_hex = tmpl.get("dark", "#1a1a1a")
-    try:
-        accent = colors.HexColor(accent_hex)
-        dark = colors.HexColor(dark_hex)
-    except:
-        accent = colors.HexColor("#c9a227")
-        dark = colors.HexColor("#1a1a1a")
-
-    white = colors.white
-    light_bg = colors.HexColor("#f9f7f0")
-    note_bg = colors.HexColor("#fffef5")
-
-    styles = getSampleStyleSheet()
-    s = styles["Normal"]
-
-    def sty(size=10, color=colors.black, bold=False, align=TA_LEFT, leading=None):
-        return ParagraphStyle("x", parent=s, fontSize=size,
-            textColor=color, fontName="Helvetica-Bold" if bold else "Helvetica",
-            alignment=align, leading=leading or size*1.4)
-
+    accent = tmpl.get("accent", "#c9a227")
+    dark = tmpl.get("dark", "#1a1a1a")
     biz_name = tmpl.get("bizName", profile.get("business_name", "Your Business"))
     trade = tmpl.get("trade", profile.get("trade", ""))
     phone = tmpl.get("phone", profile.get("phone", ""))
@@ -601,216 +572,172 @@ def generate_quote_pdf_styled(quote, profile, tmpl, style):
     client_name = quote.get("client_name", "")
     client_address = quote.get("client_address", "")
     total = quote.get("total", "0")
-    today_str = datetime.date.today().strftime("%d %B %Y")
     quote_num = quote.get("quote_number", "QU-001")
+    today_str = datetime.date.today().strftime("%d %B %Y")
 
-    story = []
-    col_w = (W - 30*mm) * 0.58
-    right_w = (W - 30*mm) - col_w
-
-    # HEADER — two columns, dark background
+    # Logo
     logo_data = profile.get("logo", "")
-    logo_img = None
+    logo_html = ""
     if logo_data and logo_data.startswith("data:image"):
-        try:
-            img_bytes = base64.b64decode(logo_data.split(",", 1)[1])
-            logo_img = ImageReader(io.BytesIO(img_bytes))
-        except:
-            pass
+        logo_html = f'<img src="{logo_data}" style="width:70px;height:70px;object-fit:contain;margin-bottom:10px;display:block">'
 
-    from reportlab.platypus import Image
-    if logo_img:
-        logo_el = Image(logo_img, width=18*mm, height=18*mm)
-        left_header_content = [logo_el, Spacer(1, 2*mm),
-            Paragraph(biz_name.upper(), sty(14, accent, True)),
-            Paragraph(trade.upper(), sty(7, colors.HexColor("#c9a227"), False))]
-    else:
-        left_header_content = [
-            Paragraph(biz_name.upper(), sty(16, accent, True)),
-            Spacer(1, 2*mm),
-            Paragraph(trade.upper(), sty(7, colors.HexColor("#c9a227"), False))]
+    # Scope items
+    scope_html = "".join([
+        f'<div class="scope-item"><span class="check">&#10003;</span><span>{item}</span></div>'
+        for item in scope_items
+    ])
 
-    right_header_content = [
-        Paragraph("QUOTATION", sty(22, accent, True, TA_RIGHT)),
-        Spacer(1, 4*mm)]
-    if phone:
-        right_header_content.append(Paragraph("📞  " + phone, sty(9, colors.HexColor("#d0d0d0"), False, TA_RIGHT)))
-        right_header_content.append(Spacer(1, 2*mm))
-    if email:
-        right_header_content.append(Paragraph("✉  " + email, sty(9, colors.HexColor("#d0d0d0"), False, TA_RIGHT)))
-        right_header_content.append(Spacer(1, 2*mm))
-    if location:
-        right_header_content.append(Paragraph("📍  " + location, sty(9, colors.HexColor("#d0d0d0"), False, TA_RIGHT)))
+    # Inclusions
+    inc_html = "".join([
+        f'<div class="inc-item"><span class="check">&#10003;</span>{item}</div>'
+        for item in inclusion_items
+    ])
 
-    from reportlab.platypus import Frame, PageTemplate
-    from reportlab.platypus import BalancedColumns
-
-    header_left = Table([[el] for el in left_header_content], colWidths=[col_w])
-    header_left.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,-1), dark),
-        ("LEFTPADDING", (0,0), (-1,-1), 14),
-        ("RIGHTPADDING", (0,0), (-1,-1), 8),
-        ("TOPPADDING", (0,0), (0,0), 14),
-        ("BOTTOMPADDING", (0,-1), (-1,-1), 14),
-        ("LINEAFTER", (0,0), (0,-1), 1.5, accent),
-    ]))
-
-    header_right = Table([[el] for el in right_header_content], colWidths=[right_w])
-    header_right.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,-1), dark),
-        ("LEFTPADDING", (0,0), (-1,-1), 12),
-        ("RIGHTPADDING", (0,0), (-1,-1), 14),
-        ("TOPPADDING", (0,0), (0,0), 14),
-        ("BOTTOMPADDING", (0,-1), (-1,-1), 14),
-    ]))
-
-    header = Table([[header_left, header_right]], colWidths=[col_w, right_w])
-    header.setStyle(TableStyle([
-        ("VALIGN", (0,0), (-1,-1), "TOP"),
-        ("LEFTPADDING", (0,0), (-1,-1), 0),
-        ("RIGHTPADDING", (0,0), (-1,-1), 0),
-        ("TOPPADDING", (0,0), (-1,-1), 0),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 0),
-    ]))
-    story.append(header)
-    story.append(Spacer(1, 6*mm))
-
-    # DATE / CLIENT
-    story.append(Paragraph("<b><font color='#b8960c'>DATE:</font></b>  " + today_str, sty(10)))
-    story.append(Spacer(1, 2*mm))
-    story.append(Paragraph("<b><font color='#b8960c'>CLIENT:</font></b>  " + client_name + (", " + client_address if client_address else ""), sty(10)))
-    story.append(Spacer(1, 4*mm))
-    story.append(Paragraph(intro, sty(10, colors.HexColor("#444"))))
-    story.append(Spacer(1, 6*mm))
-
-    # BODY — scope left, price right
-    scope_content = []
-    scope_content.append(Paragraph("SCOPE OF WORKS", sty(13, dark, True)))
-    scope_content.append(Spacer(1, 4*mm))
-    for item in scope_items:
-        scope_content.append(Paragraph("✓   " + item, sty(10, colors.HexColor("#333"))))
-        scope_content.append(Spacer(1, 3*mm))
-
+    # Note box
+    note_html = ""
     if show_note and note_text:
-        scope_content.append(Spacer(1, 4*mm))
-        note_inner = Table([[
-            Paragraph("⚠", sty(14, accent, True)),
-            Table([[
-                Paragraph("PLEASE NOTE", sty(8, accent, True)),
-                Paragraph(note_text, sty(9, colors.HexColor("#555")))
-            ]], colWidths=[right_w - 20*mm])
-        ]], colWidths=[8*mm, right_w - 20*mm])
-        note_box = Table([[note_inner]], colWidths=[col_w - 4*mm])
-        note_box.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,-1), note_bg),
-            ("BOX", (0,0), (-1,-1), 1, accent),
-            ("LEFTPADDING", (0,0), (-1,-1), 8),
-            ("RIGHTPADDING", (0,0), (-1,-1), 8),
-            ("TOPPADDING", (0,0), (-1,-1), 8),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 8),
-        ]))
-        scope_content.append(note_box)
+        note_html = f'''<div class="note-box">
+            <div class="note-title">&#9888; PLEASE NOTE</div>
+            <div class="note-text">{note_text}</div>
+        </div>'''
 
-    # Price box right column
-    price_content = []
-    price_content.append(Spacer(1, 4*mm))
-    price_content.append(Paragraph("£", sty(28, accent, True, TA_CENTER)))
-    price_content.append(Spacer(1, 2*mm))
-    price_content.append(Paragraph("TOTAL PRICE", sty(9, accent, True, TA_CENTER)))
-    price_content.append(Spacer(1, 3*mm))
-    price_content.append(Paragraph("£" + str(total), sty(22, dark, True, TA_CENTER)))
-    if show_vat:
-        price_content.append(Spacer(1, 2*mm))
-        price_content.append(Paragraph("+ VAT", sty(10, accent, True, TA_CENTER)))
-    price_content.append(Spacer(1, 6*mm))
-    price_content.append(HRFlowable(width="100%", thickness=1, color=accent))
-    price_content.append(Spacer(1, 6*mm))
-    price_content.append(Paragraph("INCLUSIONS", sty(9, accent, True, TA_CENTER)))
-    price_content.append(Spacer(1, 4*mm))
-    for item in inclusion_items:
-        price_content.append(Paragraph("✓  " + item, sty(10, dark)))
-        price_content.append(Spacer(1, 3*mm))
-
-    scope_table = Table([[el] for el in scope_content], colWidths=[col_w])
-    price_table = Table([[el] for el in price_content], colWidths=[right_w])
-    price_table.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,-1), light_bg),
-        ("LEFTPADDING", (0,0), (-1,-1), 10),
-        ("RIGHTPADDING", (0,0), (-1,-1), 10),
-        ("TOPPADDING", (0,0), (-1,-1), 2),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 2),
-    ]))
-
-    body = Table([[scope_table, price_table]], colWidths=[col_w, right_w])
-    body.setStyle(TableStyle([
-        ("VALIGN", (0,0), (-1,-1), "TOP"),
-        ("LEFTPADDING", (0,0), (-1,-1), 0),
-        ("RIGHTPADDING", (0,0), (-1,-1), 0),
-        ("TOPPADDING", (0,0), (-1,-1), 0),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 0),
-        ("LINEBEFORE", (1,0), (1,-1), 1, colors.HexColor("#e8dfc8")),
-    ]))
-    story.append(body)
-    story.append(Spacer(1, 6*mm))
-
-    # COMMITMENT + LEAD TIME footer
+    # Footer blocks
+    footer_html = ""
     if show_commitment or show_lead_time:
-        footer_cells = []
-        if show_commitment:
-            footer_cells.append(Table([[
-                Paragraph("✓", sty(16, accent, True)),
-                Table([[
-                    Paragraph("OUR COMMITMENT", sty(8, accent, True)),
-                    Paragraph(commitment, sty(9, colors.HexColor("#aaa")))
-                ]], colWidths=[col_w - 20*mm])
-            ]], colWidths=[8*mm, col_w - 20*mm]))
-        if show_lead_time:
-            footer_cells.append(Table([[
-                Paragraph("📅", sty(14)),
-                Table([[
-                    Paragraph("LEAD TIME", sty(8, accent, True)),
-                    Paragraph(lead_time, sty(9, colors.HexColor("#aaa")))
-                ]], colWidths=[right_w - 20*mm])
-            ]], colWidths=[8*mm, right_w - 20*mm]))
+        commit_block = f'''<div class="footer-block">
+            <div class="footer-icon">&#10003;</div>
+            <div>
+                <div class="footer-title">OUR COMMITMENT</div>
+                <div class="footer-text">{commitment}</div>
+            </div>
+        </div>''' if show_commitment else ""
 
-        if len(footer_cells) == 2:
-            footer_row = Table([footer_cells], colWidths=[col_w, right_w])
-        else:
-            footer_row = Table([footer_cells], colWidths=[W - 30*mm])
+        lead_block = f'''<div class="footer-block">
+            <div class="footer-icon">&#128197;</div>
+            <div>
+                <div class="footer-title">LEAD TIME</div>
+                <div class="footer-text">{lead_time}</div>
+            </div>
+        </div>''' if show_lead_time else ""
 
-        footer_row.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,-1), dark),
-            ("LEFTPADDING", (0,0), (-1,-1), 12),
-            ("RIGHTPADDING", (0,0), (-1,-1), 12),
-            ("TOPPADDING", (0,0), (-1,-1), 10),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 10),
-            ("VALIGN", (0,0), (-1,-1), "TOP"),
-        ]))
-        story.append(footer_row)
+        footer_html = f'<div class="footer" style="background:{dark}">{commit_block}{lead_block}</div>'
 
-    # THANK YOU bar
-    ty = Table([[
-        Paragraph("THANK YOU", sty(13, accent, True)),
-        Paragraph(biz_name, sty(11, accent, False, TA_RIGHT))
-    ]], colWidths=[col_w, right_w])
-    ty.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,-1), dark),
-        ("LEFTPADDING", (0,0), (-1,-1), 14),
-        ("RIGHTPADDING", (0,0), (-1,-1), 14),
-        ("TOPPADDING", (0,0), (-1,-1), 8),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 8),
-        ("LINEABOVE", (0,0), (-1,-1), 1, accent),
-    ]))
-    story.append(ty)
+    vat_html = '<div class="price-vat">+ VAT</div>' if show_vat else ""
 
+    contact_html = ""
+    if phone:
+        contact_html += f'<div class="contact-row">&#128222; {phone}</div>'
+    if email:
+        contact_html += f'<div class="contact-row">&#9993; {email}</div>'
+    if location:
+        contact_html += f'<div class="contact-row">&#128205; {location}</div>'
+
+    payment_html = ""
     if payment_terms:
-        story.append(Spacer(1, 4*mm))
-        story.append(Paragraph("<font size=8 color='grey'>Payment terms: " + payment_terms + "</font>", sty(8, colors.HexColor("#888"), False, TA_CENTER)))
+        payment_html = f'<div class="payment-terms">Payment terms: {payment_terms}</div>'
 
-    doc.build(story)
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: 'Inter', Arial, sans-serif; font-size: 11px; background: #fff; width: 210mm; }}
+  .header {{ background: {dark}; display: grid; grid-template-columns: 1fr 1fr; min-height: 130px; }}
+  .header-left {{ padding: 20px 24px; border-right: 2px solid {accent}; display: flex; flex-direction: column; justify-content: center; }}
+  .header-right {{ padding: 20px 24px; display: flex; flex-direction: column; justify-content: center; }}
+  .biz-name {{ font-size: 18px; font-weight: 900; color: {accent}; letter-spacing: 0.02em; line-height: 1.1; }}
+  .biz-trade {{ font-size: 9px; color: {accent}; letter-spacing: 0.16em; text-transform: uppercase; margin-top: 4px; opacity: 0.85; }}
+  .biz-divider {{ width: 50px; height: 1.5px; background: {accent}; margin-top: 8px; }}
+  .quot-title {{ font-size: 28px; font-weight: 900; color: {accent}; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 12px; }}
+  .quot-line {{ width: 100%; height: 1px; background: {accent}; margin-bottom: 10px; opacity: 0.5; }}
+  .contact-row {{ font-size: 11px; color: #ccc; margin-bottom: 5px; }}
+  .body {{ display: grid; grid-template-columns: 1fr 195px; }}
+  .body-left {{ padding: 20px 24px; border-right: 1px solid #e8dfc8; }}
+  .body-right {{ padding: 16px; background: #f9f7f0; }}
+  .meta-row {{ font-size: 11px; margin-bottom: 5px; }}
+  .meta-key {{ color: {accent}; font-weight: 700; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; }}
+  .intro {{ font-size: 11px; color: #444; line-height: 1.7; margin: 12px 0 16px; }}
+  .scope-title {{ font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; color: #1a1a1a; margin-bottom: 12px; }}
+  .scope-item {{ display: flex; gap: 8px; margin-bottom: 7px; font-size: 11px; color: #333; line-height: 1.55; }}
+  .check {{ color: {accent}; font-weight: 700; flex-shrink: 0; }}
+  .note-box {{ border: 1.5px solid {accent}; border-radius: 5px; padding: 10px 12px; margin-top: 14px; background: #fffef5; }}
+  .note-title {{ font-size: 9px; font-weight: 800; color: {accent}; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }}
+  .note-text {{ font-size: 10px; color: #555; line-height: 1.6; }}
+  .price-box {{ text-align: center; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1.5px solid {accent}; }}
+  .price-circle {{ width: 52px; height: 52px; border-radius: 50%; border: 2.5px solid {accent}; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 22px; font-weight: 900; color: {accent}; }}
+  .price-label {{ font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: {accent}; margin-bottom: 5px; }}
+  .price-amount {{ font-size: 26px; font-weight: 900; color: #1a1a1a; letter-spacing: -0.02em; line-height: 1; }}
+  .price-vat {{ font-size: 11px; font-weight: 600; color: {accent}; margin-top: 5px; letter-spacing: 0.05em; }}
+  .inc-title {{ font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: {accent}; margin-bottom: 10px; text-align: center; }}
+  .inc-item {{ display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 11px; color: #333; }}
+  .footer {{ display: grid; grid-template-columns: 1fr 1fr; padding: 14px 20px; gap: 16px; border-top: 2px solid {accent}; }}
+  .footer-block {{ display: flex; align-items: flex-start; gap: 10px; }}
+  .footer-icon {{ width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid {accent}; display: flex; align-items: center; justify-content: center; color: {accent}; font-size: 12px; flex-shrink: 0; }}
+  .footer-title {{ font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: {accent}; margin-bottom: 3px; }}
+  .footer-text {{ font-size: 9px; color: #aaa; line-height: 1.55; }}
+  .thankyou {{ background: {dark}; border-top: 1px solid {accent}; display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; }}
+  .ty-title {{ font-size: 13px; font-weight: 900; color: {accent}; text-transform: uppercase; letter-spacing: 0.08em; }}
+  .ty-sub {{ font-size: 9px; color: #555; margin-top: 2px; }}
+  .ty-biz {{ font-size: 12px; font-weight: 700; color: {accent}; font-style: italic; }}
+  .payment-terms {{ margin-top: 8px; padding: 8px 0; font-size: 9px; color: #888; text-align: center; }}
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      {logo_html}
+      <div class="biz-name">{biz_name}</div>
+      <div class="biz-trade">{trade}</div>
+      <div class="biz-divider"></div>
+    </div>
+    <div class="header-right">
+      <div class="quot-title">QUOTATION</div>
+      <div class="quot-line"></div>
+      {contact_html}
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="body-left">
+      <div class="meta-row"><span class="meta-key">Date: </span>{today_str}</div>
+      <div class="meta-row"><span class="meta-key">Client: </span>{client_name}{(", " + client_address) if client_address else ""}</div>
+      <div class="intro">{intro}</div>
+      <div class="scope-title">&#128203; Scope of Works</div>
+      {scope_html}
+      {note_html}
+    </div>
+    <div class="body-right">
+      <div class="price-box">
+        <div class="price-circle">&#163;</div>
+        <div class="price-label">Total Price</div>
+        <div class="price-amount">&#163;{total}</div>
+        {vat_html}
+      </div>
+      <div class="inc-title">Inclusions</div>
+      {inc_html}
+    </div>
+  </div>
+
+  {footer_html}
+
+  <div class="thankyou" style="background:{dark}">
+    <div>
+      <div class="ty-title">Thank You</div>
+      <div class="ty-sub">We look forward to working with you.</div>
+    </div>
+    <div class="ty-biz">{biz_name}</div>
+  </div>
+
+  {payment_html}
+</body>
+</html>"""
+
+    buffer = io.BytesIO()
+    HTML(string=html).write_pdf(buffer)
     buffer.seek(0)
     return buffer
-
 
 def generate_invoice_pdf(invoice, profile, template):
     from reportlab.lib.pagesizes import A4
