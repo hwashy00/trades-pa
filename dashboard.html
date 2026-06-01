@@ -414,19 +414,28 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
 
   <!-- CREATE INVOICE MODAL -->
   <div id="invoiceModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeInvoiceModal()"></div>
-  <div id="invoiceModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px">
+  <div id="invoiceModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px;max-height:90vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
       <div style="font-size:1rem;font-weight:800">Create Invoice</div>
       <button onclick="closeInvoiceModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
-      <div><div class="lbl">Client</div><input class="inp" id="inv-client" placeholder="Client name" style="margin-bottom:0"></div>
-      <div><div class="lbl">Job description</div><input class="inp" id="inv-job" placeholder="e.g. Bathroom fitting" style="margin-bottom:0"></div>
-      <div><div class="lbl">Total (£)</div><input class="inp" id="inv-total" type="number" placeholder="0.00" style="margin-bottom:0"></div>
+      <div><div class="lbl">Client name</div><input class="inp" id="inv-client" placeholder="e.g. Dave Jones" style="margin-bottom:0"></div>
+      <div><div class="lbl">Client address</div><input class="inp" id="inv-address" placeholder="e.g. 12 High St, Exeter" style="margin-bottom:0"></div>
+      <div><div class="lbl">Job description</div><input class="inp" id="inv-job" placeholder="e.g. Full bathroom refit" style="margin-bottom:0"></div>
+      <div>
+        <div class="lbl">Line items</div>
+        <div id="inv-items" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+        <button onclick="addInvoiceItem()" style="width:100%;padding:10px;background:var(--s3);border:none;border-radius:10px;font-family:Inter,sans-serif;font-size:.75rem;font-weight:600;color:var(--t3);cursor:pointer">+ Add item</button>
+      </div>
       <div><div class="lbl">Due date</div><input class="inp" id="inv-due" type="date" style="margin-bottom:0"></div>
+      <div style="background:var(--s2);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:.82rem;font-weight:700;color:var(--t2)">Total</span>
+        <span style="font-size:1rem;font-weight:900;color:var(--t1)" id="inv-total-display">£0.00</span>
+      </div>
       <input type="hidden" id="inv-client-number">
       <div id="invModalErr" style="color:var(--red);font-size:.75rem;min-height:18px"></div>
-      <button onclick="submitInvoiceModal()" style="width:100%;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:Inter,sans-serif;font-size:.9rem;font-weight:700;color:#fff;cursor:pointer" id="invModalBtn">Create Invoice</button>
+      <button onclick="submitInvoiceModal()" style="width:100%;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:Inter,sans-serif;font-size:.9rem;font-weight:700;color:#fff;cursor:pointer" id="invModalBtn">Create Invoice & View PDF</button>
     </div>
   </div>
 
@@ -454,18 +463,27 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
 
   <!-- CREATE QUOTE MODAL -->
   <div id="quoteModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeQuoteModal()"></div>
-  <div id="quoteModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px">
+  <div id="quoteModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px;max-height:90vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
       <div style="font-size:1rem;font-weight:800">Create Quote</div>
       <button onclick="closeQuoteModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
-      <div><div class="lbl">Client</div><input class="inp" id="qu-client" placeholder="Client name" style="margin-bottom:0"></div>
-      <div><div class="lbl">Job description</div><input class="inp" id="qu-job" placeholder="e.g. Bathroom fitting" style="margin-bottom:0"></div>
-      <div><div class="lbl">Total (£)</div><input class="inp" id="qu-total" type="number" placeholder="0.00" style="margin-bottom:0"></div>
+      <div><div class="lbl">Client name</div><input class="inp" id="qu-client" placeholder="e.g. Dave Jones" style="margin-bottom:0"></div>
+      <div><div class="lbl">Client address</div><input class="inp" id="qu-address" placeholder="e.g. 12 High St, Exeter" style="margin-bottom:0"></div>
+      <div><div class="lbl">Job description</div><input class="inp" id="qu-job" placeholder="e.g. Full bathroom refit" style="margin-bottom:0"></div>
+      <div>
+        <div class="lbl">Line items</div>
+        <div id="qu-items" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+        <button onclick="addQuoteItem()" style="width:100%;padding:10px;background:var(--s3);border:none;border-radius:10px;font-family:Inter,sans-serif;font-size:.75rem;font-weight:600;color:var(--t3);cursor:pointer">+ Add item</button>
+      </div>
+      <div style="background:var(--s2);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:.82rem;font-weight:700;color:var(--t2)">Total</span>
+        <span style="font-size:1rem;font-weight:900;color:var(--t1)" id="qu-total-display">£0.00</span>
+      </div>
       <input type="hidden" id="qu-client-number">
       <div id="quModalErr" style="color:var(--red);font-size:.75rem;min-height:18px"></div>
-      <button onclick="submitQuoteModal()" style="width:100%;padding:15px;background:var(--amb);border:none;border-radius:14px;font-family:Inter,sans-serif;font-size:.9rem;font-weight:700;color:#fff;cursor:pointer" id="quModalBtn">Create Quote</button>
+      <button onclick="submitQuoteModal()" style="width:100%;padding:15px;background:var(--amb);border:none;border-radius:14px;font-family:Inter,sans-serif;font-size:.9rem;font-weight:700;color:#fff;cursor:pointer" id="quModalBtn">Create Quote & View PDF</button>
     </div>
   </div>
 
@@ -1025,13 +1043,76 @@ function openInvoiceFromDrawer(){
   openInvoiceModal(activeDrawerItem.client_name||'',activeDrawerItem.job_type||'',activeDrawerItem.sender||'',null);
 }
 
+let quoteItems=[];
+let invoiceItems=[];
+
+function makeItemRow(items, containerId, updateFn){
+  const idx=items.length;
+  items.push({description:'',qty:1,unit_price:0});
+  const row=document.createElement('div');
+  row.style.cssText='display:grid;grid-template-columns:1fr 40px 60px 24px;gap:4px;align-items:center';
+  row.innerHTML=`
+    <input placeholder="Description" style="padding:8px 10px;background:var(--s3);border:1px solid var(--br);border-radius:8px;font-family:Inter,sans-serif;font-size:.75rem;color:var(--t1);outline:none" oninput="quItemUpdate('${containerId}',${idx},'description',this.value)">
+    <input type="number" placeholder="Qty" value="1" style="padding:8px 6px;background:var(--s3);border:1px solid var(--br);border-radius:8px;font-family:Inter,sans-serif;font-size:.75rem;color:var(--t1);outline:none;text-align:center" oninput="quItemUpdate('${containerId}',${idx},'qty',this.value)">
+    <input type="number" placeholder="£" style="padding:8px 6px;background:var(--s3);border:1px solid var(--br);border-radius:8px;font-family:Inter,sans-serif;font-size:.75rem;color:var(--t1);outline:none" oninput="quItemUpdate('${containerId}',${idx},'unit_price',this.value)">
+    <button onclick="removeItem('${containerId}',${idx})" style="background:none;border:none;color:var(--red);font-size:1rem;cursor:pointer;padding:0">×</button>`;
+  document.getElementById(containerId).appendChild(row);
+  updateFn();
+}
+
+function quItemUpdate(containerId, idx, field, val){
+  const items=containerId==='qu-items'?quoteItems:invoiceItems;
+  if(items[idx])items[idx][field]=field==='description'?val:parseFloat(val)||0;
+  const fn=containerId==='qu-items'?updateQuoteTotal:updateInvoiceTotal;
+  fn();
+}
+
+function removeItem(containerId, idx){
+  const items=containerId==='qu-items'?quoteItems:invoiceItems;
+  items.splice(idx,1);
+  const el=document.getElementById(containerId);
+  el.innerHTML='';
+  const copy=[...items];
+  const fn=containerId==='qu-items'?addQuoteItem:addInvoiceItem;
+  items.length=0;
+  copy.forEach(()=>fn());
+  // restore values
+  const inputs=el.querySelectorAll('input');
+  let i=0;
+  copy.forEach(item=>{
+    if(inputs[i])inputs[i].value=item.description;
+    if(inputs[i+1])inputs[i+1].value=item.qty;
+    if(inputs[i+2])inputs[i+2].value=item.unit_price;
+    i+=4;
+  });
+  const updateFn=containerId==='qu-items'?updateQuoteTotal:updateInvoiceTotal;
+  updateFn();
+}
+
+function addQuoteItem(){makeItemRow(quoteItems,'qu-items',updateQuoteTotal)}
+function addInvoiceItem(){makeItemRow(invoiceItems,'inv-items',updateInvoiceTotal)}
+
+function updateQuoteTotal(){
+  const t=quoteItems.reduce((s,i)=>s+(parseFloat(i.qty)||0)*(parseFloat(i.unit_price)||0),0);
+  document.getElementById('qu-total-display').textContent='£'+t.toFixed(2);
+}
+
+function updateInvoiceTotal(){
+  const t=invoiceItems.reduce((s,i)=>s+(parseFloat(i.qty)||0)*(parseFloat(i.unit_price)||0),0);
+  document.getElementById('inv-total-display').textContent='£'+t.toFixed(2);
+}
+
 function openQuoteModal(clientName, jobType, clientNumber, e){
   if(e)e.stopPropagation();
+  quoteItems=[];
+  document.getElementById('qu-items').innerHTML='';
   document.getElementById('qu-client').value=clientName||'';
+  document.getElementById('qu-address').value='';
   document.getElementById('qu-job').value=jobType||'';
-  document.getElementById('qu-total').value='';
   document.getElementById('qu-client-number').value=clientNumber||'';
   document.getElementById('quModalErr').textContent='';
+  document.getElementById('qu-total-display').textContent='£0.00';
+  addQuoteItem();
   document.getElementById('quoteModalOverlay').style.display='block';
   document.getElementById('quoteModal').style.display='block';
 }
@@ -1045,20 +1126,23 @@ async function submitQuoteModal(){
   const btn=document.getElementById('quModalBtn');
   const client=document.getElementById('qu-client').value.trim();
   const job=document.getElementById('qu-job').value.trim();
-  const total=document.getElementById('qu-total').value.trim();
+  const address=document.getElementById('qu-address').value.trim();
   const clientNumber=document.getElementById('qu-client-number').value.trim();
-  if(!client||!job||!total){document.getElementById('quModalErr').textContent='Please fill in all fields';return}
+  const total=quoteItems.reduce((s,i)=>s+(parseFloat(i.qty)||0)*(parseFloat(i.unit_price)||0),0);
+  if(!client||!job){document.getElementById('quModalErr').textContent='Please fill in client and job';return}
+  if(!quoteItems.length||!quoteItems.some(i=>i.description)){document.getElementById('quModalErr').textContent='Add at least one line item';return}
   btn.textContent='Creating...';btn.disabled=true;
   try{
     const res=await fetch('/api/create-quote?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({client_name:client,job_description:job,total:total,client_number:clientNumber})
+      body:JSON.stringify({client_name:client,client_address:address,job_description:job,line_items:quoteItems,total:total.toFixed(2),subtotal:total.toFixed(2),client_number:clientNumber})
     });
     const data=await res.json();
     if(data.ok){
       allQuotes.unshift(data.quote);
       closeQuoteModal();
+      window.open('/generate-pdf/'+data.quote.id,'_blank');
       go('quotes');
     }else{
       document.getElementById('quModalErr').textContent=data.error||'Error creating quote';
@@ -1066,20 +1150,23 @@ async function submitQuoteModal(){
   }catch(e){
     document.getElementById('quModalErr').textContent='Connection error. Try again.';
   }finally{
-    btn.textContent='Create Quote';btn.disabled=false;
+    btn.textContent='Create Quote & View PDF';btn.disabled=false;
   }
 }
 
 function openInvoiceModal(clientName, jobType, clientNumber, e){
   if(e)e.stopPropagation();
+  invoiceItems=[];
+  document.getElementById('inv-items').innerHTML='';
   document.getElementById('inv-client').value=clientName||'';
+  document.getElementById('inv-address').value='';
   document.getElementById('inv-job').value=jobType||'';
-  document.getElementById('inv-total').value='';
   document.getElementById('inv-client-number').value=clientNumber||'';
-  // Default due date 30 days from now
+  document.getElementById('invModalErr').textContent='';
+  document.getElementById('inv-total-display').textContent='£0.00';
   const due=new Date();due.setDate(due.getDate()+30);
   document.getElementById('inv-due').value=due.toISOString().split('T')[0];
-  document.getElementById('invModalErr').textContent='';
+  addInvoiceItem();
   document.getElementById('invoiceModalOverlay').style.display='block';
   document.getElementById('invoiceModal').style.display='block';
 }
@@ -1093,29 +1180,32 @@ async function submitInvoiceModal(){
   const btn=document.getElementById('invModalBtn');
   const client=document.getElementById('inv-client').value.trim();
   const job=document.getElementById('inv-job').value.trim();
-  const total=document.getElementById('inv-total').value.trim();
+  const address=document.getElementById('inv-address').value.trim();
   const due=document.getElementById('inv-due').value.trim();
   const clientNumber=document.getElementById('inv-client-number').value.trim();
-  if(!client||!job||!total){document.getElementById('invModalErr').textContent='Please fill in all fields';return}
+  const total=invoiceItems.reduce((s,i)=>s+(parseFloat(i.qty)||0)*(parseFloat(i.unit_price)||0),0);
+  if(!client||!job){document.getElementById('invModalErr').textContent='Please fill in client and job';return}
+  if(!invoiceItems.length||!invoiceItems.some(i=>i.description)){document.getElementById('invModalErr').textContent='Add at least one line item';return}
   btn.textContent='Creating...';btn.disabled=true;
   try{
     const res=await fetch('/api/create-invoice?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({client_name:client,job_description:job,total:total,due_date:due,client_number:clientNumber})
+      body:JSON.stringify({client_name:client,client_address:address,job_description:job,line_items:invoiceItems,total:total.toFixed(2),subtotal:total.toFixed(2),due_date:due,client_number:clientNumber})
     });
     const data=await res.json();
     if(data.ok){
       allInvoices.unshift(data.invoice);
       closeInvoiceModal();
+      window.open('/generate-invoice-pdf/'+data.invoice.id,'_blank');
       go('invoices');
     }else{
-      document.getElementById('invModalErr').textContent=data.error||'Error creating invoice';
+      document.getElementById('invModalErr').textContent=data.error||'Could not create invoice';
     }
   }catch(e){
     document.getElementById('invModalErr').textContent='Connection error. Try again.';
   }finally{
-    btn.textContent='Create Invoice';btn.disabled=false;
+    btn.textContent='Create Invoice & View PDF';btn.disabled=false;
   }
 }
 
