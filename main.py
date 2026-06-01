@@ -337,457 +337,150 @@ scheduler.start()
 
 
 def generate_quote_pdf(quote, profile, template):
-    # If we have a generated HTML template, use it directly via PDFShift
-    if template and template.get("generated_html"):
-        try:
-            return generate_quote_pdf_styled(quote, profile, {}, "custom_html")
-        except Exception as e:
-            print("Styled PDF error, falling back: " + str(e))
-    # Check if a custom design template is saved
-    elif template and template.get("design_style") and template.get("design_template"):
-        try:
-            design_tmpl = json.loads(template.get("design_template", "{}"))
-            design_style = template.get("design_style", "george")
-            return generate_quote_pdf_styled(quote, profile, design_tmpl, design_style)
-        except Exception as e:
-            print("Styled PDF error, falling back: " + str(e))
-
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import mm
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
-    from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
-
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20*mm, leftMargin=20*mm, topMargin=20*mm, bottomMargin=20*mm)
-
-    brand_colour = template.get("brand_colour", "#1a1a2e") if template else "#1a1a2e"
-    try:
-        brand = colors.HexColor(brand_colour)
-    except:
-        brand = colors.HexColor("#1a1a2e")
-
-    styles = getSampleStyleSheet()
-    s_normal = styles["Normal"]
-    s_right = ParagraphStyle("right", parent=s_normal, alignment=TA_RIGHT)
-    s_center = ParagraphStyle("center", parent=s_normal, alignment=TA_CENTER)
-
-    story = []
-
-    biz_name = (template.get("business_name") if template else None) or profile.get("business_name", "")
-    biz_address = (template.get("business_address") if template else None) or ""
-    biz_phone = (template.get("business_phone") if template else None) or profile.get("phone", "")
-    biz_email = (template.get("business_email") if template else None) or ""
-    validity = (template.get("quote_validity_days") if template else None) or profile.get("payment_terms", "30")
-    payment_details = (template.get("payment_details") if template else None) or ""
-    terms_text = (template.get("terms") if template else None) or ""
-    footer_text = (template.get("footer_text") if template else None) or "Thank you for your business."
-
-    # Logo
-    logo_data = profile.get("logo") or (template.get("logo") if template else None) or ""
-    logo_image = None
-    if logo_data and logo_data.startswith("data:image"):
-        try:
-            import base64
-            from reportlab.lib.utils import ImageReader
-            header_parts = logo_data.split(",", 1)
-            if len(header_parts) == 2:
-                img_bytes = base64.b64decode(header_parts[1])
-                logo_image = ImageReader(io.BytesIO(img_bytes))
-        except Exception as e:
-            print("Logo error: " + str(e))
-
-    if logo_image:
-        from reportlab.platypus import Image
-        logo_el = Image(logo_image, width=30*mm, height=30*mm)
-        logo_el.hAlign = 'LEFT'
-        story.append(logo_el)
-        story.append(Spacer(1, 4*mm))
-
-    header_data = [[
-        Paragraph("<font size=16><b>" + biz_name.upper() + "</b></font>", s_normal),
-        Paragraph("<font size=14><b>QUOTATION</b></font>", s_right)
-    ]]
-    header_table = Table(header_data, colWidths=[100*mm, 70*mm])
-    header_table.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,-1), brand),
-        ("TEXTCOLOR", (0,0), (-1,-1), colors.white),
-        ("TOPPADDING", (0,0), (-1,-1), 14),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 14),
-        ("LEFTPADDING", (0,0), (0,-1), 16),
-        ("RIGHTPADDING", (-1,0), (-1,-1), 16),
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-    ]))
-    story.append(header_table)
-    story.append(Spacer(1, 8*mm))
-
-    today_str = datetime.date.today().strftime("%d %B %Y")
-    quote_num = quote.get("quote_number", "QU-001")
-
-    from_text = biz_name
-    if biz_address:
-        from_text += "<br/>" + biz_address
-    if biz_phone:
-        from_text += "<br/>" + biz_phone
-    if biz_email:
-        from_text += "<br/>" + biz_email
-
-    info_data = [[
-        Paragraph("<font size=8 color='grey'>FROM</font><br/><br/>" + from_text, s_normal),
-        Paragraph(
-            "<font size=8 color='grey'>QUOTE NUMBER</font><br/>" + quote_num +
-            "<br/><br/><font size=8 color='grey'>DATE</font><br/>" + today_str +
-            "<br/><br/><font size=8 color='grey'>VALID FOR</font><br/>" + str(validity) + " days",
-            s_right
-        )
-    ]]
-    info_table = Table(info_data, colWidths=[95*mm, 75*mm])
-    info_table.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP")]))
-    story.append(info_table)
-    story.append(Spacer(1, 6*mm))
-
-    client_name = quote.get("client_name", "")
-    client_address = quote.get("client_address", "")
-    to_text = "<font size=8 color='grey'>PREPARED FOR</font><br/><br/><b>" + client_name + "</b>"
-    if client_address:
-        to_text += "<br/>" + client_address
-    story.append(Paragraph(to_text, s_normal))
-    story.append(Spacer(1, 8*mm))
-
-    line_items = quote.get("line_items", [])
-    if line_items and len(line_items) > 0:
-        table_data = [["Description", "Qty", "Unit Price", "Amount"]]
-        subtotal = 0
-        for item in line_items:
-            desc = item.get("description", "")
-            qty = item.get("qty", 1)
-            unit_price = item.get("unit_price", 0)
-            amount = float(qty) * float(unit_price)
-            subtotal += amount
-            table_data.append([desc, str(qty), "£{:.2f}".format(float(unit_price)), "£{:.2f}".format(amount)])
-
-        items_table = Table(table_data, colWidths=[85*mm, 20*mm, 30*mm, 35*mm])
-        items_table.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), brand),
-            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-            ("FONTSIZE", (0,0), (-1,0), 9),
-            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
-            ("TOPPADDING", (0,0), (-1,-1), 8),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 8),
-            ("LEFTPADDING", (0,0), (-1,-1), 8),
-            ("GRID", (0,0), (-1,-1), 0.5, colors.Color(0.85, 0.85, 0.85)),
-            ("ALIGN", (1,0), (-1,-1), "RIGHT"),
-            ("FONTSIZE", (0,1), (-1,-1), 9),
-            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.Color(0.97, 0.97, 0.97)]),
-        ]))
-        story.append(items_table)
-        story.append(Spacer(1, 4*mm))
-
-        vat_rate = 0.2 if profile.get("vat_registered", "no").lower() in ["yes", "y", "true"] else 0
-        vat_amount = subtotal * vat_rate
-        total = subtotal + vat_amount
-
-        totals_data = [["Subtotal", "£{:.2f}".format(subtotal)]]
-        if vat_rate > 0:
-            totals_data.append(["VAT (20%)", "£{:.2f}".format(vat_amount)])
-        totals_data.append(["TOTAL", "£{:.2f}".format(total)])
-
-        totals_table = Table(totals_data, colWidths=[135*mm, 35*mm])
-        totals_table.setStyle(TableStyle([
-            ("ALIGN", (0,0), (-1,-1), "RIGHT"),
-            ("FONTSIZE", (0,0), (-1,-1), 10),
-            ("TOPPADDING", (0,0), (-1,-1), 4),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-            ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
-            ("FONTSIZE", (0,-1), (-1,-1), 12),
-            ("LINEABOVE", (0,-1), (-1,-1), 1.5, brand),
-        ]))
-        story.append(totals_table)
-    else:
-        quote_text = quote.get("quote_text", "")
-        if quote_text:
-            skip_phrases = ["I can't actually", "Just copy that", "copy and send", "Here's the quote formatted", "---", "Cheers,", "Let me know if", "Reply PDF", "reply pdf"]
-            story.append(Paragraph("<b>Quote Details</b>", s_normal))
-            story.append(Spacer(1, 3*mm))
-            for line in quote_text.split("\n"):
-                stripped = line.strip().replace("**", "")
-                if not stripped:
-                    continue
-                skip = False
-                for phrase in skip_phrases:
-                    if phrase.lower() in stripped.lower():
-                        skip = True
-                        break
-                if not skip and not stripped.startswith("Hi ") and stripped != profile.get("owner_name", ""):
-                    if "total" in stripped.lower():
-                        story.append(Spacer(1, 2*mm))
-                        story.append(Paragraph("<b>" + stripped + "</b>", s_normal))
-                    else:
-                        story.append(Paragraph(stripped, s_normal))
-
-    story.append(Spacer(1, 10*mm))
-    story.append(HRFlowable(width="100%", thickness=1, color=brand))
-    story.append(Spacer(1, 4*mm))
-
-    if payment_details:
-        story.append(Paragraph("<font size=8 color='grey'>PAYMENT DETAILS</font>", s_normal))
-        story.append(Spacer(1, 2*mm))
-        story.append(Paragraph(payment_details.replace("\n", "<br/>"), s_normal))
-        story.append(Spacer(1, 6*mm))
-
-    if terms_text:
-        story.append(Paragraph("<font size=8 color='grey'>TERMS & CONDITIONS</font>", s_normal))
-        story.append(Spacer(1, 2*mm))
-        story.append(Paragraph("<font size=8>" + terms_text.replace("\n", "<br/>") + "</font>", s_normal))
-        story.append(Spacer(1, 6*mm))
-
-    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.Color(0.85, 0.85, 0.85)))
-    story.append(Spacer(1, 4*mm))
-    story.append(Paragraph("<font size=9 color='grey'>" + footer_text + "</font>", s_center))
-
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
-
-
-def generate_quote_pdf_styled(quote, profile, tmpl, style):
-    """Generate a fully designed PDF using PDFShift."""
     import requests as req
-    import base64
 
-    # Check if we have a pre-generated HTML template
-    sender = profile.get("sender", "")
-    template_result = supabase.table("quote_templates").select("generated_html").eq("sender", sender).execute()
-    if template_result.data and template_result.data[0].get("generated_html"):
-        base_html = template_result.data[0]["generated_html"]
-        # Inject actual quote data into the template
-        client_name = quote.get("client_name", "Client Name")
-        client_address = quote.get("client_address", "")
-        total = quote.get("total", "0")
-        quote_num = quote.get("quote_number", "QU-001")
-        today_str = datetime.date.today().strftime("%d %B %Y")
+    # Build the HTML quote from scratch using the saved style
+    accent = "#c9a227"
+    dark = "#1a1a1a"
+    biz_name = profile.get("business_name", "Your Business")
+    trade = profile.get("trade", "")
+    phone_num = profile.get("phone", "")
+    email = ""
+    location = ""
+    scope_items = []
+    inclusion_items = ["All labour", "All materials", "Site clean-down"]
+    note = ""
+    commitment = "We take pride in delivering quality workmanship. Your satisfaction is our priority."
+    lead_time = "To be arranged at a convenient time."
+    payment_terms = "50% deposit, balance on completion."
+    show_vat = False
+    show_note = False
+    intro = "Thank you for the opportunity to provide this quotation. Please find below the scope of works and cost breakdown for your consideration."
 
-        html = base_html
-        html = html.replace("Client Name", client_name)
-        html = html.replace("QU-001", quote_num)
-        html = html.replace("31 May 2025", today_str)
-        html = html.replace("£1,900.00", "£" + str(total))
-        html = html.replace("£2,250.00", "£" + str(total))
-        if client_address:
-            html = html.replace("Charlotte", client_name + ", " + client_address)
-        else:
-            html = html.replace("Charlotte", client_name)
-
-        buffer = io.BytesIO()
+    if template:
         try:
-            api_key = os.environ.get("PDFSHIFT_API_KEY", "")
-            response = req.post(
-                "https://api.pdfshift.io/v3/convert/pdf",
-                auth=(api_key, ""),
-                json={"source": html, "format": "A4", "margin": "0"}
-            )
-            if response.status_code == 200:
-                buffer.write(response.content)
-            else:
-                raise Exception("PDFShift error: " + str(response.status_code))
+            dt = json.loads(template.get("design_template", "{}")) if template.get("design_template") else {}
+            accent = dt.get("accent", template.get("brand_colour", accent))
+            dark = dt.get("dark", dark)
+            biz_name = dt.get("bizName", template.get("business_name", biz_name))
+            trade = dt.get("trade", trade)
+            phone_num = dt.get("phone", template.get("business_phone", phone_num))
+            email = dt.get("email", template.get("business_email", email))
+            location = dt.get("location", template.get("business_address", location))
+            scope_items = dt.get("scopeItems", scope_items)
+            inclusion_items = dt.get("inclusionItems", inclusion_items)
+            note = dt.get("note", note)
+            commitment = dt.get("commitment", commitment)
+            lead_time = dt.get("leadTime", lead_time)
+            payment_terms = dt.get("paymentTerms", payment_terms)
+            show_vat = dt.get("showVat", show_vat)
+            show_note = dt.get("showNote", True) and bool(note)
+            intro = dt.get("intro", intro)
         except Exception as e:
-            print("PDF error: " + str(e))
-        buffer.seek(0)
-        return buffer
+            print("Template parse error: " + str(e))
 
-    accent = tmpl.get("accent", "#c9a227")
-    dark = tmpl.get("dark", "#1a1a1a")
-    biz_name = tmpl.get("bizName", profile.get("business_name", "Your Business"))
-    trade = tmpl.get("trade", profile.get("trade", ""))
-    phone = tmpl.get("phone", profile.get("phone", ""))
-    email = tmpl.get("email", "")
-    location = tmpl.get("location", "")
-    intro = tmpl.get("intro", "Thank you for the opportunity to provide this quotation.")
-    scope_items = tmpl.get("scopeItems", [])
-    inclusion_items = tmpl.get("inclusionItems", [])
-    note_text = tmpl.get("note", "")
-    commitment = tmpl.get("commitment", "")
-    lead_time = tmpl.get("leadTime", "")
-    payment_terms = tmpl.get("paymentTerms", "")
-    show_note = tmpl.get("showNote", True)
-    show_commitment = tmpl.get("showCommitment", True)
-    show_lead_time = tmpl.get("showLeadTime", True)
-    show_vat = tmpl.get("showVat", False)
-
-    client_name = quote.get("client_name", "")
+    client_name = quote.get("client_name", "Client")
     client_address = quote.get("client_address", "")
     total = quote.get("total", "0")
     quote_num = quote.get("quote_number", "QU-001")
     today_str = datetime.date.today().strftime("%d %B %Y")
 
-    # Logo
     logo_data = profile.get("logo", "")
-    logo_html = ""
-    if logo_data and logo_data.startswith("data:image"):
-        logo_html = f'<img src="{logo_data}" style="width:70px;height:70px;object-fit:contain;margin-bottom:10px;display:block">'
+    logo_html = f'<img src="{logo_data}" style="width:70px;height:70px;object-fit:contain;margin-bottom:8px;display:block">' if logo_data else f'<div style="width:60px;height:60px;border-radius:50%;border:2px solid {accent};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:{accent};margin-bottom:8px">{biz_name[:2].upper()}</div>'
 
-    # Scope items
-    scope_html = "".join([
-        f'<div class="scope-item"><span class="check">&#10003;</span><span>{item}</span></div>'
-        for item in scope_items
-    ])
-
-    # Inclusions
-    inc_html = "".join([
-        f'<div class="inc-item"><span class="check">&#10003;</span>{item}</div>'
-        for item in inclusion_items
-    ])
-
-    # Note box
-    note_html = ""
-    if show_note and note_text:
-        note_html = f'''<div class="note-box">
-            <div class="note-title">&#9888; PLEASE NOTE</div>
-            <div class="note-text">{note_text}</div>
-        </div>'''
-
-    # Footer blocks
-    footer_html = ""
-    if show_commitment or show_lead_time:
-        commit_block = f'''<div class="footer-block">
-            <div class="footer-icon">&#10003;</div>
-            <div>
-                <div class="footer-title">OUR COMMITMENT</div>
-                <div class="footer-text">{commitment}</div>
-            </div>
-        </div>''' if show_commitment else ""
-
-        lead_block = f'''<div class="footer-block">
-            <div class="footer-icon">&#128197;</div>
-            <div>
-                <div class="footer-title">LEAD TIME</div>
-                <div class="footer-text">{lead_time}</div>
-            </div>
-        </div>''' if show_lead_time else ""
-
-        footer_html = f'<div class="footer" style="background:{dark}">{commit_block}{lead_block}</div>'
-
-    vat_html = '<div class="price-vat">+ VAT</div>' if show_vat else ""
-
-    contact_html = ""
-    if phone:
-        contact_html += f'<div class="contact-row">&#128222; {phone}</div>'
-    if email:
-        contact_html += f'<div class="contact-row">&#9993; {email}</div>'
-    if location:
-        contact_html += f'<div class="contact-row">&#128205; {location}</div>'
-
-    payment_html = ""
-    if payment_terms:
-        payment_html = f'<div class="payment-terms">Payment terms: {payment_terms}</div>'
+    scope_html = "".join([f'<div style="display:flex;gap:8px;margin-bottom:7px;font-size:11px;color:#333;line-height:1.5"><span style="color:{accent};font-weight:700;flex-shrink:0">&#10003;</span><span>{item}</span></div>' for item in scope_items])
+    inc_html = "".join([f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:11px;color:#333"><span style="color:{accent}">&#10003;</span>{item}</div>' for item in inclusion_items])
+    note_html = f'<div style="border:1.5px solid {accent};border-radius:5px;padding:10px 12px;margin-top:14px;background:#fffef5"><div style="font-size:9px;font-weight:800;color:{accent};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">&#9888; PLEASE NOTE</div><div style="font-size:10px;color:#555;line-height:1.6">{note}</div></div>' if show_note else ""
+    vat_html = f'<div style="font-size:12px;font-weight:700;color:{accent};margin-top:5px;letter-spacing:0.05em">+ VAT</div>' if show_vat else ""
+    contact_html = "".join([f'<div style="font-size:11px;color:#ccc;margin-bottom:5px">{v}</div>' for v in [phone_num, email, location] if v])
+    client_full = client_name + (", " + client_address if client_address else "")
 
     html = f"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: 'Inter', Arial, sans-serif; font-size: 11px; background: #fff; width: 210mm; }}
-  .header {{ background: {dark}; display: grid; grid-template-columns: 1fr 1fr; min-height: 130px; }}
-  .header-left {{ padding: 20px 24px; border-right: 2px solid {accent}; display: flex; flex-direction: column; justify-content: center; }}
-  .header-right {{ padding: 20px 24px; display: flex; flex-direction: column; justify-content: center; }}
-  .biz-name {{ font-size: 18px; font-weight: 900; color: {accent}; letter-spacing: 0.02em; line-height: 1.1; }}
-  .biz-trade {{ font-size: 9px; color: {accent}; letter-spacing: 0.16em; text-transform: uppercase; margin-top: 4px; opacity: 0.85; }}
-  .biz-divider {{ width: 50px; height: 1.5px; background: {accent}; margin-top: 8px; }}
-  .quot-title {{ font-size: 28px; font-weight: 900; color: {accent}; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 12px; }}
-  .quot-line {{ width: 100%; height: 1px; background: {accent}; margin-bottom: 10px; opacity: 0.5; }}
-  .contact-row {{ font-size: 11px; color: #ccc; margin-bottom: 5px; }}
-  .body {{ display: grid; grid-template-columns: 1fr 195px; }}
-  .body-left {{ padding: 20px 24px; border-right: 1px solid #e8dfc8; }}
-  .body-right {{ padding: 16px; background: #f9f7f0; }}
-  .meta-row {{ font-size: 11px; margin-bottom: 5px; }}
-  .meta-key {{ color: {accent}; font-weight: 700; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; }}
-  .intro {{ font-size: 11px; color: #444; line-height: 1.7; margin: 12px 0 16px; }}
-  .scope-title {{ font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; color: #1a1a1a; margin-bottom: 12px; }}
-  .scope-item {{ display: flex; gap: 8px; margin-bottom: 7px; font-size: 11px; color: #333; line-height: 1.55; }}
-  .check {{ color: {accent}; font-weight: 700; flex-shrink: 0; }}
-  .note-box {{ border: 1.5px solid {accent}; border-radius: 5px; padding: 10px 12px; margin-top: 14px; background: #fffef5; }}
-  .note-title {{ font-size: 9px; font-weight: 800; color: {accent}; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }}
-  .note-text {{ font-size: 10px; color: #555; line-height: 1.6; }}
-  .price-box {{ text-align: center; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1.5px solid {accent}; }}
-  .price-circle {{ width: 52px; height: 52px; border-radius: 50%; border: 2.5px solid {accent}; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 22px; font-weight: 900; color: {accent}; }}
-  .price-label {{ font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: {accent}; margin-bottom: 5px; }}
-  .price-amount {{ font-size: 26px; font-weight: 900; color: #1a1a1a; letter-spacing: -0.02em; line-height: 1; }}
-  .price-vat {{ font-size: 11px; font-weight: 600; color: {accent}; margin-top: 5px; letter-spacing: 0.05em; }}
-  .inc-title {{ font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: {accent}; margin-bottom: 10px; text-align: center; }}
-  .inc-item {{ display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 11px; color: #333; }}
-  .footer {{ display: grid; grid-template-columns: 1fr 1fr; padding: 14px 20px; gap: 16px; border-top: 2px solid {accent}; }}
-  .footer-block {{ display: flex; align-items: flex-start; gap: 10px; }}
-  .footer-icon {{ width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid {accent}; display: flex; align-items: center; justify-content: center; color: {accent}; font-size: 12px; flex-shrink: 0; }}
-  .footer-title {{ font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: {accent}; margin-bottom: 3px; }}
-  .footer-text {{ font-size: 9px; color: #aaa; line-height: 1.55; }}
-  .thankyou {{ background: {dark}; border-top: 1px solid {accent}; display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; }}
-  .ty-title {{ font-size: 13px; font-weight: 900; color: {accent}; text-transform: uppercase; letter-spacing: 0.08em; }}
-  .ty-sub {{ font-size: 9px; color: #555; margin-top: 2px; }}
-  .ty-biz {{ font-size: 12px; font-weight: 700; color: {accent}; font-style: italic; }}
-  .payment-terms {{ margin-top: 8px; padding: 8px 0; font-size: 9px; color: #888; text-align: center; }}
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:'Inter',Arial,sans-serif;font-size:11px;background:#fff;width:210mm}}
 </style>
 </head>
 <body>
-  <div class="header">
-    <div class="header-left">
-      {logo_html}
-      <div class="biz-name">{biz_name}</div>
-      <div class="biz-trade">{trade}</div>
-      <div class="biz-divider"></div>
-    </div>
-    <div class="header-right">
-      <div class="quot-title">QUOTATION</div>
-      <div class="quot-line"></div>
-      {contact_html}
-    </div>
-  </div>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark}">
+<tr>
+<td width="50%" style="padding:20px 24px;border-right:2px solid {accent};vertical-align:middle">
+{logo_html}
+<div style="font-size:18px;font-weight:900;color:{accent};letter-spacing:0.02em">{biz_name}</div>
+<div style="font-size:9px;color:{accent};letter-spacing:0.14em;text-transform:uppercase;margin-top:3px;opacity:0.85">{trade}</div>
+<div style="width:50px;height:1.5px;background:{accent};margin-top:8px"></div>
+</td>
+<td width="50%" style="padding:20px 24px;vertical-align:middle">
+<div style="font-size:28px;font-weight:900;color:{accent};letter-spacing:0.06em;text-transform:uppercase;margin-bottom:12px">QUOTATION</div>
+<div style="width:100%;height:1px;background:{accent};margin-bottom:10px;opacity:0.5"></div>
+{contact_html}
+</td>
+</tr>
+</table>
 
-  <div class="body">
-    <div class="body-left">
-      <div class="meta-row"><span class="meta-key">Date: </span>{today_str}</div>
-      <div class="meta-row"><span class="meta-key">Client: </span>{client_name}{(", " + client_address) if client_address else ""}</div>
-      <div class="intro">{intro}</div>
-      <div class="scope-title">&#128203; Scope of Works</div>
-      {scope_html}
-      {note_html}
-    </div>
-    <div class="body-right">
-      <div class="price-box">
-        <div class="price-circle">&#163;</div>
-        <div class="price-label">Total Price</div>
-        <div class="price-amount">&#163;{total}</div>
-        {vat_html}
-      </div>
-      <div class="inc-title">Inclusions</div>
-      {inc_html}
-    </div>
-  </div>
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td width="60%" style="padding:20px 24px;vertical-align:top;border-right:1px solid #e8dfc8">
+<div style="font-size:11px;margin-bottom:4px"><span style="color:{accent};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">DATE: </span>{today_str}</div>
+<div style="font-size:11px;margin-bottom:14px"><span style="color:{accent};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">CLIENT: </span>{client_full}</div>
+<div style="font-size:11px;color:#444;line-height:1.7;margin-bottom:16px">{intro}</div>
+<div style="font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:0.04em;color:#1a1a1a;margin-bottom:12px">&#128203; SCOPE OF WORKS</div>
+{scope_html}
+{note_html}
+</td>
+<td width="40%" style="padding:16px;background:#f9f7f0;vertical-align:top">
+<div style="text-align:center;padding-bottom:16px;margin-bottom:16px;border-bottom:1.5px solid {accent}">
+<div style="width:52px;height:52px;border-radius:50%;border:2.5px solid {accent};display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:{accent};margin-bottom:8px">&#163;</div>
+<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:{accent};display:block;margin-bottom:5px">TOTAL PRICE</div>
+<div style="font-size:28px;font-weight:900;color:#1a1a1a;letter-spacing:-0.02em">&#163;{total}</div>
+{vat_html}
+</div>
+<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:{accent};margin-bottom:10px;text-align:center">INCLUSIONS</div>
+{inc_html}
+</td>
+</tr>
+</table>
 
-  {footer_html}
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark};border-top:2px solid {accent}">
+<tr>
+<td width="50%" style="padding:14px 20px;vertical-align:top">
+<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:{accent};margin-bottom:4px">OUR COMMITMENT</div>
+<div style="font-size:9px;color:#aaa;line-height:1.55">{commitment}</div>
+</td>
+<td width="50%" style="padding:14px 20px;vertical-align:top;border-left:1px solid rgba(255,255,255,0.1)">
+<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:{accent};margin-bottom:4px">LEAD TIME</div>
+<div style="font-size:9px;color:#aaa;line-height:1.55">{lead_time}</div>
+</td>
+</tr>
+</table>
 
-  <div class="thankyou" style="background:{dark}">
-    <div>
-      <div class="ty-title">Thank You</div>
-      <div class="ty-sub">We look forward to working with you.</div>
-    </div>
-    <div class="ty-biz">{biz_name}</div>
-  </div>
-
-  {payment_html}
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark};border-top:1px solid {accent}">
+<tr>
+<td style="padding:10px 24px">
+<div style="font-size:13px;font-weight:900;color:{accent};text-transform:uppercase;letter-spacing:0.08em">THANK YOU</div>
+<div style="font-size:9px;color:#555;margin-top:1px">We look forward to working with you.</div>
+</td>
+<td style="padding:10px 24px;text-align:right">
+<div style="font-size:12px;font-weight:700;color:{accent};font-style:italic">{biz_name}</div>
+<div style="font-size:9px;color:#555;margin-top:1px">{payment_terms}</div>
+</td>
+</tr>
+</table>
 </body>
 </html>"""
 
     buffer = io.BytesIO()
     try:
-        import requests as req
         api_key = os.environ.get("PDFSHIFT_API_KEY", "")
         response = req.post(
             "https://api.pdfshift.io/v3/convert/pdf",
             auth=(api_key, ""),
-            json={"source": html, "format": "A4", "margin": "0"}
+            json={"source": html, "format": "A4", "margin": "0"},
+            timeout=30
         )
         if response.status_code == 200:
             buffer.write(response.content)
@@ -795,17 +488,23 @@ def generate_quote_pdf_styled(quote, profile, tmpl, style):
             raise Exception("PDFShift error: " + str(response.status_code) + " " + response.text)
     except Exception as e:
         print("PDF generation error: " + str(e))
+        # Fallback to basic reportlab
         from reportlab.lib.pagesizes import A4
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
         from reportlab.lib.styles import getSampleStyleSheet
         doc = SimpleDocTemplate(buffer, pagesize=A4)
         styles = getSampleStyleSheet()
-        story = [Paragraph("Quote for " + quote.get("client_name",""), styles["Title"]),
-                 Spacer(1, 20),
-                 Paragraph("Total: £" + str(total), styles["Normal"])]
+        story = [
+            Paragraph(biz_name, styles["Title"]),
+            Spacer(1, 12),
+            Paragraph("Quote for: " + client_name, styles["Normal"]),
+            Spacer(1, 12),
+            Paragraph("Total: £" + str(total), styles["Normal"]),
+        ]
         doc.build(story)
     buffer.seek(0)
     return buffer
+
 
 def generate_invoice_pdf(invoice, profile, template):
     from reportlab.lib.pagesizes import A4
