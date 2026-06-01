@@ -285,13 +285,19 @@ def run_invoice_chase():
                 if days_overdue < CHASE_SCHEDULE[chase_count]:
                     continue
 
-                # Look up client phone from contacts table
-                contacts = supabase.table("contacts").select("phone").eq("sender", inv["sender"]).eq("name", inv["client_name"]).limit(1).execute()
-                if not contacts.data:
-                    print("No phone for client: " + inv.get("client_name", ""))
-                    continue
-
-                phone      = contacts.data[0]["phone"]
+                # Use stored client_number if available, otherwise look up from client_chats
+                phone = inv.get("client_number")
+                if not phone:
+                    tradesperson = supabase.table("profiles").select("twilio_number").eq("sender", inv["sender"]).limit(1).execute()
+                    if not tradesperson.data:
+                        print("No profile for sender: " + inv.get("sender", ""))
+                        continue
+                    twilio_num = tradesperson.data[0]["twilio_number"]
+                    chats = supabase.table("client_chats").select("client_number").eq("twilio_number", twilio_num).eq("sender_profile", inv["sender"]).limit(1).execute()
+                    if not chats.data:
+                        print("No phone found for client: " + inv.get("client_name", ""))
+                        continue
+                    phone = chats.data[0]["client_number"]
                 first_name = inv.get("client_name", "there").split()[0]
                 inv_num    = inv.get("invoice_number", "")
                 total      = inv.get("total", "")
