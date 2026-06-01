@@ -254,6 +254,75 @@ def scan_all_emails():
     except Exception as e:
         print("Scan all emails error: " + str(e))
 
+def run_invoice_chase():
+    try:
+        from datetime import date
+        from twilio.rest import Client as TwilioClient
+
+        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+        auth_token  = os.environ.get("TWILIO_AUTH_TOKEN")
+        from_number = os.environ.get("TWILIO_NUMBER")
+        twilio_client = TwilioClient(account_sid, auth_token)
+
+        today = date.today()
+        result = supabase.table("invoices").select("*").in_("status", ["unpaid", "overdue"]).lt("due_date", today.isoformat()).execute()
+        invoices = result.data or []
+
+        CHASE_SCHEDULE = [1, 7, 14]
+
+        for inv in invoices:
+            inv_id = inv.get("id")
+            try:
+                due_date     = date.fromisoformat(inv["due_date"])
+                days_overdue = (today - due_date).days
+
+                # How many chases already sent?
+                chases = supabase.table("invoice_chases").select("id", count="exact").eq("invoice_id", inv_id).execute()
+                chase_count = chases.count or 0
+
+                if chase_count >= len(CHASE_SCHEDULE):
+                    continue
+                if days_overdue < CHASE_SCHEDULE[chase_count]:
+                    continue
+
+                # Look up client phone from contacts table
+                contacts = supabase.table("contacts").select("phone").eq("sender", inv["sender"]).eq("name", inv["client_name"]).limit(1).execute()
+                if not contacts.data:
+                    print("No phone for client: " + inv.get("client_name", ""))
+                    continue
+
+                phone      = contacts.data[0]["phone"]
+                first_name = inv.get("client_name", "there").split()[0]
+                inv_num    = inv.get("invoice_number", "")
+                total      = inv.get("total", "")
+                sender     = inv.get("sender", "")
+                next_chase = chase_count + 1
+
+                if next_chase == 1:
+                    msg = f"Hi {first_name}, just a reminder that invoice {inv_num} for £{total} is now {days_overdue} day(s) overdue. Please arrange payment at your earliest convenience. Thanks, {sender}"
+                elif next_chase == 2:
+                    msg = f"Hi {first_name}, second reminder — invoice {inv_num} for £{total} is {days_overdue} days overdue. Please settle this as soon as possible."
+                else:
+                    msg = f"FINAL NOTICE: {first_name}, invoice {inv_num} for £{total} is {days_overdue} days overdue. Immediate payment required or we may pursue this through small claims. Please contact us urgently."
+
+                twilio_client.messages.create(to=phone, from_=from_number, body=msg)
+
+                supabase.table("invoice_chases").insert({
+                    "invoice_id":   inv_id,
+                    "sent_to":      phone,
+                    "message":      msg,
+                    "chase_number": next_chase,
+                    "sent_at":      today.isoformat()
+                }).execute()
+
+                supabase.table("invoices").update({"status": "overdue"}).eq("id", inv_id).execute()
+                print("Chase #" + str(next_chase) + " sent for invoice " + str(inv_num))
+
+            except Exception as e:
+                print("Chase error for invoice " + str(inv.get("invoice_number")) + ": " + str(e))
+
+    except Exception as e:
+        print("run_invoice_chase error: " + str(e))
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(send_morning_summary, "cron", hour=8, minute=0)
