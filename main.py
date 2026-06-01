@@ -546,9 +546,49 @@ def generate_quote_pdf(quote, profile, template):
 
 
 def generate_quote_pdf_styled(quote, profile, tmpl, style):
-    """Generate a fully designed PDF using WeasyPrint HTML rendering."""
-    from weasyprint import HTML, CSS
+    """Generate a fully designed PDF using PDFShift."""
+    import requests as req
     import base64
+
+    # Check if we have a pre-generated HTML template
+    sender = profile.get("sender", "")
+    template_result = supabase.table("quote_templates").select("generated_html").eq("sender", sender).execute()
+    if template_result.data and template_result.data[0].get("generated_html"):
+        base_html = template_result.data[0]["generated_html"]
+        # Inject actual quote data into the template
+        client_name = quote.get("client_name", "Client Name")
+        client_address = quote.get("client_address", "")
+        total = quote.get("total", "0")
+        quote_num = quote.get("quote_number", "QU-001")
+        today_str = datetime.date.today().strftime("%d %B %Y")
+
+        html = base_html
+        html = html.replace("Client Name", client_name)
+        html = html.replace("QU-001", quote_num)
+        html = html.replace("31 May 2025", today_str)
+        html = html.replace("£1,900.00", "£" + str(total))
+        html = html.replace("£2,250.00", "£" + str(total))
+        if client_address:
+            html = html.replace("Charlotte", client_name + ", " + client_address)
+        else:
+            html = html.replace("Charlotte", client_name)
+
+        buffer = io.BytesIO()
+        try:
+            api_key = os.environ.get("PDFSHIFT_API_KEY", "")
+            response = req.post(
+                "https://api.pdfshift.io/v3/convert/pdf",
+                auth=(api_key, ""),
+                json={"source": html, "format": "A4", "margin": "0"}
+            )
+            if response.status_code == 200:
+                buffer.write(response.content)
+            else:
+                raise Exception("PDFShift error: " + str(response.status_code))
+        except Exception as e:
+            print("PDF error: " + str(e))
+        buffer.seek(0)
+        return buffer
 
     accent = tmpl.get("accent", "#c9a227")
     dark = tmpl.get("dark", "#1a1a1a")
@@ -1717,6 +1757,135 @@ def incoming_sms():
         resp.message("Thanks for your message. We will get back to you shortly.")
 
     return str(resp)
+
+@app.route("/api/generate-quote-html", methods=["POST"])
+def generate_quote_html():
+    """Generate a bespoke HTML quote template using Claude."""
+    try:
+        data = request.json
+        phone = format_phone(data.get("phone", "").strip())
+        pin = data.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+
+        style = data.get("style", {})
+        quote = data.get("quote", {})
+
+        biz_name = style.get("bizName", profile.get("business_name", "Your Business"))
+        trade = style.get("trade", profile.get("trade", "Tradesperson"))
+        phone_num = style.get("phone", profile.get("phone", ""))
+        email = style.get("email", "")
+        location = style.get("location", "")
+        accent = style.get("accent", "#c9a227")
+        dark = style.get("dark", "#1a1a1a")
+        scope_items = style.get("scopeItems", [])
+        inclusion_items = style.get("inclusionItems", [])
+        note = style.get("note", "")
+        commitment = style.get("commitment", "")
+        lead_time = style.get("leadTime", "")
+        payment_terms = style.get("paymentTerms", "")
+        show_note = style.get("showNote", True)
+        show_commitment = style.get("showCommitment", True)
+        show_lead_time = style.get("showLeadTime", True)
+        show_vat = style.get("showVat", False)
+        intro = style.get("intro", "Thank you for the opportunity to provide this quotation.")
+
+        client_name = quote.get("client_name", "Client Name")
+        client_address = quote.get("client_address", "")
+        total = quote.get("total", "0")
+        quote_num = quote.get("quote_number", "QU-001")
+        today_str = datetime.date.today().strftime("%d %B %Y")
+
+        logo_data = profile.get("logo", "")
+
+        scope_text = "\n".join([f"- {item}" for item in scope_items])
+        inc_text = "\n".join([f"- {item}" for item in inclusion_items])
+
+        prompt = f"""You are an expert HTML/CSS designer creating a professional quote PDF for a UK tradesperson.
+
+Business details:
+- Business name: {biz_name}
+- Trade: {trade}
+- Phone: {phone_num}
+- Email: {email}
+- Location: {location}
+- Brand colour (accent): {accent}
+- Dark colour: {dark}
+
+Quote details:
+- Client: {client_name}
+- Address: {client_address}
+- Date: {today_str}
+- Quote number: {quote_num}
+- Total: £{total}
+- Show VAT: {show_vat}
+
+Content:
+- Intro: {intro}
+- Scope of works:
+{scope_text}
+- Inclusions:
+{inc_text}
+- Please note: {note if show_note else ""}
+- Commitment: {commitment if show_commitment else ""}
+- Lead time: {lead_time if show_lead_time else ""}
+- Payment terms: {payment_terms}
+
+Create a stunning, professional A4 quote document in HTML/CSS that:
+1. Has a bold two-column header - dark background on full width, left side has business name and trade name, right side has "QUOTATION" title and contact details
+2. Uses the brand colours ({accent} for gold/accent elements, {dark} for dark backgrounds)
+3. Has a diagonal or angled design element between header columns for visual interest
+4. Left body column: date, client, intro paragraph, SCOPE OF WORKS heading with icon, bullet points with check circles, please note box if needed
+5. Right body column: dark background, large £ circle icon, TOTAL PRICE label, big price number, + VAT if needed, gold divider, INCLUSIONS heading, inclusion items with icons
+6. Footer: dark background with OUR COMMITMENT and LEAD TIME side by side with circular icons
+7. Thank you bar at very bottom: dark background, THANK YOU left, business name right in italic
+8. Include an inline SVG trade icon/logo appropriate for {trade} (e.g. hammer and saw for carpentry, trowel for plastering, wrench for plumbing) - make it detailed and professional
+9. Use Google Fonts Inter for typography
+10. Make it look EXACTLY like a professionally designed Canva quote - premium, polished, print-ready
+11. Width: 210mm, optimised for A4 PDF output
+12. All CSS inline or in a style tag - no external CSS files
+
+{"Include this logo image at top left of header: <img src='" + logo_data + "' style='width:80px;height:80px;object-fit:contain'>" if logo_data else "Generate a professional SVG logo/icon for the trade instead"}
+
+Return ONLY the complete HTML document, nothing else. No explanation, no markdown, just pure HTML starting with <!DOCTYPE html>."""
+
+        response = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=8000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        html = response.content[0].text.strip()
+        if html.startswith("```"):
+            html = html.split("\n", 1)[1]
+            html = html.rsplit("```", 1)[0]
+
+        # Save the generated HTML template
+        existing = supabase.table("quote_templates").select("*").eq("sender", sender).execute()
+        save_data = {
+            "sender": sender,
+            "design_style": "custom_html",
+            "design_template": json.dumps(style),
+            "generated_html": html,
+            "brand_colour": accent,
+            "business_name": biz_name,
+            "business_phone": phone_num,
+            "business_email": email,
+            "business_address": location,
+        }
+        if existing.data:
+            supabase.table("quote_templates").update(save_data).eq("sender", sender).execute()
+        else:
+            supabase.table("quote_templates").insert(save_data).execute()
+
+        return jsonify({"ok": True, "html": html})
+    except Exception as e:
+        print("Generate quote HTML error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/generate-logo", methods=["POST"])
 def generate_logo():
