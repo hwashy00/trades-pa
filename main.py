@@ -963,6 +963,14 @@ def whatsapp():
                 quote_count = supabase.table("quotes").select("id").eq("sender", sender).execute()
                 quote_num = "QU-" + str(len(quote_count.data) + 1).zfill(3)
                 clean_text = reply.split("LOG:")[0].split("QUOTEDATA:")[0].strip()
+                # Look up client number from enquiries by name
+                quote_client_num = ""
+                try:
+                    enq_lookup = supabase.table("enquiries").select("sender").ilike("client_name", parts.get("name", "")).order("created_at", desc=True).limit(1).execute()
+                    if enq_lookup.data:
+                        quote_client_num = enq_lookup.data[0].get("sender", "")
+                except Exception as lookup_err:
+                    print("Quote client number lookup error: " + str(lookup_err))
                 supabase.table("quotes").insert({
                     "sender": sender,
                     "client_name": parts.get("name", ""),
@@ -974,7 +982,8 @@ def whatsapp():
                     "total": quote_total,
                     "status": "sent",
                     "quote_number": quote_num,
-                    "quote_text": clean_text
+                    "quote_text": clean_text,
+                    "client_number": quote_client_num
                 }).execute()
         except Exception as e:
             print("Logging error: " + str(e))
@@ -1018,6 +1027,14 @@ def whatsapp():
             inv_count = supabase.table("invoices").select("id").eq("sender", sender).execute()
             inv_num = "INV-" + str(len(inv_count.data) + 1).zfill(3)
             clean_text = reply.split("INV:")[0].split("INVOICEDATA:")[0].strip()
+            # Look up client number from enquiries by name
+            client_num = ""
+            try:
+                enq = supabase.table("enquiries").select("sender").ilike("client_name", parts.get("name", "")).order("created_at", desc=True).limit(1).execute()
+                if enq.data:
+                    client_num = enq.data[0].get("sender", "")
+            except Exception as lookup_err:
+                print("Client number lookup error: " + str(lookup_err))
             supabase.table("invoices").insert({
                 "sender": sender,
                 "client_name": parts.get("name", ""),
@@ -1030,7 +1047,8 @@ def whatsapp():
                 "status": "unpaid",
                 "invoice_number": inv_num,
                 "invoice_text": clean_text,
-                "due_date": parts.get("due", "")
+                "due_date": parts.get("due", ""),
+                "client_number": client_num
             }).execute()
         except Exception as e:
             print("Invoice logging error: " + str(e))
@@ -1218,12 +1236,14 @@ def api_stats():
         emails = emails_result.data if emails_result.data else []
         invoices_result = supabase.table("invoices").select("*").eq("sender", profile.get("sender", "")).order("created_at", desc=True).execute()
         invoices = invoices_result.data if invoices_result.data else []
+        quotes_result = supabase.table("quotes").select("*").eq("sender", profile.get("sender", "")).order("created_at", desc=True).execute()
+        quotes = quotes_result.data if quotes_result.data else []
         gmail_connected = bool(profile.get("gmail_token"))
         outlook_connected = bool(profile.get("outlook_token"))
         return jsonify({
             "enquiries": len(new_enq), "unpaid": len(quoted), "missed": len(missed),
             "recent": recent, "bookings": bookings, "profile": profile, "template": template,
-            "emails": emails, "invoices": invoices, "gmail_connected": gmail_connected, "outlook_connected": outlook_connected
+            "emails": emails, "invoices": invoices, "quotes": quotes, "gmail_connected": gmail_connected, "outlook_connected": outlook_connected
         })
     except Exception as e:
         print("API stats error: " + str(e))
@@ -1464,6 +1484,76 @@ def incoming_sms():
         resp.message("Thanks for your message. We will get back to you shortly.")
 
     return str(resp)
+
+@app.route("/api/create-quote", methods=["POST"])
+def create_quote():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+        data = request.json
+        quote_count = supabase.table("quotes").select("id").eq("sender", sender).execute()
+        quote_num = "QU-" + str(len(quote_count.data) + 1).zfill(3)
+        quote = {
+            "sender": sender,
+            "client_name": data.get("client_name", ""),
+            "job_description": data.get("job_description", ""),
+            "total": str(data.get("total", "0")),
+            "subtotal": str(data.get("total", "0")),
+            "vat": "0",
+            "line_items": [],
+            "status": "sent",
+            "quote_number": quote_num,
+            "quote_text": "",
+            "client_number": data.get("client_number", ""),
+            "client_address": ""
+        }
+        res = supabase.table("quotes").insert(quote).execute()
+        saved = res.data[0] if res.data else quote
+        return jsonify({"ok": True, "quote": saved})
+    except Exception as e:
+        print("Create quote error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/create-invoice", methods=["POST"])
+def create_invoice():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+        data = request.json
+        inv_count = supabase.table("invoices").select("id").eq("sender", sender).execute()
+        inv_num = "INV-" + str(len(inv_count.data) + 1).zfill(3)
+        invoice = {
+            "sender": sender,
+            "client_name": data.get("client_name", ""),
+            "job_description": data.get("job_description", ""),
+            "total": str(data.get("total", "0")),
+            "subtotal": str(data.get("total", "0")),
+            "vat": "0",
+            "line_items": [],
+            "status": "unpaid",
+            "invoice_number": inv_num,
+            "due_date": data.get("due_date", ""),
+            "client_number": data.get("client_number", ""),
+            "invoice_text": ""
+        }
+        res = supabase.table("invoices").insert(invoice).execute()
+        saved = res.data[0] if res.data else invoice
+        return jsonify({"ok": True, "invoice": saved})
+    except Exception as e:
+        print("Create invoice error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/invoices/<int:invoice_id>/mark-paid", methods=["POST"])
 def mark_invoice_paid(invoice_id):
