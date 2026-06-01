@@ -323,8 +323,8 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
           <div style="font-size:.75rem;font-weight:600;margin-bottom:4px">Have your own template already?</div>
           <div style="font-size:.68rem;color:var(--t3);margin-bottom:10px">Upload a PDF and we'll match your style automatically</div>
           <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;background:var(--s2);border:1px solid var(--br);border-radius:10px;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--t2)">
-            📄 Upload PDF
-            <input type="file" accept="application/pdf" onchange="analyseTemplatePDF(this)" style="display:none">
+            📄 Upload quote template (PDF, Word, JPG, PNG)
+            <input type="file" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/jpg" onchange="analyseTemplatePDF(this)" style="display:none">
           </label>
           <div id="pdfUploadMsg" style="text-align:center;font-size:.68rem;color:var(--t3);margin-top:8px;min-height:16px"></div>
         </div>
@@ -1513,9 +1513,17 @@ async function analyseTemplatePDF(input){
   }
   document.getElementById('pdfUploadMsg').textContent = 'Analysing your template...';
 
+  const fileType = file.type;
+  let mediaType = 'application/pdf';
+  if(fileType.includes('word') || fileType.includes('document')) mediaType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  else if(fileType.includes('jpeg') || fileType.includes('jpg')) mediaType = 'image/jpeg';
+  else if(fileType.includes('png')) mediaType = 'image/png';
+  else mediaType = 'application/pdf';
+
   const reader = new FileReader();
   reader.onload = async function(e){
     const base64 = e.target.result.split(',')[1];
+    const isImage = mediaType.includes('image');
     try{
       const res = await fetch('/api/design-template', {
         method:'POST',
@@ -1534,8 +1542,11 @@ showNote, showCommitment, showLeadTime, showVat (booleans).
 Also include a "detectedStyle" field: "george" for dark/premium, "modern" for bold/coloured, "minimal" for clean/simple.`,
           messages:[{
             role:'user',
-            content:[
-              {type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}},
+            content: isImage ? [
+              {type:'image', source:{type:'base64', media_type:mediaType, data:base64}},
+              {type:'text', text:'Please analyse this quote template image and extract the style, colours, and content structure so I can recreate it in VanOffice.'}
+            ] : [
+              {type:'document', source:{type:'base64', media_type:mediaType, data:base64}},
               {type:'text', text:'Please analyse this quote template and extract the style, colours, and content structure so I can recreate it in VanOffice.'}
             ]
           }]
