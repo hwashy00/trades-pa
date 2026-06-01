@@ -735,7 +735,21 @@ def generate_quote_pdf_styled(quote, profile, tmpl, style):
 </html>"""
 
     buffer = io.BytesIO()
-    HTML(string=html).write_pdf(buffer)
+    try:
+        from weasyprint import HTML
+        HTML(string=html).write_pdf(buffer)
+    except Exception as e:
+        print("WeasyPrint error: " + str(e))
+        # Fallback - return html as pdf via reportlab
+        from reportlab.lib.pagesizes import A4
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        styles = getSampleStyleSheet()
+        story = [Paragraph("Quote for " + quote.get("client_name",""), styles["Title"]),
+                 Spacer(1, 20),
+                 Paragraph("Total: £" + str(total), styles["Normal"])]
+        doc.build(story)
     buffer.seek(0)
     return buffer
 
@@ -1404,6 +1418,17 @@ def outlook_callback():
         "outlook_refresh_token": tokens.get("refresh_token", "")
     }).eq("phone", phone).execute()
     return "<html><body style='background:#0c0c0c;color:#fff;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center'><div><h1 style='color:#5b6cff'>Outlook Connected!</h1><p style='color:#888;margin-top:16px'>You can close this window and go back to your dashboard.</p></div></body></html>"
+
+
+@app.route("/health")
+def health():
+    status = {"status": "ok", "weasyprint": False}
+    try:
+        from weasyprint import HTML
+        status["weasyprint"] = True
+    except Exception as e:
+        status["weasyprint_error"] = str(e)
+    return jsonify(status)
 
 
 @app.route("/dashboard")
