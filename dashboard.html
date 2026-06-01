@@ -668,8 +668,27 @@ function renderInvoices(invoices,filter){
     const ico=isPaid?'background:var(--grn-d)':isOverdue?'background:var(--red-d)':'background:var(--amb-d)';
     const emoji=isPaid?'✅':isOverdue?'⚠️':'💳';
     const dueStr=inv.due_date?new Date(inv.due_date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
-    return`<div class="li"><div class="li-ico" style="${ico}">${emoji}</div><div class="li-body"><div class="li-name">${inv.client_name||'Unknown'}</div><div class="li-detail">${inv.invoice_number||''} · ${inv.job_description||''}${dueStr?' · Due '+dueStr:''}</div></div><div class="li-right"><div class="li-amt">£${inv.total||'0'}</div>${badge}</div></div>`;
+    const paidBtn=!isPaid?`<button onclick="markPaid(${inv.id},event)" style="margin-top:6px;padding:5px 10px;background:var(--grn-d);color:var(--grn);border:none;border-radius:8px;font-size:.6rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">Mark Paid</button>`:'';
+    return`<div class="li"><div class="li-ico" style="${ico}">${emoji}</div><div class="li-body"><div class="li-name">${inv.client_name||'Unknown'}</div><div class="li-detail">${inv.invoice_number||''} · ${inv.job_description||''}${dueStr?' · Due '+dueStr:''}</div></div><div class="li-right"><div class="li-amt">£${inv.total||'0'}</div>${badge}${paidBtn}</div></div>`;
   }).join('');
+}
+
+async function markPaid(invoiceId,e){
+  e.stopPropagation();
+  if(!confirm('Mark this invoice as paid?'))return;
+  try{
+    const res=await fetch('/api/invoices/'+invoiceId+'/mark-paid?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST'});
+    const data=await res.json();
+    if(data.ok){
+      const inv=allInvoices.find(i=>i.id===invoiceId);
+      if(inv)inv.status='paid';
+      renderInvoices(allInvoices,currentInvFilter);
+    }else{
+      alert('Error: '+(data.error||'Could not update invoice'));
+    }
+  }catch(e){
+    alert('Connection error. Try again.');
+  }
 }
 
 function filtInv(el,filter){
