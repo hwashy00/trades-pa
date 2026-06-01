@@ -337,6 +337,15 @@ scheduler.start()
 
 
 def generate_quote_pdf(quote, profile, template):
+    # Check if a custom design template is saved
+    if template and template.get("design_style") and template.get("design_template"):
+        try:
+            design_tmpl = json.loads(template.get("design_template", "{}"))
+            design_style = template.get("design_style", "george")
+            return generate_quote_pdf_styled(quote, profile, design_tmpl, design_style)
+        except Exception as e:
+            print("Styled PDF error, falling back: " + str(e))
+
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
@@ -530,6 +539,273 @@ def generate_quote_pdf(quote, profile, template):
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.Color(0.85, 0.85, 0.85)))
     story.append(Spacer(1, 4*mm))
     story.append(Paragraph("<font size=9 color='grey'>" + footer_text + "</font>", s_center))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+
+def generate_quote_pdf_styled(quote, profile, tmpl, style):
+    """Generate a quote PDF using the tradesperson's custom design template."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
+    import base64
+    from reportlab.lib.utils import ImageReader
+
+    buffer = io.BytesIO()
+    W, H = A4
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=15*mm, leftMargin=15*mm, topMargin=15*mm, bottomMargin=15*mm)
+
+    accent_hex = tmpl.get("accent", "#c9a227")
+    dark_hex = tmpl.get("dark", "#1a1a1a")
+    try:
+        accent = colors.HexColor(accent_hex)
+        dark = colors.HexColor(dark_hex)
+    except:
+        accent = colors.HexColor("#c9a227")
+        dark = colors.HexColor("#1a1a1a")
+
+    white = colors.white
+    light_bg = colors.HexColor("#f9f7f0")
+    note_bg = colors.HexColor("#fffef5")
+
+    styles = getSampleStyleSheet()
+    s = styles["Normal"]
+
+    def sty(size=10, color=colors.black, bold=False, align=TA_LEFT, leading=None):
+        return ParagraphStyle("x", parent=s, fontSize=size,
+            textColor=color, fontName="Helvetica-Bold" if bold else "Helvetica",
+            alignment=align, leading=leading or size*1.4)
+
+    biz_name = tmpl.get("bizName", profile.get("business_name", "Your Business"))
+    trade = tmpl.get("trade", profile.get("trade", ""))
+    phone = tmpl.get("phone", profile.get("phone", ""))
+    email = tmpl.get("email", "")
+    location = tmpl.get("location", "")
+    intro = tmpl.get("intro", "Thank you for the opportunity to provide this quotation.")
+    scope_items = tmpl.get("scopeItems", [])
+    inclusion_items = tmpl.get("inclusionItems", [])
+    note_text = tmpl.get("note", "")
+    commitment = tmpl.get("commitment", "")
+    lead_time = tmpl.get("leadTime", "")
+    payment_terms = tmpl.get("paymentTerms", "")
+    show_note = tmpl.get("showNote", True)
+    show_commitment = tmpl.get("showCommitment", True)
+    show_lead_time = tmpl.get("showLeadTime", True)
+    show_vat = tmpl.get("showVat", False)
+
+    client_name = quote.get("client_name", "")
+    client_address = quote.get("client_address", "")
+    total = quote.get("total", "0")
+    today_str = datetime.date.today().strftime("%d %B %Y")
+    quote_num = quote.get("quote_number", "QU-001")
+
+    story = []
+    col_w = (W - 30*mm) * 0.58
+    right_w = (W - 30*mm) - col_w
+
+    # HEADER — two columns, dark background
+    logo_data = profile.get("logo", "")
+    logo_img = None
+    if logo_data and logo_data.startswith("data:image"):
+        try:
+            img_bytes = base64.b64decode(logo_data.split(",", 1)[1])
+            logo_img = ImageReader(io.BytesIO(img_bytes))
+        except:
+            pass
+
+    from reportlab.platypus import Image
+    if logo_img:
+        logo_el = Image(logo_img, width=18*mm, height=18*mm)
+        left_header_content = [logo_el, Spacer(1, 2*mm),
+            Paragraph(biz_name.upper(), sty(14, accent, True)),
+            Paragraph(trade.upper(), sty(7, colors.HexColor("#c9a227"), False))]
+    else:
+        left_header_content = [
+            Paragraph(biz_name.upper(), sty(16, accent, True)),
+            Spacer(1, 2*mm),
+            Paragraph(trade.upper(), sty(7, colors.HexColor("#c9a227"), False))]
+
+    right_header_content = [
+        Paragraph("QUOTATION", sty(22, accent, True, TA_RIGHT)),
+        Spacer(1, 4*mm)]
+    if phone:
+        right_header_content.append(Paragraph("📞  " + phone, sty(9, colors.HexColor("#d0d0d0"), False, TA_RIGHT)))
+        right_header_content.append(Spacer(1, 2*mm))
+    if email:
+        right_header_content.append(Paragraph("✉  " + email, sty(9, colors.HexColor("#d0d0d0"), False, TA_RIGHT)))
+        right_header_content.append(Spacer(1, 2*mm))
+    if location:
+        right_header_content.append(Paragraph("📍  " + location, sty(9, colors.HexColor("#d0d0d0"), False, TA_RIGHT)))
+
+    from reportlab.platypus import Frame, PageTemplate
+    from reportlab.platypus import BalancedColumns
+
+    header_left = Table([[el] for el in left_header_content], colWidths=[col_w])
+    header_left.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), dark),
+        ("LEFTPADDING", (0,0), (-1,-1), 14),
+        ("RIGHTPADDING", (0,0), (-1,-1), 8),
+        ("TOPPADDING", (0,0), (0,0), 14),
+        ("BOTTOMPADDING", (0,-1), (-1,-1), 14),
+        ("LINEAFTER", (0,0), (0,-1), 1.5, accent),
+    ]))
+
+    header_right = Table([[el] for el in right_header_content], colWidths=[right_w])
+    header_right.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), dark),
+        ("LEFTPADDING", (0,0), (-1,-1), 12),
+        ("RIGHTPADDING", (0,0), (-1,-1), 14),
+        ("TOPPADDING", (0,0), (0,0), 14),
+        ("BOTTOMPADDING", (0,-1), (-1,-1), 14),
+    ]))
+
+    header = Table([[header_left, header_right]], colWidths=[col_w, right_w])
+    header.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ("LEFTPADDING", (0,0), (-1,-1), 0),
+        ("RIGHTPADDING", (0,0), (-1,-1), 0),
+        ("TOPPADDING", (0,0), (-1,-1), 0),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 0),
+    ]))
+    story.append(header)
+    story.append(Spacer(1, 6*mm))
+
+    # DATE / CLIENT
+    story.append(Paragraph("<b><font color='#b8960c'>DATE:</font></b>  " + today_str, sty(10)))
+    story.append(Spacer(1, 2*mm))
+    story.append(Paragraph("<b><font color='#b8960c'>CLIENT:</font></b>  " + client_name + (", " + client_address if client_address else ""), sty(10)))
+    story.append(Spacer(1, 4*mm))
+    story.append(Paragraph(intro, sty(10, colors.HexColor("#444"))))
+    story.append(Spacer(1, 6*mm))
+
+    # BODY — scope left, price right
+    scope_content = []
+    scope_content.append(Paragraph("SCOPE OF WORKS", sty(13, dark, True)))
+    scope_content.append(Spacer(1, 4*mm))
+    for item in scope_items:
+        scope_content.append(Paragraph("✓   " + item, sty(10, colors.HexColor("#333"))))
+        scope_content.append(Spacer(1, 3*mm))
+
+    if show_note and note_text:
+        scope_content.append(Spacer(1, 4*mm))
+        note_inner = Table([[
+            Paragraph("⚠", sty(14, accent, True)),
+            Table([[
+                Paragraph("PLEASE NOTE", sty(8, accent, True)),
+                Paragraph(note_text, sty(9, colors.HexColor("#555")))
+            ]], colWidths=[right_w - 20*mm])
+        ]], colWidths=[8*mm, right_w - 20*mm])
+        note_box = Table([[note_inner]], colWidths=[col_w - 4*mm])
+        note_box.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,-1), note_bg),
+            ("BOX", (0,0), (-1,-1), 1, accent),
+            ("LEFTPADDING", (0,0), (-1,-1), 8),
+            ("RIGHTPADDING", (0,0), (-1,-1), 8),
+            ("TOPPADDING", (0,0), (-1,-1), 8),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+        ]))
+        scope_content.append(note_box)
+
+    # Price box right column
+    price_content = []
+    price_content.append(Spacer(1, 4*mm))
+    price_content.append(Paragraph("£", sty(28, accent, True, TA_CENTER)))
+    price_content.append(Spacer(1, 2*mm))
+    price_content.append(Paragraph("TOTAL PRICE", sty(9, accent, True, TA_CENTER)))
+    price_content.append(Spacer(1, 3*mm))
+    price_content.append(Paragraph("£" + str(total), sty(22, dark, True, TA_CENTER)))
+    if show_vat:
+        price_content.append(Spacer(1, 2*mm))
+        price_content.append(Paragraph("+ VAT", sty(10, accent, True, TA_CENTER)))
+    price_content.append(Spacer(1, 6*mm))
+    price_content.append(HRFlowable(width="100%", thickness=1, color=accent))
+    price_content.append(Spacer(1, 6*mm))
+    price_content.append(Paragraph("INCLUSIONS", sty(9, accent, True, TA_CENTER)))
+    price_content.append(Spacer(1, 4*mm))
+    for item in inclusion_items:
+        price_content.append(Paragraph("✓  " + item, sty(10, dark)))
+        price_content.append(Spacer(1, 3*mm))
+
+    scope_table = Table([[el] for el in scope_content], colWidths=[col_w])
+    price_table = Table([[el] for el in price_content], colWidths=[right_w])
+    price_table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), light_bg),
+        ("LEFTPADDING", (0,0), (-1,-1), 10),
+        ("RIGHTPADDING", (0,0), (-1,-1), 10),
+        ("TOPPADDING", (0,0), (-1,-1), 2),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+    ]))
+
+    body = Table([[scope_table, price_table]], colWidths=[col_w, right_w])
+    body.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ("LEFTPADDING", (0,0), (-1,-1), 0),
+        ("RIGHTPADDING", (0,0), (-1,-1), 0),
+        ("TOPPADDING", (0,0), (-1,-1), 0),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 0),
+        ("LINEBEFORE", (1,0), (1,-1), 1, colors.HexColor("#e8dfc8")),
+    ]))
+    story.append(body)
+    story.append(Spacer(1, 6*mm))
+
+    # COMMITMENT + LEAD TIME footer
+    if show_commitment or show_lead_time:
+        footer_cells = []
+        if show_commitment:
+            footer_cells.append(Table([[
+                Paragraph("✓", sty(16, accent, True)),
+                Table([[
+                    Paragraph("OUR COMMITMENT", sty(8, accent, True)),
+                    Paragraph(commitment, sty(9, colors.HexColor("#aaa")))
+                ]], colWidths=[col_w - 20*mm])
+            ]], colWidths=[8*mm, col_w - 20*mm]))
+        if show_lead_time:
+            footer_cells.append(Table([[
+                Paragraph("📅", sty(14)),
+                Table([[
+                    Paragraph("LEAD TIME", sty(8, accent, True)),
+                    Paragraph(lead_time, sty(9, colors.HexColor("#aaa")))
+                ]], colWidths=[right_w - 20*mm])
+            ]], colWidths=[8*mm, right_w - 20*mm]))
+
+        if len(footer_cells) == 2:
+            footer_row = Table([footer_cells], colWidths=[col_w, right_w])
+        else:
+            footer_row = Table([footer_cells], colWidths=[W - 30*mm])
+
+        footer_row.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,-1), dark),
+            ("LEFTPADDING", (0,0), (-1,-1), 12),
+            ("RIGHTPADDING", (0,0), (-1,-1), 12),
+            ("TOPPADDING", (0,0), (-1,-1), 10),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 10),
+            ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ]))
+        story.append(footer_row)
+
+    # THANK YOU bar
+    ty = Table([[
+        Paragraph("THANK YOU", sty(13, accent, True)),
+        Paragraph(biz_name, sty(11, accent, False, TA_RIGHT))
+    ]], colWidths=[col_w, right_w])
+    ty.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), dark),
+        ("LEFTPADDING", (0,0), (-1,-1), 14),
+        ("RIGHTPADDING", (0,0), (-1,-1), 14),
+        ("TOPPADDING", (0,0), (-1,-1), 8),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+        ("LINEABOVE", (0,0), (-1,-1), 1, accent),
+    ]))
+    story.append(ty)
+
+    if payment_terms:
+        story.append(Spacer(1, 4*mm))
+        story.append(Paragraph("<font size=8 color='grey'>Payment terms: " + payment_terms + "</font>", sty(8, colors.HexColor("#888"), False, TA_CENTER)))
 
     doc.build(story)
     buffer.seek(0)
@@ -1484,6 +1760,58 @@ def incoming_sms():
         resp.message("Thanks for your message. We will get back to you shortly.")
 
     return str(resp)
+
+@app.route("/api/design-template", methods=["POST"])
+def design_template():
+    try:
+        data = request.json
+        response = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=800,
+            system=data.get("system", ""),
+            messages=data.get("messages", [])
+        )
+        return jsonify({"content": [{"text": response.content[0].text}]})
+    except Exception as e:
+        print("Design template error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/save-design-template", methods=["POST"])
+def save_design_template():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+        data = request.json
+        style = data.get("style", "george")
+        template_data = data.get("template", {})
+        existing = supabase.table("quote_templates").select("*").eq("sender", sender).execute()
+        save_data = {
+            "sender": sender,
+            "design_style": style,
+            "design_template": json.dumps(template_data),
+            "brand_colour": template_data.get("accent", "#1a1a2e"),
+            "business_name": template_data.get("bizName", ""),
+            "business_phone": template_data.get("phone", ""),
+            "business_email": template_data.get("email", ""),
+            "business_address": template_data.get("location", ""),
+            "footer_text": template_data.get("commitment", ""),
+            "terms": template_data.get("paymentTerms", ""),
+        }
+        if existing.data:
+            supabase.table("quote_templates").update(save_data).eq("sender", sender).execute()
+        else:
+            supabase.table("quote_templates").insert(save_data).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        print("Save design template error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/create-quote", methods=["POST"])
 def create_quote():
