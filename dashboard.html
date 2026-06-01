@@ -412,6 +412,41 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
 
   </div>
 
+  <!-- CREATE INVOICE MODAL -->
+  <div id="invoiceModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeInvoiceModal()"></div>
+  <div id="invoiceModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-size:1rem;font-weight:800">Create Invoice</div>
+      <button onclick="closeInvoiceModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div><div class="lbl">Client</div><input class="inp" id="inv-client" placeholder="Client name" style="margin-bottom:0"></div>
+      <div><div class="lbl">Job description</div><input class="inp" id="inv-job" placeholder="e.g. Bathroom fitting" style="margin-bottom:0"></div>
+      <div><div class="lbl">Total (£)</div><input class="inp" id="inv-total" type="number" placeholder="0.00" style="margin-bottom:0"></div>
+      <div><div class="lbl">Due date</div><input class="inp" id="inv-due" type="date" style="margin-bottom:0"></div>
+      <input type="hidden" id="inv-client-number">
+      <div id="invModalErr" style="color:var(--red);font-size:.75rem;min-height:18px"></div>
+      <button onclick="submitInvoiceModal()" style="width:100%;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:Inter,sans-serif;font-size:.9rem;font-weight:700;color:#fff;cursor:pointer" id="invModalBtn">Create Invoice</button>
+    </div>
+  </div>
+
+  <!-- CREATE QUOTE MODAL -->
+  <div id="quoteModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeQuoteModal()"></div>
+  <div id="quoteModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-size:1rem;font-weight:800">Create Quote</div>
+      <button onclick="closeQuoteModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div><div class="lbl">Client</div><input class="inp" id="qu-client" placeholder="Client name" style="margin-bottom:0"></div>
+      <div><div class="lbl">Job description</div><input class="inp" id="qu-job" placeholder="e.g. Bathroom fitting" style="margin-bottom:0"></div>
+      <div><div class="lbl">Total (£)</div><input class="inp" id="qu-total" type="number" placeholder="0.00" style="margin-bottom:0"></div>
+      <input type="hidden" id="qu-client-number">
+      <div id="quModalErr" style="color:var(--red);font-size:.75rem;min-height:18px"></div>
+      <button onclick="submitQuoteModal()" style="width:100%;padding:15px;background:var(--amb);border:none;border-radius:14px;font-family:Inter,sans-serif;font-size:.9rem;font-weight:700;color:#fff;cursor:pointer" id="quModalBtn">Create Quote</button>
+    </div>
+  </div>
+
   <!-- CHAT -->
   <div id="chatOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200" onclick="toggleChat()"></div>
   <div id="chatWindow" style="display:none;position:fixed;bottom:80px;right:12px;left:12px;max-width:370px;height:65vh;background:var(--bg);border:1px solid var(--br);border-radius:20px;z-index:201;display:none;flex-direction:column;overflow:hidden">
@@ -544,6 +579,8 @@ function showApp(data){
   renderBookings(allBookings);
   allInvoices=data.invoices||[];
   renderInvoices(allInvoices,'all');
+  allQuotes=data.quotes||[];
+  renderQuotesList(allQuotes);
   if(data.profile)renderProfile(data.profile);
   if(data.template)loadTemplate(data.template);
   const n=data.profile&&data.profile.owner_name?data.profile.owner_name[0].toUpperCase():'H';
@@ -628,15 +665,28 @@ function renderJobs(items,filter){
   if(!f||!f.length){el.innerHTML='<div class="empty-state">No jobs found.</div>';return}
   el.innerHTML=f.map(item=>{
     const ico=statusIcon(item.status);
-    return`<div class="li"><div class="li-ico" style="${ico.style}">${ico.emoji}</div><div class="li-body"><div class="li-name">${item.client_name||'Unknown'}</div><div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div></div><div class="li-right">${statusBadge(item.status)}</div></div>`;
+    const invBtn=`<button onclick="openInvoiceModal('${(item.client_name||'').replace(/'/g,"\\'")}','${(item.job_type||'').replace(/'/g,"\\'")}','${(item.sender||'').replace(/'/g,"\\'")}',event)" style="margin-top:6px;padding:5px 10px;background:var(--acc-d);color:var(--acc2);border:none;border-radius:8px;font-size:.6rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">+ Invoice</button>`;
+    const quoteBtn=`<button onclick="openQuoteModal('${(item.client_name||'').replace(/'/g,"\\'")}','${(item.job_type||'').replace(/'/g,"\\'")}','${(item.sender||'').replace(/'/g,"\\'")}',event)" style="margin-top:6px;margin-left:4px;padding:5px 10px;background:var(--amb-d);color:var(--amb);border:none;border-radius:8px;font-size:.6rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">+ Quote</button>`;
+    return`<div class="li"><div class="li-ico" style="${ico.style}">${ico.emoji}</div><div class="li-body"><div class="li-name">${item.client_name||'Unknown'}</div><div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div></div><div class="li-right">${statusBadge(item.status)}${quoteBtn}${invBtn}</div></div>`;
   }).join('');
 }
+
+let allQuotes=[];
 
 function renderQuotes(items){
   const el=document.getElementById('quotesList');
   const q=items.filter(i=>i.status==='quoted');
   if(!q||!q.length){el.innerHTML='<div class="empty-state">No quotes yet.<br>Generate quotes via WhatsApp.</div>';return}
   el.innerHTML=q.map(item=>`<div class="li"><div class="li-ico" style="background:var(--amb-d)">📋</div><div class="li-body"><div class="li-name">${item.client_name||'Unknown'}</div><div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div></div><div class="li-right"><span class="bdg b-amb">Quoted</span></div></div>`).join('');
+}
+
+function renderQuotesList(quotes){
+  const el=document.getElementById('quotesList');
+  if(!quotes||!quotes.length){el.innerHTML='<div class="empty-state">No quotes yet.<br>Generate quotes via WhatsApp or tap + Quote on a job.</div>';return}
+  el.innerHTML=quotes.map(q=>{
+    const total=q.total?'£'+q.total:'';
+    return`<div class="li"><div class="li-ico" style="background:var(--amb-d)">📋</div><div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.quote_number||''} · ${q.job_description||''}</div></div><div class="li-right"><div class="li-amt">${total}</div><span class="bdg b-amb">Sent</span></div></div>`;
+  }).join('');
 }
 
 function renderBookings(bookings){
@@ -884,7 +934,7 @@ function go(name){
   if(nb)nb.classList.add('on');
   document.getElementById('content').scrollTop=0;
   if(name==='jobs')renderJobs(allEnquiries,currentFilter);
-  if(name==='quotes')renderQuotes(allEnquiries);
+  if(name==='quotes')renderQuotesList(allQuotes);
   if(name==='invoices')renderInvoices(allInvoices,currentInvFilter);
   if(name==='calendar'){renderBookings(allBookings);renderCal()}
 }
@@ -893,6 +943,100 @@ function filt(el,filter){
   el.closest('.filters').querySelectorAll('.fp').forEach(f=>f.classList.remove('on'));
   el.classList.add('on');currentFilter=filter;
   renderJobs(allEnquiries,filter);
+}
+
+function openQuoteModal(clientName, jobType, clientNumber, e){
+  if(e)e.stopPropagation();
+  document.getElementById('qu-client').value=clientName||'';
+  document.getElementById('qu-job').value=jobType||'';
+  document.getElementById('qu-total').value='';
+  document.getElementById('qu-client-number').value=clientNumber||'';
+  document.getElementById('quModalErr').textContent='';
+  document.getElementById('quoteModalOverlay').style.display='block';
+  document.getElementById('quoteModal').style.display='block';
+}
+
+function closeQuoteModal(){
+  document.getElementById('quoteModalOverlay').style.display='none';
+  document.getElementById('quoteModal').style.display='none';
+}
+
+async function submitQuoteModal(){
+  const btn=document.getElementById('quModalBtn');
+  const client=document.getElementById('qu-client').value.trim();
+  const job=document.getElementById('qu-job').value.trim();
+  const total=document.getElementById('qu-total').value.trim();
+  const clientNumber=document.getElementById('qu-client-number').value.trim();
+  if(!client||!job||!total){document.getElementById('quModalErr').textContent='Please fill in all fields';return}
+  btn.textContent='Creating...';btn.disabled=true;
+  try{
+    const res=await fetch('/api/create-quote?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({client_name:client,job_description:job,total:total,client_number:clientNumber})
+    });
+    const data=await res.json();
+    if(data.ok){
+      allQuotes.unshift(data.quote);
+      closeQuoteModal();
+      go('quotes');
+    }else{
+      document.getElementById('quModalErr').textContent=data.error||'Error creating quote';
+    }
+  }catch(e){
+    document.getElementById('quModalErr').textContent='Connection error. Try again.';
+  }finally{
+    btn.textContent='Create Quote';btn.disabled=false;
+  }
+}
+
+function openInvoiceModal(clientName, jobType, clientNumber, e){
+  if(e)e.stopPropagation();
+  document.getElementById('inv-client').value=clientName||'';
+  document.getElementById('inv-job').value=jobType||'';
+  document.getElementById('inv-total').value='';
+  document.getElementById('inv-client-number').value=clientNumber||'';
+  // Default due date 30 days from now
+  const due=new Date();due.setDate(due.getDate()+30);
+  document.getElementById('inv-due').value=due.toISOString().split('T')[0];
+  document.getElementById('invModalErr').textContent='';
+  document.getElementById('invoiceModalOverlay').style.display='block';
+  document.getElementById('invoiceModal').style.display='block';
+}
+
+function closeInvoiceModal(){
+  document.getElementById('invoiceModalOverlay').style.display='none';
+  document.getElementById('invoiceModal').style.display='none';
+}
+
+async function submitInvoiceModal(){
+  const btn=document.getElementById('invModalBtn');
+  const client=document.getElementById('inv-client').value.trim();
+  const job=document.getElementById('inv-job').value.trim();
+  const total=document.getElementById('inv-total').value.trim();
+  const due=document.getElementById('inv-due').value.trim();
+  const clientNumber=document.getElementById('inv-client-number').value.trim();
+  if(!client||!job||!total){document.getElementById('invModalErr').textContent='Please fill in all fields';return}
+  btn.textContent='Creating...';btn.disabled=true;
+  try{
+    const res=await fetch('/api/create-invoice?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({client_name:client,job_description:job,total:total,due_date:due,client_number:clientNumber})
+    });
+    const data=await res.json();
+    if(data.ok){
+      allInvoices.unshift(data.invoice);
+      closeInvoiceModal();
+      go('invoices');
+    }else{
+      document.getElementById('invModalErr').textContent=data.error||'Error creating invoice';
+    }
+  }catch(e){
+    document.getElementById('invModalErr').textContent='Connection error. Try again.';
+  }finally{
+    btn.textContent='Create Invoice';btn.disabled=false;
+  }
 }
 
 function chM(d){
