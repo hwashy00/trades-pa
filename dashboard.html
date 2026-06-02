@@ -309,60 +309,7 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
         </div>
 
         <div id="qgQuoteWrap" style="display:none">
-          <div id="qgQuoteDoc" style="background:#fff;border-radius:14px;overflow:hidden;font-family:Arial,sans-serif;font-size:12px;color:#1a1a1a;border:1px solid #ddd">
-            <div style="background:#1a1a1a;padding:16px 20px;display:flex;justify-content:space-between;align-items:center">
-              <div>
-                <div style="font-size:20px;font-weight:900;letter-spacing:1px;color:#C9A84C">GW</div>
-                <div style="font-size:8px;letter-spacing:3px;color:#C9A84C;opacity:.85">PLASTERING & RENDERING</div>
-              </div>
-              <div style="text-align:right">
-                <div style="font-size:20px;font-weight:900;letter-spacing:3px;color:#C9A84C">QUOTATION</div>
-                <div style="color:#ccc;font-size:10px;margin-top:6px;line-height:1.9">
-                  <div>📞 0757 355 420</div>
-                  <div>✉ george.washbourn5@gmail.com</div>
-                  <div>📍 Covering the whole of Devon</div>
-                </div>
-              </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 160px">
-              <div style="padding:16px 20px;border-right:1px solid #eee">
-                <div style="font-size:11px;margin-bottom:3px"><span style="color:#C9A84C;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Date: </span><span id="qgDate"></span></div>
-                <div style="font-size:11px;margin-bottom:14px"><span style="color:#C9A84C;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Client: </span><span id="qgClient"></span></div>
-                <div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;border-bottom:2px solid #C9A84C;padding-bottom:6px">📋 Scope of Works</div>
-                <div id="qgScope"></div>
-                <div id="qgNoteBox" style="display:none;background:#fff8ed;border:1px solid #f0c060;border-radius:6px;padding:10px 12px;margin-top:12px">
-                  <div style="font-size:9px;font-weight:800;color:#C9A84C;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Please Note</div>
-                  <div id="qgNoteText" style="font-size:10px;color:#555;line-height:1.6"></div>
-                </div>
-              </div>
-              <div style="background:#1a1a1a;padding:16px 14px">
-                <div style="text-align:center;color:#C9A84C;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #333">
-                  <div style="width:40px;height:40px;border-radius:50%;border:2px solid #C9A84C;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:16px;font-weight:900;color:#C9A84C">£</div>
-                  <div style="font-size:9px;letter-spacing:2px;margin-bottom:4px">TOTAL PRICE</div>
-                  <div id="qgPrice" style="font-size:22px;font-weight:900;line-height:1"></div>
-                  <div style="font-size:10px;opacity:.8;margin-top:3px">+ VAT</div>
-                </div>
-                <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:#C9A84C;text-transform:uppercase;margin-bottom:10px">Inclusions</div>
-                <div style="font-size:10px;color:#ccc;line-height:2">
-                  <div>🔧 All labour</div>
-                  <div>📦 All materials</div>
-                  <div>🛡 Standard prep</div>
-                  <div>🧹 Site clean-down</div>
-                </div>
-                <div style="margin-top:14px;border-top:1px solid #333;padding-top:10px">
-                  <div style="font-size:9px;font-weight:700;letter-spacing:1px;color:#C9A84C;text-transform:uppercase;margin-bottom:5px">Lead Time</div>
-                  <div id="qgLead" style="font-size:9px;color:#aaa;line-height:1.6"></div>
-                </div>
-              </div>
-            </div>
-            <div style="background:#1a1a1a;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #b8960c">
-              <div>
-                <div style="font-size:12px;font-weight:900;color:#C9A84C;text-transform:uppercase;letter-spacing:2px">Thank You</div>
-                <div style="font-size:9px;color:#555;margin-top:1px">We look forward to working with you.</div>
-              </div>
-              <div style="font-size:14px;font-weight:700;color:#C9A84C;font-style:italic">GW Plastering & Rendering</div>
-            </div>
-          </div>
+          <div id="qgQuoteDoc" style="background:#fff;border-radius:14px;overflow:hidden;font-family:Arial,sans-serif;font-size:12px;color:#1a1a1a;border:1px solid #ddd"></div>
           <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
             <button onclick="window.print()" style="padding:10px 16px;background:var(--s2);border:1px solid var(--br);border-radius:10px;font-family:Inter,sans-serif;font-size:.78rem;font-weight:600;color:var(--t1);cursor:pointer">🖨 Print / Save PDF</button>
           </div>
@@ -1843,19 +1790,91 @@ function qgAddMsg(role, text){
   d.style.cssText = 'display:flex;gap:8px;align-items:flex-start';
   const isAi = role === 'ai';
   const avatar = isAi
-    ? `<div style="width:28px;height:28px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#fff;flex-shrink:0">GW</div>`
+    ? `<div style="width:28px;height:28px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#fff;flex-shrink:0">AI</div>`
     : `<div style="width:28px;height:28px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:var(--t2);flex-shrink:0">You</div>`;
   const bubble = isAi
     ? `<div style="background:var(--s2);border-radius:4px 12px 12px 12px;padding:9px 12px;font-size:.75rem;color:var(--t2);line-height:1.5;max-width:90%">${text}</div>`
     : `<div style="background:var(--acc-d);border-radius:12px 4px 12px 12px;padding:9px 12px;font-size:.75rem;color:var(--acc2);line-height:1.5;max-width:90%;align-self:flex-end;margin-left:auto">${text}</div>`;
-  if(isAi){
-    d.innerHTML = avatar + bubble;
-  } else {
-    d.style.justifyContent = 'flex-end';
-    d.innerHTML = bubble + avatar;
-  }
+  if(isAi){ d.innerHTML = avatar + bubble; }
+  else { d.style.justifyContent = 'flex-end'; d.innerHTML = bubble + avatar; }
   area.appendChild(d);
   area.scrollTop = area.scrollHeight;
+}
+
+function qgRenderQuote(q){
+  const p = q.profile || {};
+  const acc = p.accent || '#1a1a2e';
+  const dark = p.dark || '#1a1a1a';
+  const today = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  const price = '£' + Number(q.totalPrice).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const logoHtml = p.logoUrl ? `<img src="${p.logoUrl}" style="width:52px;height:52px;object-fit:contain;margin-bottom:6px;display:block">` : '';
+  const bizInitials = (p.bizName||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,3);
+
+  const scopeHtml = (q.scopeItems||[]).map(i=>
+    `<div style="display:flex;gap:8px;margin-bottom:8px;font-size:11px;color:#333;line-height:1.5"><span style="color:${acc};flex-shrink:0">✓</span>${i}</div>`
+  ).join('');
+
+  const inclHtml = (p.inclusionItems||['All labour','All materials','Standard preparation','Site clean-down']).map(i=>
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:11px;color:#ccc"><span style="color:${acc}">✓</span>${i}</div>`
+  ).join('');
+
+  const noteHtml = q.note ? `
+    <div style="background:#fff8ed;border:1px solid #f0c060;border-radius:6px;padding:10px 12px;margin-top:12px">
+      <div style="font-size:9px;font-weight:800;color:${acc};text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Please Note</div>
+      <div style="font-size:10px;color:#555;line-height:1.6">${q.note}</div>
+    </div>` : '';
+
+  const vatHtml = p.showVat ? `<div style="font-size:10px;opacity:.8;margin-top:3px">+ VAT</div>` : '';
+
+  document.getElementById('qgQuoteDoc').innerHTML = `
+    <div style="background:${dark};padding:16px 20px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        ${logoHtml}
+        <div style="font-size:18px;font-weight:900;letter-spacing:1px;color:${acc}">${p.bizName||bizInitials}</div>
+        <div style="font-size:8px;letter-spacing:3px;color:${acc};opacity:.85;text-transform:uppercase">${p.trade||''}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:20px;font-weight:900;letter-spacing:3px;color:${acc}">QUOTATION</div>
+        <div style="color:#ccc;font-size:10px;margin-top:6px;line-height:1.9">
+          ${p.phone?`<div>📞 ${p.phone}</div>`:''}
+          ${p.email?`<div>✉ ${p.email}</div>`:''}
+          ${p.location?`<div>📍 ${p.location}</div>`:''}
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 160px">
+      <div style="padding:16px 20px;border-right:1px solid #eee">
+        <div style="font-size:11px;margin-bottom:3px"><span style="color:${acc};font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Date: </span>${today}</div>
+        <div style="font-size:11px;margin-bottom:14px"><span style="color:${acc};font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Client: </span>${q.clientName||'Customer'}</div>
+        <div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;border-bottom:2px solid ${acc};padding-bottom:6px">📋 Scope of Works</div>
+        ${scopeHtml}
+        ${noteHtml}
+      </div>
+      <div style="background:${dark};padding:16px 14px">
+        <div style="text-align:center;color:${acc};margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #333">
+          <div style="width:40px;height:40px;border-radius:50%;border:2px solid ${acc};display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:16px;font-weight:900;color:${acc}">£</div>
+          <div style="font-size:9px;letter-spacing:2px;margin-bottom:4px">TOTAL PRICE</div>
+          <div style="font-size:22px;font-weight:900;line-height:1;color:${acc}">${price}</div>
+          ${vatHtml}
+        </div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:${acc};text-transform:uppercase;margin-bottom:10px">Inclusions</div>
+        ${inclHtml}
+        <div style="margin-top:14px;border-top:1px solid #333;padding-top:10px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1px;color:${acc};text-transform:uppercase;margin-bottom:5px">Lead Time</div>
+          <div style="font-size:9px;color:#aaa;line-height:1.6">${p.leadTime||'3-5 working days'}</div>
+        </div>
+      </div>
+    </div>
+    <div style="background:${dark};padding:12px 20px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid ${acc}44">
+      <div>
+        <div style="font-size:12px;font-weight:900;color:${acc};text-transform:uppercase;letter-spacing:2px">Thank You</div>
+        <div style="font-size:9px;color:#555;margin-top:1px">We look forward to working with you.</div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:${acc};font-style:italic">${p.bizName||''}</div>
+    </div>`;
+
+  document.getElementById('qgQuoteWrap').style.display = 'block';
+  document.getElementById('qgQuoteWrap').scrollIntoView({behavior:'smooth'});
 }
 
 async function qgSend(){
@@ -1871,11 +1890,11 @@ async function qgSend(){
   const typingEl = document.createElement('div');
   typingEl.id = 'qgTyping';
   typingEl.style.cssText = 'display:flex;gap:8px;align-items:flex-start';
-  typingEl.innerHTML = `<div style="width:28px;height:28px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#fff;flex-shrink:0">GW</div><div style="background:var(--s2);border-radius:4px 12px 12px 12px;padding:9px 14px;font-size:.75rem;color:var(--t3)">Generating quote...</div>`;
+  typingEl.innerHTML = `<div style="width:28px;height:28px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#fff;flex-shrink:0">AI</div><div style="background:var(--s2);border-radius:4px 12px 12px 12px;padding:9px 14px;font-size:.75rem;color:var(--t3)">Generating your quote...</div>`;
   document.getElementById('qgChatArea').appendChild(typingEl);
 
   try{
-    const res = await fetch('/api/generate-quote-ai', {
+    const res = await fetch('/api/generate-quote-ai?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin), {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({job_description: val})
@@ -1884,32 +1903,11 @@ async function qgSend(){
     const typing = document.getElementById('qgTyping');
     if(typing) typing.remove();
 
-    if(q.error){ qgAddMsg('ai', 'Sorry, something went wrong. Please try again.'); return; }
-
-    qgAddMsg('ai', q.summary || 'Quote generated! See below.');
-
-    const today = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-    document.getElementById('qgDate').textContent = today;
-    document.getElementById('qgClient').textContent = q.clientName || 'Customer';
-    document.getElementById('qgPrice').textContent = '£' + Number(q.totalPrice).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
-    document.getElementById('qgLead').textContent = `Works to be arranged at a convenient time. Typical duration: ${q.leadTimeDays||'3-5'} working days.`;
-
-    const scopeEl = document.getElementById('qgScope');
-    scopeEl.innerHTML = '';
-    (q.scopeItems||[]).forEach(item=>{
-      scopeEl.innerHTML += `<div style="display:flex;gap:8px;margin-bottom:8px;font-size:11px;color:#333;line-height:1.5"><span style="color:#C9A84C;flex-shrink:0">✓</span>${item}</div>`;
-    });
-
-    if(q.note){
-      document.getElementById('qgNoteText').textContent = q.note;
-      document.getElementById('qgNoteBox').style.display = 'block';
-    } else {
-      document.getElementById('qgNoteBox').style.display = 'none';
+    if(q.error){ qgAddMsg('ai', 'Sorry, something went wrong. Please try again.'); }
+    else {
+      qgAddMsg('ai', q.summary || 'Quote generated! See below.');
+      qgRenderQuote(q);
     }
-
-    document.getElementById('qgQuoteWrap').style.display = 'block';
-    document.getElementById('qgQuoteWrap').scrollIntoView({behavior:'smooth'});
-
   }catch(e){
     const typing = document.getElementById('qgTyping');
     if(typing) typing.remove();
