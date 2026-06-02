@@ -368,7 +368,10 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
           <div id="pdfUploadMsg" style="text-align:center;font-size:.68rem;color:var(--t3);margin-top:8px;min-height:16px"></div>
         </div>
 
-        <div style="font-size:.72rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Or pick a template</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-size:.72rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Or pick a template</div>
+          <div style="font-size:.65rem;color:var(--t3)">Tap to preview instantly</div>
+        </div>
 
         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
 
@@ -434,7 +437,7 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
           </div>
         </div>
 
-        <button onclick="generateAndPreview()" style="width:100%;padding:14px;background:var(--acc);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.88rem;font-weight:700;color:#fff;cursor:pointer;margin-bottom:6px" id="genPreviewBtn">👁 Preview my quote</button>
+        <button onclick="generateAndPreview()" style="width:100%;padding:14px;background:var(--acc);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.88rem;font-weight:700;color:#fff;cursor:pointer;margin-bottom:6px" id="genPreviewBtn">👁 Preview quote</button>
         <div id="saveDesignMsg" style="text-align:center;font-size:.72rem;color:var(--grn);margin-top:4px;min-height:18px"></div>
 
       </div>
@@ -1361,6 +1364,7 @@ function pickDesignStyle(s){
   const darks = {gold:'#1a1a1a',navy:'#0f2b5b',slate:'#3d3d3d',green:'#1e4d2b',mono:'#ffffff'};
   if(accents[s]) designerTemplate.accent = accents[s];
   if(darks[s]) designerTemplate.dark = darks[s];
+  if(document.getElementById('previewModal').style.display === 'flex') generateAndPreview();
 }
 let designerTemplate = {
   bizName:'Your Business', trade:'Your Trade',
@@ -1402,13 +1406,7 @@ function initDesigner(){
   }
 }
 
-function pickDesignStyle(s){
-  designerStyle = s;
-  ['gold','navy','slate','green','mono'].forEach(style=>{
-    const el = document.getElementById('ds-'+style);
-    if(el) el.style.border = style===s ? '1.5px solid var(--acc)' : '1px solid var(--br)';
-  });
-}
+
 
 function addDesignerMsg(role, text){
   const msgs = document.getElementById('designerMsgs');
