@@ -228,6 +228,61 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
   </div>
 </div>
 
+<div id="screenQuoteSetup" class="login-screen hidden" style="padding:0;overflow-y:auto">
+  <div style="padding:32px 28px 16px">
+    <div class="logo">Van<b>Office</b></div>
+    <div style="font-size:1rem;font-weight:700;margin-bottom:4px">One last thing!</div>
+    <div style="font-size:.75rem;color:var(--t3);margin-bottom:20px">Choose a quote style — this will be used on every quote you send. You can change it later in Profile.</div>
+
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px" id="qs-templates">
+      <div id="qs-gold" onclick="qsPickStyle('gold')" style="border:1.5px solid var(--acc);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
+        <div style="background:#1a1a1a;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:900;color:#c9a84c">GOLD</div>
+        <div style="padding:10px 14px;flex:1"><div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Premium Gold</div><div style="font-size:.65rem;color:var(--t3)">Dark background, gold accents</div></div>
+        <div id="qs-gold-tick" style="margin-right:14px;color:var(--acc);font-size:1rem">✓</div>
+      </div>
+      <div id="qs-navy" onclick="qsPickStyle('navy')" style="border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
+        <div style="background:#0f2b5b;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:900;color:#e8b84b">NAVY</div>
+        <div style="padding:10px 14px;flex:1"><div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Navy Pro</div><div style="font-size:.65rem;color:var(--t3)">Corporate navy & gold</div></div>
+        <div id="qs-navy-tick" style="margin-right:14px;color:var(--acc);font-size:1rem;visibility:hidden">✓</div>
+      </div>
+      <div id="qs-slate" onclick="qsPickStyle('slate')" style="border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
+        <div style="background:#3d3d3d;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:900;color:#fff">SLATE</div>
+        <div style="padding:10px 14px;flex:1"><div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Slate Clean</div><div style="font-size:.65rem;color:var(--t3)">Modern charcoal with numbered steps</div></div>
+        <div id="qs-slate-tick" style="margin-right:14px;color:var(--acc);font-size:1rem;visibility:hidden">✓</div>
+      </div>
+      <div id="qs-green" onclick="qsPickStyle('green')" style="border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
+        <div style="background:#1e4d2b;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:900;color:#7ab648">GRN</div>
+        <div style="padding:10px 14px;flex:1"><div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Forest Green</div><div style="font-size:.65rem;color:var(--t3)">Earthy green — great for outdoor trades</div></div>
+        <div id="qs-green-tick" style="margin-right:14px;color:var(--acc);font-size:1rem;visibility:hidden">✓</div>
+      </div>
+      <div id="qs-mono" onclick="qsPickStyle('mono')" style="border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
+        <div style="background:#f5f5f5;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:900;color:#111">MONO</div>
+        <div style="padding:10px 14px;flex:1"><div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Mono Minimal</div><div style="font-size:.65rem;color:var(--t3)">Clean black & white</div></div>
+        <div id="qs-mono-tick" style="margin-right:14px;color:var(--acc);font-size:1rem;visibility:hidden">✓</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <div style="font-size:.75rem;font-weight:600;margin-bottom:8px">Brand colour</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap" id="qsColours">
+        <div onclick="qsPickColour(this,'#c9a84c')" style="width:32px;height:32px;border-radius:50%;background:#c9a84c;cursor:pointer;border:2px solid #fff;box-shadow:0 0 0 2px #c9a84c"></div>
+        <div onclick="qsPickColour(this,'#0f2b5b')" style="width:32px;height:32px;border-radius:50%;background:#0f2b5b;cursor:pointer;border:2px solid transparent"></div>
+        <div onclick="qsPickColour(this,'#1e4d2b')" style="width:32px;height:32px;border-radius:50%;background:#1e4d2b;cursor:pointer;border:2px solid transparent"></div>
+        <div onclick="qsPickColour(this,'#993333')" style="width:32px;height:32px;border-radius:50%;background:#993333;cursor:pointer;border:2px solid transparent"></div>
+        <div onclick="qsPickColour(this,'#334499')" style="width:32px;height:32px;border-radius:50%;background:#334499;cursor:pointer;border:2px solid transparent"></div>
+        <div onclick="qsPickColour(this,'#555555')" style="width:32px;height:32px;border-radius:50%;background:#555555;cursor:pointer;border:2px solid transparent"></div>
+        <label style="width:32px;height:32px;border-radius:50%;background:conic-gradient(red,yellow,green,cyan,blue,magenta,red);cursor:pointer;border:2px solid transparent;display:block" title="Custom colour">
+          <input type="color" id="qsCustomColour" onchange="qsPickColour(null,this.value)" style="opacity:0;width:0;height:0">
+        </label>
+      </div>
+    </div>
+
+    <button onclick="qsPreview()" style="width:100%;padding:13px;background:var(--s2);border:1px solid var(--br);border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:var(--t1);cursor:pointer;margin-bottom:10px" id="qsPreviewBtn">👁 Preview</button>
+    <button onclick="qsSaveAndContinue()" style="width:100%;padding:14px;background:var(--acc);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.9rem;font-weight:700;color:#fff;cursor:pointer" id="qsSaveBtn">Save & go to dashboard →</button>
+    <div id="qsMsg" style="text-align:center;font-size:.72rem;color:var(--t3);margin-top:8px;min-height:16px"></div>
+  </div>
+</div>
+
 <div id="app" class="hidden" style="display:flex;flex-direction:column;height:100%">
   <div class="content" id="content">
 
@@ -742,9 +797,31 @@ async function submitReset(){
   }catch(e){document.getElementById('resetErr').textContent='Error. Try again.'}
 }
 
+let _pendingAppData = null;
+
 function showApp(data){
-  document.getElementById('chatBtn').style.display='block';
   document.getElementById('screenPin').classList.add('hidden');
+  if(data.profile){window._vanofficeProfile=data.profile;}
+
+  // First time user — no template saved yet, show quote setup
+  if(!data.template || !data.template.design_style){
+    _pendingAppData = data;
+    document.getElementById('screenQuoteSetup').classList.remove('hidden');
+    // Pre-fill designer template with their profile info
+    if(data.profile){
+      designerTemplate.bizName = data.profile.business_name || 'Your Business';
+      designerTemplate.trade = data.profile.trade || 'Your Trade';
+      designerTemplate.phone = data.profile.phone || '';
+    }
+    qsPickStyle('gold');
+    return;
+  }
+  _launchApp(data);
+}
+
+function _launchApp(data){
+  document.getElementById('chatBtn').style.display='block';
+  document.getElementById('screenQuoteSetup').classList.add('hidden');
   const app=document.getElementById('app');
   app.classList.remove('hidden');app.style.display='flex';
   allEnquiries=data.recent||[];
@@ -774,7 +851,9 @@ function doLogout(){
   document.getElementById('app').style.display='none';
   document.getElementById('app').classList.add('hidden');
   document.getElementById('screenPin').classList.add('hidden');
+  document.getElementById('screenQuoteSetup').classList.add('hidden');
   document.getElementById('screenPhone').classList.remove('hidden');
+  _pendingAppData=null;
   pinBuffer='';userPhone='';userPin='';userSender='';
 }
 
@@ -1688,14 +1767,16 @@ async function analyseTemplatePDF(input){
   }
 
   const fileType = file.type;
+  console.log('File type detected:', fileType, 'File name:', file.name, 'File size:', file.size);
   let mediaType = 'application/pdf';
-  if(fileType.includes('jpeg') || fileType.includes('jpg')) mediaType = 'image/jpeg';
-  else if(fileType.includes('png')) mediaType = 'image/png';
-  else if(fileType.includes('pdf')) mediaType = 'application/pdf';
+  if(fileType.includes('jpeg') || fileType.includes('jpg') || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) mediaType = 'image/jpeg';
+  else if(fileType.includes('png') || file.name.toLowerCase().endsWith('.png')) mediaType = 'image/png';
+  else if(fileType.includes('pdf') || file.name.toLowerCase().endsWith('.pdf')) mediaType = 'application/pdf';
   else {
-    document.getElementById('pdfUploadMsg').textContent = 'Please upload a PDF, JPG or PNG — Word docs are not supported';
+    document.getElementById('pdfUploadMsg').textContent = 'Please upload a PDF, JPG or PNG (detected: ' + fileType + ')';
     return;
   }
+  console.log('Media type chosen:', mediaType);
 
   document.getElementById('pdfUploadMsg').textContent = 'Analysing your template...';
 
@@ -1704,6 +1785,7 @@ async function analyseTemplatePDF(input){
     const base64 = e.target.result.split(',')[1];
     const isImage = mediaType.includes('image');
     try{
+      console.log('Sending to /api/design-template, mediaType:', mediaType, 'isImage:', isImage, 'base64 length:', base64?.length);
       const res = await fetch('/api/design-template', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -1732,6 +1814,7 @@ Also include a "detectedStyle" field: "gold" for dark/black with gold or yellow 
         })
       });
       const data = await res.json();
+      console.log('Response from /api/design-template:', data);
       if(data.error){
         document.getElementById('pdfUploadMsg').textContent = data.error;
         return;
@@ -1866,6 +1949,94 @@ function renderCal(){
     if(d===td.getDate()&&cm===td.getMonth()&&cy===td.getFullYear())el.classList.add('today');
     else if(bookedDates.has(d))el.classList.add('hj');
     g.appendChild(el);
+  }
+}
+
+let qsStyle = 'gold';
+let qsColour = '#c9a84c';
+
+function qsPickStyle(s){
+  qsStyle = s;
+  designerStyle = s;
+  ['gold','navy','slate','green','mono'].forEach(style=>{
+    const el = document.getElementById('qs-'+style);
+    const tick = document.getElementById('qs-'+style+'-tick');
+    if(el) el.style.border = style===s ? '1.5px solid var(--acc)' : '1px solid var(--br)';
+    if(tick) tick.style.visibility = style===s ? 'visible' : 'hidden';
+  });
+  const accents = {gold:'#c9a84c',navy:'#e8b84b',slate:'#3d3d3d',green:'#7ab648',mono:'#111'};
+  const darks = {gold:'#1a1a1a',navy:'#0f2b5b',slate:'#3d3d3d',green:'#1e4d2b',mono:'#ffffff'};
+  if(accents[s]){ qsColour = accents[s]; designerTemplate.accent = accents[s]; }
+  if(darks[s]) designerTemplate.dark = darks[s];
+}
+
+function qsPickColour(el, hex){
+  qsColour = hex;
+  designerTemplate.accent = hex;
+  document.querySelectorAll('#qsColours > div').forEach(d=>{
+    d.style.border = '2px solid transparent';
+    d.style.boxShadow = 'none';
+  });
+  if(el){
+    el.style.border = '2px solid #fff';
+    el.style.boxShadow = '0 0 0 2px ' + hex;
+  }
+}
+
+async function qsPreview(){
+  const btn = document.getElementById('qsPreviewBtn');
+  btn.textContent = '⏳ Loading...';
+  btn.disabled = true;
+  try{
+    const res = await fetch('/api/preview-quote?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({style: designerTemplate, designStyle: qsStyle})
+    });
+    const data = await res.json();
+    if(data.html){
+      generatedQuoteHTML = data.html;
+      openPreview();
+      const inner = document.getElementById('previewInner');
+      inner.innerHTML = '';
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'width:100%;overflow:hidden';
+      const iframe = document.createElement('iframe');
+      const vw = inner.offsetWidth || 350;
+      const scale = vw / 794;
+      iframe.style.cssText = 'width:794px;height:1123px;border:none;transform-origin:top left;transform:scale('+scale+');display:block';
+      wrapper.style.height = Math.round(1123 * scale) + 'px';
+      iframe.srcdoc = data.html;
+      wrapper.appendChild(iframe);
+      inner.appendChild(wrapper);
+    }
+  }catch(e){
+    document.getElementById('qsMsg').textContent = 'Preview failed. Try again.';
+  }
+  btn.textContent = '👁 Preview';
+  btn.disabled = false;
+}
+
+async function qsSaveAndContinue(){
+  const btn = document.getElementById('qsSaveBtn');
+  const msg = document.getElementById('qsMsg');
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+  try{
+    await fetch('/api/save-design-template?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({style: qsStyle, template: designerTemplate})
+    });
+    closePreview();
+    if(_pendingAppData){
+      _pendingAppData.template = {design_style: qsStyle};
+      _launchApp(_pendingAppData);
+    }
+  }catch(e){
+    msg.textContent = 'Error saving. Try again.';
+    btn.textContent = 'Save & go to dashboard →';
+    btn.disabled = false;
   }
 }
 
