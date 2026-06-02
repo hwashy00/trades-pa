@@ -1398,7 +1398,7 @@ function initDesigner(){
 
 function pickDesignStyle(s){
   designerStyle = s;
-  ['george','modern','minimal'].forEach(style=>{
+  ['gold','navy','slate','green','mono'].forEach(style=>{
     const el = document.getElementById('ds-'+style);
     if(el) el.style.border = style===s ? '1.5px solid var(--acc)' : '1px solid var(--br)';
   });
@@ -1440,7 +1440,7 @@ async function sendDesignerMsg(){
         if(changes.scopeItems) designerTemplate.scopeItems = changes.scopeItems;
         if(changes.inclusionItems) designerTemplate.inclusionItems = changes.inclusionItems;
         Object.assign(designerTemplate, changes);
-        if(changes.accent) document.getElementById('ds-modern-sw').style.background = changes.accent;
+        if(changes.accent) pickDesignStyle(designerStyle);
       }catch(e){}
     }
     loadEl.textContent = reply.replace(/TMPL_JSON:[\s\S]+$/m,'').trim();
@@ -1536,9 +1536,7 @@ function showDesignPreview(){
     iframe.style.cssText = 'width:100%;height:1200px;border:none';
     iframe.srcdoc = generatedQuoteHTML;
     inner.appendChild(iframe);
-  } else if(designerStyle === 'george') inner.innerHTML = renderGeorgePreview();
-  else if(designerStyle === 'modern') inner.innerHTML = renderModernPreview();
-  else inner.innerHTML = renderMinimalPreview();
+  } else inner.innerHTML = renderGeorgePreview();
 }
 
 function renderGeorgePreview(){
@@ -1666,16 +1664,16 @@ async function analyseTemplatePDF(input){
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
           system:`You are a quote template analyser for VanOffice, a UK trades app.
-The user has uploaded their existing quote PDF. Analyse it and extract their style preferences.
-Look for: business name, trade, colours (dominant hex values), layout style (modern/minimal/premium),
+The user has uploaded their existing quote PDF or image. Analyse it and extract their style preferences.
+Look for: business name, trade, phone, email, location, colours (dominant hex values), layout style,
 sections present (scope of works, inclusions, commitment, lead time, payment terms, please note),
 any intro text, typical scope items for their trade, inclusions listed.
 Reply with a short friendly message saying what you found, then on a new line:
 TMPL_JSON: followed by a JSON object with these fields (only include what you can confidently extract):
-bizName, trade, phone, email, location, accent (dominant brand colour as hex), dark (dark colour as hex),
+bizName, trade, phone, email, location, accent (dominant brand colour as hex), dark (dark background colour as hex),
 intro, scopeItems (array), inclusionItems (array), note, commitment, leadTime, paymentTerms,
 showNote, showCommitment, showLeadTime, showVat (booleans).
-Also include a "detectedStyle" field: "george" for dark/premium, "modern" for bold/coloured, "minimal" for clean/simple.`,
+Also include a "detectedStyle" field: "gold" for dark/black with gold or yellow accents, "navy" for dark blue, "green" for green style, "slate" for charcoal/grey, "mono" for clean black and white.`,
           messages:[{
             role:'user',
             content: isImage ? [
@@ -1695,19 +1693,17 @@ Also include a "detectedStyle" field: "george" for dark/premium, "modern" for bo
       if(m){
         try{
           const changes = JSON.parse(m[1]);
-          const detectedStyle = changes.detectedStyle || 'george';
+          const detectedStyle = changes.detectedStyle || 'gold';
           delete changes.detectedStyle;
           if(changes.scopeItems) designerTemplate.scopeItems = changes.scopeItems;
           if(changes.inclusionItems) designerTemplate.inclusionItems = changes.inclusionItems;
           Object.assign(designerTemplate, changes);
           pickDesignStyle(detectedStyle);
-          if(changes.accent) document.getElementById('ds-modern-sw').style.background = changes.accent;
         }catch(e){}
       }
 
       const display = reply.replace(/TMPL_JSON:[\s\S]+$/m,'').trim();
-      addDesignerMsg('ai', display || 'Template analysed and style matched. Check the preview to see how it looks!');
-      document.getElementById('pdfUploadMsg').textContent = '✓ Style matched from your PDF';
+      document.getElementById('pdfUploadMsg').textContent = display ? '✓ ' + display.slice(0,80) : '✓ Style matched! Hit Preview to see your quote.';
     }catch(err){
       document.getElementById('pdfUploadMsg').textContent = 'Error analysing PDF. Try again.';
     }
