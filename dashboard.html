@@ -63,6 +63,7 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
 .hpill-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
 .hpill-grn .hpill-dot{background:var(--grn)}
 .hpill-red .hpill-dot{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
 .qa-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 20px 28px}
 .qa{display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:none;cursor:pointer}
 .qa-box{width:100%;aspect-ratio:1;border-radius:18px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;transition:background .15s,transform .1s}
@@ -342,7 +343,10 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
     <div id="s-quotegen" class="scr">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px">
         <div class="ph-title" style="margin:0">AI Quote</div>
-        <button onclick="qgReset()" style="font-size:.68rem;color:var(--t3);background:none;border:none;cursor:pointer;font-family:Inter,sans-serif;padding:4px 8px;border-radius:8px;border:1px solid var(--br)">New quote</button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button id="qgVoiceToggle" onclick="qgToggleVoiceMode()" title="Toggle voice mode" style="font-size:.68rem;color:var(--t3);background:none;border:none;cursor:pointer;font-family:Inter,sans-serif;padding:4px 8px;border-radius:8px;border:1px solid var(--br)">🔇 Voice off</button>
+          <button onclick="qgReset()" style="font-size:.68rem;color:var(--t3);background:none;border:none;cursor:pointer;font-family:Inter,sans-serif;padding:4px 8px;border-radius:8px;border:1px solid var(--br)">New quote</button>
+        </div>
       </div>
       <div style="padding:0 20px 20px">
 
@@ -353,9 +357,25 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
           </div>
         </div>
 
-        <div style="display:flex;gap:8px;margin-bottom:12px">
-          <input id="qgInput" placeholder="e.g. Skim a 4x5m lounge, bit of ceiling damage..." style="flex:1;padding:11px 14px;background:var(--s2);border:1px solid var(--br);border-radius:12px;font-family:Inter,sans-serif;font-size:.82rem;color:var(--t1);outline:none" onkeypress="if(event.key==='Enter')qgSend()">
-          <button id="qgBtn" onclick="qgSend()" style="padding:11px 16px;background:var(--acc);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.82rem;font-weight:700;color:#fff;cursor:pointer">→</button>
+        <div id="qgPhotoPreview" style="display:none;margin-bottom:8px;position:relative">
+          <img id="qgPhotoImg" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;border:1px solid var(--br)">
+          <button onclick="qgClearPhoto()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);border:none;color:#fff;width:24px;height:24px;border-radius:50%;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+          <div style="font-size:.65rem;color:var(--t3);margin-top:4px;padding:0 2px" id="qgPhotoLabel">Photo attached</div>
+        </div>
+
+        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+          <input id="qgInput" placeholder="Describe the job or just tap the mic..." style="flex:1;padding:11px 12px;background:var(--s2);border:1px solid var(--br);border-radius:12px;font-family:Inter,sans-serif;font-size:.82rem;color:var(--t1);outline:none" onkeypress="if(event.key==='Enter')qgSend()">
+          <button id="qgMicBtn" onclick="qgToggleVoice()" title="Voice input" style="width:42px;height:42px;background:var(--s2);border:1px solid var(--br);border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;flex-shrink:0">🎤</button>
+          <label title="Add photo" style="width:42px;height:42px;background:var(--s2);border:1px solid var(--br);border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;flex-shrink:0">
+            📷<input type="file" accept="image/*" capture="environment" onchange="qgHandlePhoto(this)" style="display:none" id="qgPhotoInput">
+          </label>
+          <button id="qgBtn" onclick="qgSend()" style="width:42px;height:42px;background:var(--acc);border:none;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0">→</button>
+        </div>
+
+        <div id="qgVoiceBar" style="display:none;background:var(--red-d);border-radius:10px;padding:8px 14px;margin-bottom:8px;display:none;align-items:center;gap:10px">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--red);animation:pulse 1s infinite"></div>
+          <div style="font-size:.75rem;color:var(--red);font-weight:600">Listening... speak now</div>
+          <button onclick="qgStopVoice()" style="margin-left:auto;background:none;border:none;color:var(--red);font-size:.75rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">Stop</button>
         </div>
 
         <div id="qgQuoteWrap" style="display:none">
@@ -2083,11 +2103,121 @@ async function qsSaveAndContinue(){
 let qgHistory = [];
 let qgQuoteData = null;
 let qgBreakdownVisible = false;
+let qgPhotoBase64 = null;
+let qgPhotoType = 'image/jpeg';
+let qgRecognition = null;
+let qgListening = false;
+let qgVoiceEnabled = false;
+
+function qgToggleVoiceMode(){
+  qgVoiceEnabled = !qgVoiceEnabled;
+  const btn = document.getElementById('qgVoiceToggle');
+  if(btn){
+    btn.textContent = qgVoiceEnabled ? '🔊 Voice on' : '🔇 Voice off';
+    btn.style.color = qgVoiceEnabled ? 'var(--grn)' : 'var(--t3)';
+    btn.style.borderColor = qgVoiceEnabled ? 'var(--grn)' : 'var(--br)';
+  }
+  if(qgVoiceEnabled) qgSpeak('Voice mode on. Describe the job.');
+  else window.speechSynthesis && window.speechSynthesis.cancel();
+}
+
+if(window.speechSynthesis){
+  window.speechSynthesis.onvoiceschanged = function(){ window.speechSynthesis.getVoices(); };
+}
+
+function qgHandlePhoto(input){
+  if(!input.files||!input.files[0]) return;
+  const file = input.files[0];
+  qgPhotoType = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const result = e.target.result;
+    qgPhotoBase64 = result.split(',')[1];
+    document.getElementById('qgPhotoImg').src = result;
+    document.getElementById('qgPhotoPreview').style.display = 'block';
+    document.getElementById('qgPhotoLabel').textContent = file.name + ' — tap send to analyse';
+    document.getElementById('qgInput').placeholder = 'Add a note or just tap send...';
+    document.getElementById('qgInput').focus();
+  };
+  reader.readAsDataURL(file);
+}
+
+function qgClearPhoto(){
+  qgPhotoBase64 = null;
+  document.getElementById('qgPhotoPreview').style.display = 'none';
+  document.getElementById('qgPhotoInput').value = '';
+  document.getElementById('qgInput').placeholder = 'Describe the job or just tap the mic...';
+}
+
+function qgToggleVoice(){
+  if(qgListening){ qgStopVoice(); return; }
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition){
+    alert('Voice input is not supported in this browser. Try Chrome or Safari.');
+    return;
+  }
+  qgRecognition = new SpeechRecognition();
+  qgRecognition.continuous = false;
+  qgRecognition.interimResults = true;
+  qgRecognition.lang = 'en-GB';
+
+  qgRecognition.onstart = function(){
+    qgListening = true;
+    document.getElementById('qgVoiceBar').style.display = 'flex';
+    document.getElementById('qgMicBtn').style.background = 'var(--red-d)';
+    document.getElementById('qgMicBtn').style.borderColor = 'var(--red)';
+  };
+
+  qgRecognition.onresult = function(e){
+    const transcript = Array.from(e.results).map(r=>r[0].transcript).join('');
+    document.getElementById('qgInput').value = transcript;
+  };
+
+  qgRecognition.onend = function(){
+    qgStopVoice();
+    const val = document.getElementById('qgInput').value.trim();
+    if(val) setTimeout(()=>qgSend(), 300);
+  };
+
+  qgRecognition.onerror = function(e){
+    qgStopVoice();
+    if(e.error !== 'no-speech') qgAddMsg('ai', 'Could not hear anything. Try again or type your message.');
+  };
+
+  qgRecognition.start();
+}
+
+function qgStopVoice(){
+  qgListening = false;
+  if(qgRecognition){ try{ qgRecognition.stop(); }catch(e){} }
+  document.getElementById('qgVoiceBar').style.display = 'none';
+  document.getElementById('qgMicBtn').style.background = 'var(--s2)';
+  document.getElementById('qgMicBtn').style.borderColor = 'var(--br)';
+}
+
+function qgSpeak(text){
+  if(!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const clean = text.replace(/[£€$]/g, ' pounds ').replace(/[*_#]/g,'').substring(0,300);
+  const utt = new SpeechSynthesisUtterance(clean);
+  utt.lang = 'en-GB';
+  utt.rate = 1.05;
+  utt.pitch = 1;
+  const voices = window.speechSynthesis.getVoices();
+  const gbVoice = voices.find(v=>v.lang==='en-GB') || voices.find(v=>v.lang.startsWith('en'));
+  if(gbVoice) utt.voice = gbVoice;
+  window.speechSynthesis.speak(utt);
+}
 
 function qgReset(){
   qgHistory = [];
   qgQuoteData = null;
   qgBreakdownVisible = false;
+  qgPhotoBase64 = null;
+  qgStopVoice();
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  document.getElementById('qgPhotoPreview').style.display = 'none';
+  document.getElementById('qgPhotoInput').value = '';
   document.getElementById('qgChatArea').innerHTML = `
     <div style="display:flex;gap:8px;align-items:flex-start">
       <div style="width:28px;height:28px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#fff;flex-shrink:0">AI</div>
@@ -2229,11 +2359,18 @@ async function qgSend(){
   document.getElementById('qgChatArea').appendChild(typingEl);
   document.getElementById('qgChatArea').scrollTop = 9999;
 
+  const photoToSend = qgPhotoBase64;
+  const photoType = qgPhotoType;
+  qgClearPhoto();
+
   try{
+    const body = {message: val, history: qgHistory.slice(0,-1)};
+    if(photoToSend){ body.image = photoToSend; body.imageType = photoType; }
+
     const res = await fetch('/api/generate-quote-ai?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin), {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: val, history: qgHistory.slice(0,-1)})
+      body: JSON.stringify(body)
     });
     const q = await res.json();
     const typing = document.getElementById('qgTyping');
@@ -2244,9 +2381,12 @@ async function qgSend(){
     } else if(q.type === 'question'){
       qgAddMsg('ai', q.message);
       qgHistory.push({role:'assistant', content: q.message});
+      if(qgVoiceEnabled || qgListening) qgSpeak(q.message);
     } else if(q.type === 'quote'){
-      qgAddMsg('ai', q.summary || 'Quote ready! Check the price below — you can edit the total before generating.');
-      qgHistory.push({role:'assistant', content: q.summary || 'Quote ready!'});
+      const summary = q.summary || 'Quote ready! Check the price below.';
+      qgAddMsg('ai', summary);
+      qgHistory.push({role:'assistant', content: summary});
+      if(qgVoiceEnabled || qgListening) qgSpeak(summary);
       qgShowPriceSummary(q);
     }
   }catch(e){
