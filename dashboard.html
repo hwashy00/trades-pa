@@ -1683,17 +1683,21 @@ async function analyseTemplatePDF(input){
   if(!input.files||!input.files[0]) return;
   const file = input.files[0];
   if(file.size > 5000000){
-    document.getElementById('pdfUploadMsg').textContent = 'PDF too large — max 5MB';
+    document.getElementById('pdfUploadMsg').textContent = 'File too large — max 5MB';
     return;
   }
-  document.getElementById('pdfUploadMsg').textContent = 'Analysing your template...';
 
   const fileType = file.type;
   let mediaType = 'application/pdf';
-  if(fileType.includes('word') || fileType.includes('document')) mediaType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  else if(fileType.includes('jpeg') || fileType.includes('jpg')) mediaType = 'image/jpeg';
+  if(fileType.includes('jpeg') || fileType.includes('jpg')) mediaType = 'image/jpeg';
   else if(fileType.includes('png')) mediaType = 'image/png';
-  else mediaType = 'application/pdf';
+  else if(fileType.includes('pdf')) mediaType = 'application/pdf';
+  else {
+    document.getElementById('pdfUploadMsg').textContent = 'Please upload a PDF, JPG or PNG — Word docs are not supported';
+    return;
+  }
+
+  document.getElementById('pdfUploadMsg').textContent = 'Analysing your template...';
 
   const reader = new FileReader();
   reader.onload = async function(e){
@@ -1728,6 +1732,10 @@ Also include a "detectedStyle" field: "gold" for dark/black with gold or yellow 
         })
       });
       const data = await res.json();
+      if(data.error){
+        document.getElementById('pdfUploadMsg').textContent = data.error;
+        return;
+      }
       const reply = data.content?.[0]?.text || '';
 
       const m = reply.match(/TMPL_JSON:\s*(\{[\s\S]+?\})\s*(?:\n|$)/m);
@@ -1749,7 +1757,8 @@ Also include a "detectedStyle" field: "gold" for dark/black with gold or yellow 
       document.getElementById('pdfFileName').textContent = file.name || 'template.pdf';
       document.getElementById('pdfUploadMsg').textContent = display ? display.slice(0,100) : '✓ Style matched! Hit Preview to see your quote.';
     }catch(err){
-      document.getElementById('pdfUploadMsg').textContent = 'Error analysing PDF. Try again.';
+      console.error('PDF analysis error:', err);
+      document.getElementById('pdfUploadMsg').textContent = 'Error: ' + (err.message || 'Could not analyse file. Try a PDF or image.');
     }
   };
   reader.readAsDataURL(file);
