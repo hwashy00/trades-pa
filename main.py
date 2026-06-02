@@ -1789,16 +1789,23 @@ def save_logo():
 def design_template():
     try:
         data = request.json
+        messages = data.get("messages", [])
+        system = data.get("system", "")
         response = client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=800,
-            system=data.get("system", ""),
-            messages=data.get("messages", [])
+            max_tokens=1000,
+            system=system,
+            messages=messages
         )
         return jsonify({"content": [{"text": response.content[0].text}]})
     except Exception as e:
-        print("Design template error: " + str(e))
-        return jsonify({"error": str(e)}), 500
+        err = str(e)
+        print("Design template error: " + err)
+        if "Could not process image" in err or "invalid" in err.lower():
+            return jsonify({"error": "Could not read the file. Please try a clearer PDF or JPG image of your quote."}), 400
+        if "too large" in err.lower() or "size" in err.lower():
+            return jsonify({"error": "File too large for analysis. Try compressing it or use a JPG screenshot instead."}), 400
+        return jsonify({"error": "Analysis failed: " + err}), 500
 
 
 @app.route("/api/save-design-template", methods=["POST"])
