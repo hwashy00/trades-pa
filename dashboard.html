@@ -355,10 +355,16 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
         <div style="background:var(--s1);border-radius:14px;padding:14px 16px;margin-bottom:20px;border:1px dashed var(--br)">
           <div style="font-size:.8rem;font-weight:600;margin-bottom:3px">Already have a quote template?</div>
           <div style="font-size:.68rem;color:var(--t3);margin-bottom:10px">Upload it and we'll match your style automatically</div>
-          <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:var(--s2);border:1px solid var(--br);border-radius:10px;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--t2)">
-            📄 Upload PDF, Word, JPG or PNG
-            <input type="file" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/jpg" onchange="analyseTemplatePDF(this)" style="display:none">
-          </label>
+          <div id="pdfUploadArea">
+            <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:var(--s2);border:1px solid var(--br);border-radius:10px;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--t2)">
+              📄 Upload PDF, Word, JPG or PNG
+              <input id="pdfFileInput" type="file" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/jpg" onchange="analyseTemplatePDF(this)" style="display:none">
+            </label>
+          </div>
+          <div id="pdfUploadedBar" style="display:none;background:var(--grn-d);border-radius:10px;padding:10px 12px;display:none;align-items:center;justify-content:space-between;gap:8px">
+            <div style="font-size:.75rem;font-weight:600;color:var(--grn)">✓ <span id="pdfFileName">template.pdf</span></div>
+            <button onclick="clearPdfUpload()" style="background:none;border:none;color:var(--red);font-size:.72rem;font-weight:700;cursor:pointer;padding:0;font-family:Inter,sans-serif">✕ Remove</button>
+          </div>
           <div id="pdfUploadMsg" style="text-align:center;font-size:.68rem;color:var(--t3);margin-top:8px;min-height:16px"></div>
         </div>
 
@@ -434,13 +440,13 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
       </div>
     </div>
 
-    <div id="previewModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.92);flex-direction:column;max-width:390px;margin:0 auto;">
+    <div id="previewModal" style="display:none;position:fixed;inset:0;z-index:500;background:#1a1a1a;flex-direction:column;max-width:390px;margin:0 auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;flex-shrink:0;background:#111;border-bottom:1px solid rgba(255,255,255,0.1)">
         <div style="font-size:.92rem;font-weight:700;color:#fff">Quote Preview</div>
         <button onclick="closePreview()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px">&#215;</button>
       </div>
-      <div style="flex:1;overflow-y:auto;background:#e8e8e8;padding:12px;" id="previewContent">
-        <div style="background:#fff;border-radius:6px;overflow:hidden;" id="previewInner"></div>
+      <div style="flex:1;overflow-y:auto;overflow-x:hidden;background:#e8e8e8;padding:8px;" id="previewContent">
+        <div style="width:100%;overflow:hidden;border-radius:6px;background:#fff;" id="previewInner"></div>
       </div>
     </div>
 
@@ -1497,10 +1503,16 @@ async function generateAndPreview(){
       openPreview();
       const inner = document.getElementById('previewInner');
       inner.innerHTML = '';
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'width:100%;overflow:hidden';
       const iframe = document.createElement('iframe');
-      iframe.style.cssText = 'width:100%;height:1200px;border:none';
+      const vw = inner.offsetWidth || 350;
+      const scale = vw / 794;
+      iframe.style.cssText = 'width:794px;height:1123px;border:none;transform-origin:top left;transform:scale('+scale+');display:block';
+      wrapper.style.height = Math.round(1123 * scale) + 'px';
       iframe.srcdoc = data.html;
-      inner.appendChild(iframe);
+      wrapper.appendChild(iframe);
+      inner.appendChild(wrapper);
       msg.textContent = '✓ Looking good! Your style is saved.';
       await fetch('/api/save-design-template?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin), {
         method: 'POST',
@@ -1523,11 +1535,39 @@ function showDesignPreview(){
     openPreview();
     const inner = document.getElementById('previewInner');
     inner.innerHTML = '';
+    const wrapper2 = document.createElement('div');
+    wrapper2.style.cssText = 'width:100%;overflow:hidden';
     const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'width:100%;height:1200px;border:none';
+    const vw2 = inner.offsetWidth || 350;
+    const scale2 = vw2 / 794;
+    iframe.style.cssText = 'width:794px;height:1123px;border:none;transform-origin:top left;transform:scale('+scale2+');display:block';
+    wrapper2.style.height = Math.round(1123 * scale2) + 'px';
     iframe.srcdoc = generatedQuoteHTML;
-    inner.appendChild(iframe);
+    wrapper2.appendChild(iframe);
+    inner.appendChild(wrapper2);
   }
+}
+
+function clearPdfUpload(){
+  document.getElementById('pdfFileInput').value = '';
+  document.getElementById('pdfUploadArea').style.display = 'block';
+  document.getElementById('pdfUploadedBar').style.display = 'none';
+  document.getElementById('pdfUploadMsg').textContent = '';
+  designerTemplate = {
+    bizName: window._vanofficeProfile ? (window._vanofficeProfile.business_name || 'Your Business') : 'Your Business',
+    trade: window._vanofficeProfile ? (window._vanofficeProfile.trade || 'Your Trade') : 'Your Trade',
+    phone: window._vanofficeProfile ? (window._vanofficeProfile.phone || '') : '',
+    email: '', location: '',
+    accent: '#c9a84c', dark: '#1a1a1a',
+    intro: 'Thank you for the opportunity to provide this quotation. Please find below the scope of works and cost breakdown for your consideration.',
+    scopeItems: ['Supply and install as per agreed specification','All work completed to industry standards','Site clean-down on completion'],
+    inclusionItems: ['All labour','All materials','Site clean-down'],
+    note: '', commitment: 'We take pride in delivering quality workmanship. Your satisfaction is our priority.',
+    leadTime: 'To be arranged at a convenient time.',
+    paymentTerms: '50% deposit required. Balance on completion.',
+    showNote: false, showCommitment: true, showLeadTime: true, showVat: false
+  };
+  pickDesignStyle('gold');
 }
 
 function openPreview(){
@@ -1706,7 +1746,10 @@ Also include a "detectedStyle" field: "gold" for dark/black with gold or yellow 
       }
 
       const display = reply.replace(/TMPL_JSON:[\s\S]+$/m,'').trim();
-      document.getElementById('pdfUploadMsg').textContent = display ? '✓ ' + display.slice(0,80) : '✓ Style matched! Hit Preview to see your quote.';
+      document.getElementById('pdfUploadArea').style.display = 'none';
+      document.getElementById('pdfUploadedBar').style.display = 'flex';
+      document.getElementById('pdfFileName').textContent = file.name || 'template.pdf';
+      document.getElementById('pdfUploadMsg').textContent = display ? display.slice(0,100) : '✓ Style matched! Hit Preview to see your quote.';
     }catch(err){
       document.getElementById('pdfUploadMsg').textContent = 'Error analysing PDF. Try again.';
     }
