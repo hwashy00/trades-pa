@@ -1831,5 +1831,46 @@ def api_chat():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/generate-quote-ai", methods=["POST"])
+def generate_quote_ai():
+    try:
+        data = request.json
+        job_description = data.get("job_description", "")
+        if not job_description:
+            return jsonify({"error": "No job description provided"}), 400
+
+        response = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=1000,
+            system="You are a quoting assistant for a UK plastering and rendering business. Return ONLY raw JSON, no markdown, no preamble, no explanation.",
+            messages=[{"role": "user", "content": f"""A customer described this job: "{job_description}"
+
+Generate a professional quote. Return this exact JSON structure and nothing else:
+{{
+  "clientName": "Customer",
+  "scopeItems": ["detailed work item 1", "detailed work item 2", "detailed work item 3", "detailed work item 4"],
+  "totalPrice": 1200,
+  "leadTimeDays": "3-5",
+  "note": "any important caveat, or empty string if none",
+  "summary": "one friendly sentence confirming the quote is ready"
+}}
+
+Rules:
+- scopeItems: 3-6 specific bullet points describing the exact work
+- totalPrice: realistic UK plastering price as a number only, no £ sign
+- clientName: use name if mentioned, otherwise Customer
+- note: important caveats about additional charges, or empty string"""}]
+        )
+
+        import re
+        raw = response.content[0].text.strip()
+        raw = re.sub(r'```json|```', '', raw).strip()
+        result = json.loads(raw)
+        return jsonify(result)
+    except Exception as e:
+        print("Generate quote AI error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
