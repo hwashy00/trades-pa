@@ -336,12 +336,10 @@ scheduler.add_job(scan_all_emails, "interval", minutes=15)
 scheduler.start()
 
 
-def generate_quote_pdf(quote, profile, template):
-    import requests as req
-
-    # Build the HTML quote from scratch using the saved style
-    accent = "#c9a227"
+def build_quote_html(quote, profile, template, is_invoice=False):
+    accent = "#c9a84c"
     dark = "#1a1a1a"
+    design_style = "gold"
     biz_name = profile.get("business_name", "Your Business")
     trade = profile.get("trade", "")
     phone_num = profile.get("phone", "")
@@ -360,6 +358,7 @@ def generate_quote_pdf(quote, profile, template):
     if template:
         try:
             dt = json.loads(template.get("design_template", "{}")) if template.get("design_template") else {}
+            design_style = template.get("design_style", "gold")
             accent = dt.get("accent", template.get("brand_colour", accent))
             dark = dt.get("dark", dark)
             biz_name = dt.get("bizName", template.get("business_name", biz_name))
@@ -379,100 +378,216 @@ def generate_quote_pdf(quote, profile, template):
         except Exception as e:
             print("Template parse error: " + str(e))
 
+    if is_invoice:
+        doc_label = "INVOICE"
+        ref_num = quote.get("invoice_number", "INV-001")
+        due_line = f'<div style="font-size:11px;margin-bottom:14px"><span style="font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">DUE: </span>{quote.get("due_date","On completion")}</div>'
+    else:
+        doc_label = "QUOTATION"
+        ref_num = quote.get("quote_number", "QU-001")
+        due_line = ""
+
     client_name = quote.get("client_name", "Client")
     client_address = quote.get("client_address", "")
     total = quote.get("total", "0")
-    quote_num = quote.get("quote_number", "QU-001")
     today_str = datetime.date.today().strftime("%d %B %Y")
-
-    logo_data = profile.get("logo", "")
-    logo_html = f'<img src="{logo_data}" style="width:70px;height:70px;object-fit:contain;margin-bottom:8px;display:block">' if logo_data else f'<div style="width:60px;height:60px;border-radius:50%;border:2px solid {accent};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:{accent};margin-bottom:8px">{biz_name[:2].upper()}</div>'
-
-    scope_html = "".join([f'<div style="display:flex;gap:8px;margin-bottom:7px;font-size:11px;color:#333;line-height:1.5"><span style="color:{accent};font-weight:700;flex-shrink:0">&#10003;</span><span>{item}</span></div>' for item in scope_items])
-    inc_html = "".join([f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:11px;color:#333"><span style="color:{accent}">&#10003;</span>{item}</div>' for item in inclusion_items])
-    note_html = f'<div style="border:1.5px solid {accent};border-radius:5px;padding:10px 12px;margin-top:14px;background:#fffef5"><div style="font-size:9px;font-weight:800;color:{accent};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">&#9888; PLEASE NOTE</div><div style="font-size:10px;color:#555;line-height:1.6">{note}</div></div>' if show_note else ""
-    vat_html = f'<div style="font-size:12px;font-weight:700;color:{accent};margin-top:5px;letter-spacing:0.05em">+ VAT</div>' if show_vat else ""
-    contact_html = "".join([f'<div style="font-size:11px;color:#ccc;margin-bottom:5px">{v}</div>' for v in [phone_num, email, location] if v])
     client_full = client_name + (", " + client_address if client_address else "")
+    logo_data = profile.get("logo", "")
 
-    html = f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<style>
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:'Inter',Arial,sans-serif;font-size:11px;background:#fff;width:210mm}}
-</style>
-</head>
-<body>
-<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark}">
-<tr>
-<td width="50%" style="padding:20px 24px;border-right:2px solid {accent};vertical-align:middle">
-{logo_html}
-<div style="font-size:18px;font-weight:900;color:{accent};letter-spacing:0.02em">{biz_name}</div>
-<div style="font-size:9px;color:{accent};letter-spacing:0.14em;text-transform:uppercase;margin-top:3px;opacity:0.85">{trade}</div>
-<div style="width:50px;height:1.5px;background:{accent};margin-top:8px"></div>
-</td>
-<td width="50%" style="padding:20px 24px;vertical-align:middle">
-<div style="font-size:28px;font-weight:900;color:{accent};letter-spacing:0.06em;text-transform:uppercase;margin-bottom:12px">QUOTATION</div>
-<div style="width:100%;height:1px;background:{accent};margin-bottom:10px;opacity:0.5"></div>
-{contact_html}
-</td>
-</tr>
-</table>
+    scope_items_used = quote.get("line_items") or scope_items
+    if isinstance(scope_items_used, list) and scope_items_used and isinstance(scope_items_used[0], dict):
+        scope_items_used = [f'{i.get("description","")} — £{i.get("amount","")}' for i in scope_items_used]
 
-<table width="100%" cellpadding="0" cellspacing="0">
-<tr>
-<td width="60%" style="padding:20px 24px;vertical-align:top;border-right:1px solid #e8dfc8">
-<div style="font-size:11px;margin-bottom:4px"><span style="color:{accent};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">DATE: </span>{today_str}</div>
-<div style="font-size:11px;margin-bottom:14px"><span style="color:{accent};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">CLIENT: </span>{client_full}</div>
-<div style="font-size:11px;color:#444;line-height:1.7;margin-bottom:16px">{intro}</div>
-<div style="font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:0.04em;color:#1a1a1a;margin-bottom:12px">&#128203; SCOPE OF WORKS</div>
-{scope_html}
-{note_html}
-</td>
-<td width="40%" style="padding:16px;background:#f9f7f0;vertical-align:top">
-<div style="text-align:center;padding-bottom:16px;margin-bottom:16px;border-bottom:1.5px solid {accent}">
+    vat_html = '<div style="font-size:11px;font-weight:700;margin-top:4px">+ VAT</div>' if show_vat else ""
+    note_html = f'<div style="border:1.5px solid {accent};border-radius:5px;padding:10px 12px;margin-top:14px;background:#fffef5"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">PLEASE NOTE</div><div style="font-size:10px;color:#555;line-height:1.6">{note}</div></div>' if show_note else ""
+
+    base_style = "<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter',Arial,sans-serif;font-size:11px;background:#fff;width:210mm;min-height:297mm}</style>"
+    font_link = '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">'
+
+    if design_style in ("gold", "george", "custom_html"):
+        logo_html = f'<img src="{logo_data}" style="width:64px;height:64px;object-fit:contain;margin-bottom:8px;display:block">' if logo_data else f'<div style="font-size:22px;font-weight:900;color:{accent}">{biz_name[:2].upper()}</div>'
+        scope_html = "".join([f'<div style="display:flex;gap:8px;margin-bottom:8px;font-size:11px;color:#333;line-height:1.5"><span style="color:{accent};font-weight:700;flex-shrink:0">&#10003;</span><span>{item}</span></div>' for item in scope_items_used])
+        inc_html = "".join([f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11px;color:#ccc"><span style="color:{accent}">&#10003;</span>{item}</div>' for item in inclusion_items])
+        contact_html = "".join([f'<div style="font-size:11px;color:#ccc;margin-bottom:5px">{v}</div>' for v in [phone_num, email, location] if v])
+        return f"""<!DOCTYPE html><html><head><meta charset="UTF-8">{font_link}{base_style}</head><body>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark}"><tr>
+<td width="50%" style="padding:24px 28px;border-right:2px solid {accent};vertical-align:middle">{logo_html}
+<div style="font-size:20px;font-weight:900;color:{accent};letter-spacing:0.02em;margin-top:6px">{biz_name}</div>
+<div style="font-size:9px;color:{accent};letter-spacing:0.14em;text-transform:uppercase;margin-top:4px;opacity:0.85">{trade}</div>
+<div style="width:50px;height:1.5px;background:{accent};margin-top:10px"></div></td>
+<td width="50%" style="padding:24px 28px;vertical-align:middle">
+<div style="font-size:30px;font-weight:900;color:{accent};letter-spacing:0.08em;margin-bottom:14px">{doc_label}</div>
+<div style="width:100%;height:1px;background:{accent};margin-bottom:10px;opacity:0.4"></div>
+{contact_html}</td></tr></table>
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td width="60%" style="padding:22px 28px;vertical-align:top;border-right:1px solid #e8dfc8">
+<div style="font-size:11px;margin-bottom:5px"><span style="color:{accent};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">Date: </span>{today_str}</div>
+<div style="font-size:11px;margin-bottom:5px"><span style="color:{accent};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">Ref: </span>{ref_num}</div>
+<div style="font-size:11px;margin-bottom:16px"><span style="color:{accent};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">Client: </span>{client_full}</div>
+{due_line}<div style="font-size:11px;color:#444;line-height:1.7;margin-bottom:18px">{intro}</div>
+<div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:0.04em;color:#1a1a1a;border-bottom:2px solid {accent};padding-bottom:8px;margin-bottom:12px">Scope of Works</div>
+{scope_html}{note_html}</td>
+<td width="40%" style="padding:20px 18px;background:#f9f7f0;vertical-align:top">
+<div style="text-align:center;padding-bottom:18px;margin-bottom:18px;border-bottom:1.5px solid {accent}">
 <div style="width:52px;height:52px;border-radius:50%;border:2.5px solid {accent};display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:{accent};margin-bottom:8px">&#163;</div>
-<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:{accent};display:block;margin-bottom:5px">TOTAL PRICE</div>
-<div style="font-size:28px;font-weight:900;color:#1a1a1a;letter-spacing:-0.02em">&#163;{total}</div>
-{vat_html}
-</div>
-<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:{accent};margin-bottom:10px;text-align:center">INCLUSIONS</div>
+<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:{accent};display:block;margin-bottom:6px">Total Price</div>
+<div style="font-size:30px;font-weight:900;color:#1a1a1a;letter-spacing:-0.02em">&#163;{total}</div>{vat_html}</div>
+<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:{accent};margin-bottom:12px;text-align:center">Inclusions</div>
 {inc_html}
-</td>
-</tr>
-</table>
+<div style="margin-top:18px;border-top:1px solid #333;padding-top:12px">
+<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:{accent};margin-bottom:4px">Lead Time</div>
+<div style="font-size:9px;color:#777;line-height:1.6">{lead_time}</div></div></td></tr></table>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark};border-top:2px solid {accent}"><tr>
+<td width="50%" style="padding:14px 24px;vertical-align:top">
+<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:{accent};margin-bottom:4px">Our Commitment</div>
+<div style="font-size:9px;color:#aaa;line-height:1.6">{commitment}</div></td>
+<td width="50%" style="padding:14px 24px;vertical-align:top;border-left:1px solid rgba(255,255,255,0.1)">
+<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:{accent};margin-bottom:4px">Payment Terms</div>
+<div style="font-size:9px;color:#aaa;line-height:1.6">{payment_terms}</div></td></tr></table>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark};border-top:1px solid {accent}44"><tr>
+<td style="padding:12px 28px"><div style="font-size:14px;font-weight:900;color:{accent};text-transform:uppercase;letter-spacing:0.1em">Thank You</div>
+<div style="font-size:9px;color:#555;margin-top:2px">We look forward to working with you.</div></td>
+<td style="padding:12px 28px;text-align:right"><div style="font-size:13px;font-weight:700;color:{accent};font-style:italic">{biz_name}</div></td></tr></table>
+</body></html>"""
 
-<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark};border-top:2px solid {accent}">
-<tr>
-<td width="50%" style="padding:14px 20px;vertical-align:top">
-<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:{accent};margin-bottom:4px">OUR COMMITMENT</div>
-<div style="font-size:9px;color:#aaa;line-height:1.55">{commitment}</div>
-</td>
-<td width="50%" style="padding:14px 20px;vertical-align:top;border-left:1px solid rgba(255,255,255,0.1)">
-<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:{accent};margin-bottom:4px">LEAD TIME</div>
-<div style="font-size:9px;color:#aaa;line-height:1.55">{lead_time}</div>
-</td>
-</tr>
-</table>
+    elif design_style == "navy":
+        logo_html = f'<img src="{logo_data}" style="width:52px;height:52px;object-fit:contain">' if logo_data else ""
+        scope_html = "".join([f'<div style="display:flex;gap:8px;margin-bottom:7px;font-size:11px;color:#333;line-height:1.5"><span style="color:{accent};font-weight:700">›</span><span>{item}</span></div>' for item in scope_items_used])
+        inc_html = "".join([f'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:11px;color:#444"><span style="color:{accent}">&#10003;</span>{item}</div>' for item in inclusion_items])
+        contact_html = "  |  ".join([v for v in [phone_num, email, location] if v])
+        return f"""<!DOCTYPE html><html><head><meta charset="UTF-8">{font_link}{base_style}</head><body>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark}"><tr>
+<td style="padding:22px 28px;vertical-align:middle">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div style="display:flex;align-items:center;gap:14px">{logo_html}
+<div><div style="font-size:20px;font-weight:900;color:#fff">{biz_name}</div>
+<div style="font-size:9px;color:rgba(255,255,255,0.6);letter-spacing:0.1em;text-transform:uppercase;margin-top:3px">{trade}</div></div></div>
+<div style="background:{accent};padding:10px 18px;border-radius:6px;text-align:center">
+<div style="font-size:13px;font-weight:900;color:{dark};letter-spacing:0.08em">{doc_label}</div>
+<div style="font-size:9px;color:{dark};opacity:0.7;margin-top:2px">{ref_num}</div></div></div></td></tr></table>
+<div style="padding:18px 28px;border-bottom:1px solid #e8e8e8">
+<div style="display:flex;gap:28px;font-size:11px">
+<div><div style="color:#999;font-size:9px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">Client</div><div style="font-weight:700;color:#111">{client_full}</div></div>
+<div><div style="color:#999;font-size:9px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">Date</div><div style="font-weight:700;color:#111">{today_str}</div></div>
+<div><div style="color:#999;font-size:9px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">Valid</div><div style="font-weight:700;color:#111">30 days</div></div></div></div>
+<div style="padding:20px 28px">
+<div style="font-size:12px;font-weight:800;color:{dark};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px">Scope of Works</div>
+{scope_html}
+<div style="background:#f0f4ff;border-left:4px solid {dark};padding:12px 16px;margin-top:18px;display:flex;justify-content:space-between;align-items:center;border-radius:0 6px 6px 0">
+<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:{dark}">Total Price</div>{vat_html}</div>
+<div style="font-size:32px;font-weight:900;color:{dark}">&#163;{total}</div></div>
+{note_html}
+<div style="margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:{dark};margin-bottom:6px">Inclusions</div>{inc_html}</div>
+<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:{dark};margin-bottom:6px">Lead Time</div>
+<div style="font-size:10px;color:#555;line-height:1.6">{lead_time}</div></div></div></div>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f7f7;border-top:1px solid #eee"><tr>
+<td style="padding:10px 28px"><div style="font-size:9px;color:#999">{contact_html}</div></td>
+<td style="padding:10px 28px;text-align:right"><div style="font-size:9px;color:#999">{payment_terms}</div></td></tr></table>
+</body></html>"""
 
-<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark};border-top:1px solid {accent}">
-<tr>
-<td style="padding:10px 24px">
-<div style="font-size:13px;font-weight:900;color:{accent};text-transform:uppercase;letter-spacing:0.08em">THANK YOU</div>
-<div style="font-size:9px;color:#555;margin-top:1px">We look forward to working with you.</div>
-</td>
-<td style="padding:10px 24px;text-align:right">
-<div style="font-size:12px;font-weight:700;color:{accent};font-style:italic">{biz_name}</div>
-<div style="font-size:9px;color:#555;margin-top:1px">{payment_terms}</div>
-</td>
-</tr>
-</table>
-</body>
-</html>"""
+    elif design_style == "slate":
+        logo_html = f'<img src="{logo_data}" style="width:48px;height:48px;object-fit:contain">' if logo_data else ""
+        scope_html = "".join([f'<div style="display:flex;gap:10px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.5;align-items:flex-start"><span style="width:18px;height:18px;background:{accent};border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:800;flex-shrink:0;margin-top:1px">{i+1}</span><span>{item}</span></div>' for i, item in enumerate(scope_items_used)])
+        inc_html = "".join([f'<div style="font-size:10px;color:#444;padding:3px 0;border-bottom:0.5px solid #eee">&#10003; {item}</div>' for item in inclusion_items])
+        return f"""<!DOCTYPE html><html><head><meta charset="UTF-8">{font_link}{base_style}</head><body style="padding:32px">
+<div style="display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:14px;border-bottom:3px solid {accent};margin-bottom:20px">
+<div style="display:flex;align-items:center;gap:14px">{logo_html}
+<div><div style="font-size:22px;font-weight:900;color:#1a1a1a;letter-spacing:-0.03em">{biz_name}</div>
+<div style="font-size:9px;color:#aaa;margin-top:3px;letter-spacing:0.05em">{trade}</div></div></div>
+<div style="text-align:right"><div style="font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:0.1em">{doc_label}</div>
+<div style="font-size:14px;font-weight:800;color:#1a1a1a;margin-top:1px">{ref_num}</div></div></div>
+<div style="display:flex;gap:24px;margin-bottom:20px;font-size:11px">
+<div><div style="color:#bbb;font-size:9px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">Client</div><div style="font-weight:700;color:#1a1a1a">{client_full}</div></div>
+<div><div style="color:#bbb;font-size:9px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">Date</div><div style="font-weight:700;color:#1a1a1a">{today_str}</div></div>
+<div><div style="color:#bbb;font-size:9px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">Ref</div><div style="font-weight:700;color:#1a1a1a">{ref_num}</div></div></div>
+{due_line}
+<div style="font-size:9px;font-weight:700;color:{accent};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">Scope of Works</div>
+{scope_html}{note_html}
+<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;margin-top:18px;border-top:1px solid #eee;border-bottom:1px solid #eee">
+<div><div style="font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">Total Price</div>{vat_html}</div>
+<div style="font-size:34px;font-weight:900;color:#1a1a1a;letter-spacing:-0.04em">&#163;{total}</div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:18px">
+<div><div style="font-size:9px;font-weight:700;color:{accent};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Inclusions</div>{inc_html}</div>
+<div><div style="font-size:9px;font-weight:700;color:{accent};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Lead Time</div>
+<div style="font-size:10px;color:#555;line-height:1.6">{lead_time}</div>
+<div style="font-size:9px;font-weight:700;color:{accent};text-transform:uppercase;letter-spacing:0.08em;margin-top:12px;margin-bottom:4px">Payment</div>
+<div style="font-size:10px;color:#555;line-height:1.6">{payment_terms}</div></div></div>
+<div style="margin-top:24px;padding-top:12px;border-top:0.5px solid #ddd;display:flex;justify-content:space-between;align-items:center">
+<div style="font-size:9px;color:#bbb">{"  ·  ".join([v for v in [phone_num, email, location] if v])}</div>
+<div style="font-size:10px;font-weight:700;color:{accent}">{commitment[:60]}...</div></div>
+</body></html>"""
 
+    elif design_style == "green":
+        logo_html = f'<img src="{logo_data}" style="width:52px;height:52px;object-fit:contain">' if logo_data else ""
+        scope_html = "".join([f'<div style="display:flex;gap:8px;margin-bottom:8px;font-size:11px;color:#333;line-height:1.5"><span style="color:{accent};font-weight:700">&#9658;</span><span>{item}</span></div>' for item in scope_items_used])
+        inc_html = "".join([f'<div style="font-size:10px;color:#333;margin-bottom:5px">&#10003; {item}</div>' for item in inclusion_items])
+        return f"""<!DOCTYPE html><html><head><meta charset="UTF-8">{font_link}{base_style}</head><body>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark}"><tr>
+<td style="padding:22px 28px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div style="display:flex;align-items:center;gap:14px">{logo_html}
+<div><div style="font-size:20px;font-weight:900;color:#fff">{biz_name}</div>
+<div style="font-size:9px;color:rgba(255,255,255,0.5);letter-spacing:0.1em;text-transform:uppercase;margin-top:3px">{trade}</div></div></div>
+<div style="text-align:right;font-size:10px;color:rgba(255,255,255,0.6);line-height:2">{"<br>".join([v for v in [phone_num, email, location] if v])}</div></div>
+<div style="height:2px;background:{accent};border-radius:2px;margin-top:14px"></div></td></tr></table>
+<div style="padding:22px 28px">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+<div><div style="font-size:9px;color:#999;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px">Prepared for</div>
+<div style="font-size:13px;font-weight:800;color:#1a1a1a">{client_full}</div>
+<div style="font-size:10px;color:#666;margin-top:2px">{today_str}  ·  {ref_num}</div>
+{due_line}</div>
+<div style="background:#f0f7eb;border:2px solid {accent};border-radius:8px;padding:12px 20px;text-align:center">
+<div style="font-size:9px;color:{dark};font-weight:700;text-transform:uppercase;letter-spacing:0.06em">Total</div>
+<div style="font-size:28px;font-weight:900;color:{dark}">&#163;{total}</div>{vat_html}</div></div>
+<div style="font-size:12px;font-weight:800;color:{dark};text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid {accent};padding-bottom:6px;margin-bottom:12px">Works Included</div>
+{scope_html}{note_html}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px">
+<div><div style="font-size:9px;font-weight:700;color:{dark};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Inclusions</div>{inc_html}</div>
+<div><div style="font-size:9px;font-weight:700;color:{dark};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Lead Time</div>
+<div style="font-size:10px;color:#555;line-height:1.6">{lead_time}</div>
+<div style="font-size:9px;font-weight:700;color:{dark};text-transform:uppercase;letter-spacing:0.06em;margin-top:10px;margin-bottom:4px">Payment</div>
+<div style="font-size:10px;color:#555;line-height:1.6">{payment_terms}</div></div></div></div>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark}"><tr>
+<td style="padding:10px 28px;display:flex;justify-content:space-between;align-items:center">
+<div style="font-size:9px;color:rgba(255,255,255,0.5)">{commitment}</div>
+<div style="font-size:11px;font-weight:700;color:{accent};margin-left:20px">Thank you</div></td></tr></table>
+</body></html>"""
+
+    else:
+        logo_html = f'<img src="{logo_data}" style="width:48px;height:48px;object-fit:contain">' if logo_data else ""
+        scope_html = "".join([f'<div style="font-size:11px;color:#333;padding:5px 0;border-bottom:0.5px solid #f0f0f0;line-height:1.5">— {item}</div>' for item in scope_items_used])
+        inc_html = "".join([f'<div style="font-size:10px;color:#555;padding:2px 0">— {item}</div>' for item in inclusion_items])
+        return f"""<!DOCTYPE html><html><head><meta charset="UTF-8">{font_link}{base_style}</head><body style="padding:36px">
+<div style="display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:12px;border-bottom:0.5px solid #ddd;margin-bottom:18px">
+<div style="display:flex;align-items:center;gap:12px">{logo_html}
+<div><div style="font-size:22px;font-weight:900;color:#111;letter-spacing:-0.04em">{biz_name}</div>
+<div style="font-size:9px;color:#ccc;margin-top:2px;letter-spacing:0.06em">{trade}</div></div></div>
+<div style="text-align:right">
+<div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em">{doc_label} · {ref_num}</div>
+<div style="font-size:10px;color:#bbb;margin-top:3px;line-height:1.8">{"<br>".join([v for v in [today_str, phone_num, email] if v])}</div></div></div>
+<div style="margin-bottom:18px">
+<div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Prepared for</div>
+<div style="font-size:12px;font-weight:700;color:#111">{client_full}</div>
+{due_line}</div>
+<div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Works</div>
+{scope_html}{note_html}
+<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0;margin-top:20px;border-top:0.5px solid #ddd">
+<div><div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em">Total</div>{vat_html}</div>
+<div style="font-size:36px;font-weight:900;color:#111;letter-spacing:-0.04em">&#163;{total}</div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:12px;padding-top:12px;border-top:0.5px solid #ddd">
+<div><div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Inclusions</div>{inc_html}</div>
+<div><div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Lead Time</div>
+<div style="font-size:10px;color:#555;line-height:1.6">{lead_time}</div>
+<div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em;margin-top:10px;margin-bottom:4px">Payment</div>
+<div style="font-size:10px;color:#555;line-height:1.6">{payment_terms}</div></div></div>
+<div style="margin-top:24px;padding-top:10px;border-top:0.5px solid #eee;font-size:9px;color:#ccc;text-align:center">{commitment}</div>
+</body></html>"""
+
+
+def generate_quote_pdf(quote, profile, template):
+    import requests as req
+    html = build_quote_html(quote, profile, template, is_invoice=False)
     buffer = io.BytesIO()
     try:
         api_key = os.environ.get("PDFSHIFT_API_KEY", "")
@@ -485,28 +600,41 @@ body{{font-family:'Inter',Arial,sans-serif;font-size:11px;background:#fff;width:
         if response.status_code == 200:
             buffer.write(response.content)
         else:
-            raise Exception("PDFShift error: " + str(response.status_code) + " " + response.text)
+            raise Exception("PDFShift error: " + str(response.status_code))
     except Exception as e:
         print("PDF generation error: " + str(e))
-        # Fallback to basic reportlab
         from reportlab.lib.pagesizes import A4
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
         from reportlab.lib.styles import getSampleStyleSheet
         doc = SimpleDocTemplate(buffer, pagesize=A4)
         styles = getSampleStyleSheet()
-        story = [
-            Paragraph(biz_name, styles["Title"]),
-            Spacer(1, 12),
-            Paragraph("Quote for: " + client_name, styles["Normal"]),
-            Spacer(1, 12),
-            Paragraph("Total: £" + str(total), styles["Normal"]),
-        ]
-        doc.build(story)
+        biz_name = profile.get("business_name", "Your Business")
+        doc.build([Paragraph(biz_name, styles["Title"]), Spacer(1, 12), Paragraph("Quote for: " + quote.get("client_name", ""), styles["Normal"]), Spacer(1, 12), Paragraph("Total: £" + str(quote.get("total", "0")), styles["Normal"])])
     buffer.seek(0)
     return buffer
 
 
 def generate_invoice_pdf(invoice, profile, template):
+    import requests as req
+    html = build_quote_html(invoice, profile, template, is_invoice=True)
+    buffer = io.BytesIO()
+    try:
+        api_key = os.environ.get("PDFSHIFT_API_KEY", "")
+        response = req.post(
+            "https://api.pdfshift.io/v3/convert/pdf",
+            auth=(api_key, ""),
+            json={"source": html, "format": "A4", "margin": "0"},
+            timeout=30
+        )
+        if response.status_code == 200:
+            buffer.write(response.content)
+            buffer.seek(0)
+            return buffer
+        else:
+            raise Exception("PDFShift error: " + str(response.status_code))
+    except Exception as e:
+        print("Invoice PDF error, falling back to ReportLab: " + str(e))
+
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
