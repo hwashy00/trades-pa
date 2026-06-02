@@ -228,8 +228,8 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
   </div>
 </div>
 
-<div id="screenQuoteSetup" class="login-screen hidden" style="padding:0;overflow-y:auto">
-  <div style="padding:32px 28px 16px">
+<div id="screenQuoteSetup" class="login-screen hidden" style="padding:0;overflow-y:auto;-webkit-overflow-scrolling:touch">
+  <div style="padding:32px 28px 48px">
     <div class="logo">Van<b>Office</b></div>
     <div style="font-size:1rem;font-weight:700;margin-bottom:4px">One last thing!</div>
     <div style="font-size:.75rem;color:var(--t3);margin-bottom:20px">Choose a quote style — this will be used on every quote you send. You can change it later in Profile.</div>
@@ -2043,19 +2043,37 @@ async function qsSaveAndContinue(){
   const msg = document.getElementById('qsMsg');
   btn.textContent = 'Saving...';
   btn.disabled = true;
+  msg.textContent = '';
   try{
-    await fetch('/api/save-design-template?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+    if(!userPhone || !userPin){
+      msg.textContent = 'Session expired — please log in again.';
+      btn.textContent = 'Save & go to dashboard →';
+      btn.disabled = false;
+      return;
+    }
+    const res = await fetch('/api/save-design-template?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({style: qsStyle, template: designerTemplate})
     });
+    const data = await res.json();
+    if(data.error){
+      msg.textContent = 'Error: ' + data.error;
+      btn.textContent = 'Save & go to dashboard →';
+      btn.disabled = false;
+      return;
+    }
     closePreview();
     if(_pendingAppData){
       _pendingAppData.template = {design_style: qsStyle};
       _launchApp(_pendingAppData);
+    } else {
+      go('home');
+      document.getElementById('screenQuoteSetup').classList.add('hidden');
     }
   }catch(e){
-    msg.textContent = 'Error saving. Try again.';
+    console.error('qsSaveAndContinue error:', e);
+    msg.textContent = 'Connection error. Try again.';
     btn.textContent = 'Save & go to dashboard →';
     btn.disabled = false;
   }
