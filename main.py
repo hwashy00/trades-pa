@@ -2059,7 +2059,10 @@ def generate_quote_ai():
         data = request.json
         history = data.get("history", [])
         message = data.get("message", "")
-        if not message:
+        image_data = data.get("image", None)
+        image_type = data.get("imageType", "image/jpeg")
+
+        if not message and not image_data:
             return jsonify({"error": "No message provided"}), 400
 
         system = f"""You are a professional quoting assistant for {biz_name}, a {trade} business in the UK.
@@ -2072,11 +2075,18 @@ TRADESPERSON DETAILS:
 
 YOUR GOAL: Gather enough information to produce an accurate quote, then generate it.
 
+PHOTO ANALYSIS: If the user sends a photo, analyse it carefully:
+- Identify the space, surfaces, condition, visible damage or issues
+- Estimate dimensions if possible from context
+- Note anything that affects price — artex ceilings, blown plaster, complex layouts
+- Use what you can see to reduce the number of questions needed
+- If they send an inspiration photo, identify the style, finish and materials required
+
 CONVERSATION RULES:
 1. If you need more info (dimensions, condition, scope) ask ONE clear question at a time — keep it short and friendly
 2. NEVER ask more than 3 follow-up questions total before generating the quote
 3. Once you have enough info, generate the quote immediately — don't ask unnecessary questions
-4. For simple jobs (e.g. "paint a door") you already have enough info — generate straight away
+4. For simple jobs or when a photo gives enough info, generate straight away
 
 WHEN READY TO QUOTE — respond with ONLY this JSON (no other text):
 QUOTE_READY:{{
@@ -2118,7 +2128,16 @@ Flooring: laminate £15-30/m², underlay £3-5/m², adhesive £20, threshold str
         messages = []
         for h in history:
             messages.append({"role": h["role"], "content": h["content"]})
-        messages.append({"role": "user", "content": message})
+
+        if image_data:
+            user_content = [
+                {"type": "image", "source": {"type": "base64", "media_type": image_type, "data": image_data}},
+                {"type": "text", "text": message or "Please analyse this photo and help me quote this job."}
+            ]
+        else:
+            user_content = message
+
+        messages.append({"role": "user", "content": user_content})
 
         response = client.messages.create(
             model="claude-sonnet-4-5",
