@@ -546,28 +546,17 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
 
       <!-- QUOTE TEMPLATE -->
       <div class="sg">
-        <div class="sg-lbl">Quote template</div>
+        <div class="sg-lbl">Quote style</div>
         <div class="sg-list">
-          <div class="sg-row"><div class="sg-row-label">Business name</div><input class="sg-val" id="qt-business-name" placeholder="e.g. Harry's Carpentry"></div>
-          <div class="sg-row"><div class="sg-row-label">Address</div><input class="sg-val" id="qt-address" placeholder="Town, County"></div>
-          <div class="sg-row"><div class="sg-row-label">Phone</div><input class="sg-val" id="qt-phone" placeholder="+44 7700 000000"></div>
-          <div class="sg-row"><div class="sg-row-label">Email</div><input class="sg-val" id="qt-email" placeholder="you@email.com"></div>
-          <div class="sg-row"><div class="sg-row-label">Quote valid for</div><input class="sg-val" id="qt-validity" placeholder="30 days"></div>
-        </div>
-      </div>
-
-      <div class="sg">
-        <div class="sg-lbl">Quote brand colour</div>
-        <div class="sg-list">
-          <div class="colour-row" id="colourRow">
-            <div class="colour-swatch selected" style="background:#1a1a2e" data-colour="#1a1a2e" onclick="selectColour(this)"></div>
-            <div class="colour-swatch" style="background:#1e3a5f" data-colour="#1e3a5f" onclick="selectColour(this)"></div>
-            <div class="colour-swatch" style="background:#2d6a4f" data-colour="#2d6a4f" onclick="selectColour(this)"></div>
-            <div class="colour-swatch" style="background:#7b2d8b" data-colour="#7b2d8b" onclick="selectColour(this)"></div>
-            <div class="colour-swatch" style="background:#c0392b" data-colour="#c0392b" onclick="selectColour(this)"></div>
-            <div class="colour-swatch" style="background:#e67e22" data-colour="#e67e22" onclick="selectColour(this)"></div>
-            <div class="colour-swatch" style="background:#2c3e50" data-colour="#2c3e50" onclick="selectColour(this)"></div>
-            <div class="colour-swatch" style="background:#16213e" data-colour="#16213e" onclick="selectColour(this)"></div>
+          <div class="sg-row" style="flex-direction:column;align-items:stretch;gap:10px;padding:16px 18px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-size:.85rem;font-weight:600;color:var(--t1)" id="profileStyleName">Premium Gold</div>
+                <div style="font-size:.68rem;color:var(--t3);margin-top:2px">Used on all quotes & invoices</div>
+              </div>
+              <div id="profileStyleSwatch" style="width:36px;height:36px;border-radius:8px;background:#1a1a1a;flex-shrink:0"></div>
+            </div>
+            <button onclick="go('designer')" style="width:100%;padding:11px;background:var(--s2);border:1px solid var(--br);border-radius:10px;font-family:Inter,sans-serif;font-size:.78rem;font-weight:700;color:var(--t1);cursor:pointer">✏️ Change quote style</button>
           </div>
         </div>
       </div>
@@ -1046,25 +1035,24 @@ function renderProfile(p){
     <div class="sg-row"><div class="sg-row-label">Markup</div><input class="sg-val" id="p-markup" value="${p.materials_markup||20}"></div>
     <div class="sg-row"><div class="sg-row-label">Terms</div><input class="sg-val" id="p-terms" value="${p.payment_terms||30}"></div>
     <div class="sg-row"><div class="sg-row-label">VAT</div><input class="sg-val" id="p-vat" value="${p.vat_registered||'No'}"></div>`;
-  document.getElementById('qt-business-name').value=p.business_name||'';
-  document.getElementById('qt-phone').value=p.phone||'';
 }
 
 function loadTemplate(t){
   if(!t)return;
-  document.getElementById('qt-business-name').value=t.business_name||'';
-  document.getElementById('qt-address').value=t.business_address||'';
-  document.getElementById('qt-phone').value=t.business_phone||'';
-  document.getElementById('qt-email').value=t.business_email||'';
-  document.getElementById('qt-validity').value=t.quote_validity_days||'30';
-  document.getElementById('qt-payment').value=t.payment_details||'';
-  document.getElementById('qt-terms').value=t.terms||'';
-  document.getElementById('qt-footer').value=t.footer_text||'';
-  if(t.brand_colour){
-    selectedColour=t.brand_colour;
-    document.querySelectorAll('.colour-swatch').forEach(s=>{
-      s.classList.toggle('selected',s.dataset.colour===t.brand_colour);
-    });
+  const styleNames = {gold:'Premium Gold',navy:'Navy Pro',slate:'Slate Clean',green:'Forest Green',mono:'Mono Minimal'};
+  const styleColors = {gold:'#1a1a1a',navy:'#0f2b5b',slate:'#3d3d3d',green:'#1e4d2b',mono:'#f5f5f5'};
+  const s = t.design_style || 'gold';
+  const nameEl = document.getElementById('profileStyleName');
+  const swatchEl = document.getElementById('profileStyleSwatch');
+  if(nameEl) nameEl.textContent = styleNames[s] || 'Premium Gold';
+  if(swatchEl) swatchEl.style.background = styleColors[s] || '#1a1a1a';
+  designerStyle = s;
+  pickDesignStyle(s);
+  if(t.design_template){
+    try{
+      const dt = JSON.parse(t.design_template);
+      Object.assign(designerTemplate, dt);
+    }catch(e){}
   }
 }
 
@@ -1590,12 +1578,18 @@ async function generateAndPreview(){
       iframe.srcdoc = data.html;
       wrapper.appendChild(iframe);
       inner.appendChild(wrapper);
-      msg.textContent = '✓ Looking good! Your style is saved.';
+      msg.textContent = '✓ Style saved! All future quotes will use this template.';
       await fetch('/api/save-design-template?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin), {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({style: designerStyle, template: designerTemplate})
       });
+      const styleNames = {gold:'Premium Gold',navy:'Navy Pro',slate:'Slate Clean',green:'Forest Green',mono:'Mono Minimal'};
+      const styleColors = {gold:'#1a1a1a',navy:'#0f2b5b',slate:'#3d3d3d',green:'#1e4d2b',mono:'#f5f5f5'};
+      const nameEl = document.getElementById('profileStyleName');
+      const swatchEl = document.getElementById('profileStyleSwatch');
+      if(nameEl) nameEl.textContent = styleNames[designerStyle] || 'Premium Gold';
+      if(swatchEl) swatchEl.style.background = styleColors[designerStyle] || '#1a1a1a';
     } else {
       msg.textContent = data.error || 'Error loading preview';
     }
