@@ -1591,6 +1591,41 @@ def incoming_sms():
 
     return str(resp)
 
+@app.route("/api/preview-quote", methods=["POST"])
+def preview_quote():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+
+        data = request.json or {}
+        style = data.get("style", {})
+        design_style = data.get("designStyle", "gold")
+
+        template = {
+            "design_style": design_style,
+            "design_template": json.dumps(style)
+        }
+
+        sample_quote = {
+            "client_name": "Example Client",
+            "client_address": "123 High Street, Devon",
+            "total": "1,900.00",
+            "quote_number": "QU-001",
+            "line_items": style.get("scopeItems", [])
+        }
+
+        html = build_quote_html(sample_quote, profile, template, is_invoice=False)
+        return jsonify({"html": html})
+    except Exception as e:
+        print("Preview quote error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/generate-quote-html", methods=["POST"])
 def generate_quote_html():
     """Generate a bespoke HTML quote template using Claude."""
