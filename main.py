@@ -1834,6 +1834,42 @@ def api_chat():
 @app.route("/api/generate-quote-ai", methods=["POST"])
 def generate_quote_ai():
     try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        if not phone or not pin:
+            return jsonify({"error": "Auth required"}), 401
+
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+
+        template_result = supabase.table("quote_templates").select("*").eq("sender", sender).execute()
+        template = template_result.data[0] if template_result.data else {}
+
+        dt = {}
+        if template.get("design_template"):
+            try:
+                dt = json.loads(template["design_template"])
+            except:
+                dt = {}
+
+        biz_name = dt.get("bizName") or template.get("business_name") or profile.get("business_name", "")
+        trade = dt.get("trade") or profile.get("trade", "tradesperson")
+        phone_num = dt.get("phone") or template.get("business_phone") or profile.get("phone", "")
+        email = dt.get("email") or template.get("business_email") or ""
+        location = dt.get("location") or template.get("business_address") or ""
+        accent = dt.get("accent") or template.get("brand_colour") or "#1a1a2e"
+        dark = dt.get("dark") or "#1a1a1a"
+        design_style = template.get("design_style") or "george"
+        inclusion_items = dt.get("inclusionItems") or ["All labour", "All materials", "Standard preparation", "Site clean-down"]
+        commitment = dt.get("commitment") or "We take pride in delivering quality workmanship. Your satisfaction is our priority."
+        lead_time = dt.get("leadTime") or "Works to be arranged at a convenient time. Typical duration: 3-5 working days."
+        show_vat = dt.get("showVat", False)
+        logo_url = profile.get("logo_url") or ""
+
         data = request.json
         job_description = data.get("job_description", "")
         if not job_description:
@@ -1842,31 +1878,48 @@ def generate_quote_ai():
         response = client.messages.create(
             model="claude-sonnet-4-5",
             max_tokens=1000,
-            system="You are a quoting assistant for a UK plastering and rendering business. Return ONLY raw JSON, no markdown, no preamble, no explanation.",
+            system=f"You are a quoting assistant for {biz_name}, a {trade} business in the UK. Return ONLY raw JSON, no markdown, no preamble.",
             messages=[{"role": "user", "content": f"""A customer described this job: "{job_description}"
 
-Generate a professional quote. Return this exact JSON structure and nothing else:
+Generate a professional quote. Return this exact JSON and nothing else:
 {{
   "clientName": "Customer",
-  "scopeItems": ["detailed work item 1", "detailed work item 2", "detailed work item 3", "detailed work item 4"],
+  "scopeItems": ["detailed work item 1", "detailed work item 2", "detailed work item 3"],
   "totalPrice": 1200,
   "leadTimeDays": "3-5",
-  "note": "any important caveat, or empty string if none",
-  "summary": "one friendly sentence confirming the quote is ready"
+  "note": "important caveat if needed, or empty string",
+  "summary": "one friendly sentence confirming quote is ready"
 }}
 
 Rules:
-- scopeItems: 3-6 specific bullet points describing the exact work
-- totalPrice: realistic UK plastering price as a number only, no £ sign
-- clientName: use name if mentioned, otherwise Customer
-- note: important caveats about additional charges, or empty string"""}]
+- scopeItems: 3-6 specific bullet points for the exact work described
+- totalPrice: realistic UK {trade} price as a number only, no £ sign
+- clientName: use name if mentioned in description, otherwise Customer
+- note: caveats about extra charges if applicable, or empty string"""}]
         )
 
         import re
         raw = response.content[0].text.strip()
         raw = re.sub(r'```json|```', '', raw).strip()
-        result = json.loads(raw)
-        return jsonify(result)
+        quote_data = json.loads(raw)
+
+        quote_data["profile"] = {
+            "bizName": biz_name,
+            "trade": trade,
+            "phone": phone_num,
+            "email": email,
+            "location": location,
+            "accent": accent,
+            "dark": dark,
+            "designStyle": design_style,
+            "inclusionItems": inclusion_items,
+            "commitment": commitment,
+            "leadTime": lead_time,
+            "showVat": show_vat,
+            "logoUrl": logo_url
+        }
+
+        return jsonify(quote_data)
     except Exception as e:
         print("Generate quote AI error: " + str(e))
         return jsonify({"error": str(e)}), 500
