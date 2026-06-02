@@ -434,13 +434,13 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
       </div>
     </div>
 
-    <div id="s-preview" class="scr">
-      <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--br);flex-shrink:0">
-        <button onclick="go('designer')" style="background:none;border:none;color:var(--t2);font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:Inter,sans-serif;padding:0">← Back</button>
-        <div style="font-size:.92rem;font-weight:700">Preview</div>
+    <div id="previewModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.92);flex-direction:column;max-width:390px;margin:0 auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;flex-shrink:0;background:#111;border-bottom:1px solid rgba(255,255,255,0.1)">
+        <div style="font-size:.92rem;font-weight:700;color:#fff">Quote Preview</div>
+        <button onclick="closePreview()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px">&#215;</button>
       </div>
-      <div id="previewContent" style="overflow-y:auto;background:#e8e8e8;padding:16px;min-height:calc(100vh - 130px)">
-        <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.15)" id="previewInner"></div>
+      <div style="flex:1;overflow-y:auto;background:#e8e8e8;padding:12px;" id="previewContent">
+        <div style="background:#fff;border-radius:6px;overflow:hidden;" id="previewInner"></div>
       </div>
     </div>
 
@@ -1494,7 +1494,7 @@ async function generateAndPreview(){
     const data = await res.json();
     if(data.html){
       generatedQuoteHTML = data.html;
-      go('preview');
+      openPreview();
       const inner = document.getElementById('previewInner');
       inner.innerHTML = '';
       const iframe = document.createElement('iframe');
@@ -1519,15 +1519,27 @@ async function generateAndPreview(){
 }
 
 function showDesignPreview(){
-  go('preview');
-  const inner = document.getElementById('previewInner');
   if(generatedQuoteHTML){
+    openPreview();
+    const inner = document.getElementById('previewInner');
     inner.innerHTML = '';
     const iframe = document.createElement('iframe');
     iframe.style.cssText = 'width:100%;height:1200px;border:none';
     iframe.srcdoc = generatedQuoteHTML;
     inner.appendChild(iframe);
-  } else inner.innerHTML = renderGeorgePreview();
+  }
+}
+
+function openPreview(){
+  const modal = document.getElementById('previewModal');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closePreview(){
+  const modal = document.getElementById('previewModal');
+  modal.style.display = 'none';
+  document.body.style.overflow = '';
 }
 
 function renderGeorgePreview(){
