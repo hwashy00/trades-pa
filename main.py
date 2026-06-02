@@ -1600,24 +1600,37 @@ def preview_quote():
         if not result.data or str(result.data[0].get("pin", "")) != str(pin):
             return jsonify({"error": "Unauthorised"}), 401
         profile = result.data[0]
-        sender = profile.get("sender", "")
 
         data = request.json or {}
         style = data.get("style", {})
         design_style = data.get("designStyle", "gold")
+        quote_data = data.get("quoteData", None)
+
+        template_result = supabase.table("quote_templates").select("*").eq("sender", profile.get("sender","")).execute()
+        saved_template = template_result.data[0] if template_result.data else {}
 
         template = {
-            "design_style": design_style,
-            "design_template": json.dumps(style)
+            "design_style": saved_template.get("design_style", design_style),
+            "design_template": saved_template.get("design_template") or json.dumps(style)
         }
 
-        sample_quote = {
-            "client_name": "Example Client",
-            "client_address": "123 High Street, Devon",
-            "total": "1,900.00",
-            "quote_number": "QU-001",
-            "line_items": style.get("scopeItems", [])
-        }
+        if quote_data:
+            scope_items = quote_data.get("scopeItems", [])
+            sample_quote = {
+                "client_name": quote_data.get("clientName", "Example Client"),
+                "client_address": "",
+                "total": str(quote_data.get("totalPrice", "0")),
+                "quote_number": "QU-001",
+                "line_items": scope_items
+            }
+        else:
+            sample_quote = {
+                "client_name": "Example Client",
+                "client_address": "123 High Street, Devon",
+                "total": "1,900.00",
+                "quote_number": "QU-001",
+                "line_items": style.get("scopeItems", [])
+            }
 
         html = build_quote_html(sample_quote, profile, template, is_invoice=False)
         return jsonify({"html": html})
@@ -2033,63 +2046,110 @@ def generate_quote_ai():
         location = dt.get("location") or template.get("business_address") or ""
         accent = dt.get("accent") or template.get("brand_colour") or "#1a1a2e"
         dark = dt.get("dark") or "#1a1a1a"
-        design_style = template.get("design_style") or "george"
+        design_style = template.get("design_style") or "gold"
         inclusion_items = dt.get("inclusionItems") or ["All labour", "All materials", "Standard preparation", "Site clean-down"]
         commitment = dt.get("commitment") or "We take pride in delivering quality workmanship. Your satisfaction is our priority."
         lead_time = dt.get("leadTime") or "Works to be arranged at a convenient time. Typical duration: 3-5 working days."
         show_vat = dt.get("showVat", False)
         logo_url = profile.get("logo_url") or ""
 
+        day_rate = float(str(profile.get("day_rate") or 250).replace("£","").replace(",","") or 250)
+        markup = float(str(profile.get("materials_markup") or 20).replace("%","") or 20)
+
         data = request.json
-        job_description = data.get("job_description", "")
-        if not job_description:
-            return jsonify({"error": "No job description provided"}), 400
+        history = data.get("history", [])
+        message = data.get("message", "")
+        if not message:
+            return jsonify({"error": "No message provided"}), 400
 
-        response = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=1000,
-            system=f"You are a quoting assistant for {biz_name}, a {trade} business in the UK. Return ONLY raw JSON, no markdown, no preamble.",
-            messages=[{"role": "user", "content": f"""A customer described this job: "{job_description}"
+        system = f"""You are a professional quoting assistant for {biz_name}, a {trade} business in the UK.
+Your job is to help generate accurate, detailed job quotes through a short friendly conversation.
 
-Generate a professional quote. Return this exact JSON and nothing else:
-{{
+TRADESPERSON DETAILS:
+- Trade: {trade}
+- Day rate: £{day_rate:.0f}
+- Materials markup: {markup:.0f}%
+
+YOUR GOAL: Gather enough information to produce an accurate quote, then generate it.
+
+CONVERSATION RULES:
+1. If you need more info (dimensions, condition, scope) ask ONE clear question at a time — keep it short and friendly
+2. NEVER ask more than 3 follow-up questions total before generating the quote
+3. Once you have enough info, generate the quote immediately — don't ask unnecessary questions
+4. For simple jobs (e.g. "paint a door") you already have enough info — generate straight away
+
+WHEN READY TO QUOTE — respond with ONLY this JSON (no other text):
+QUOTE_READY:{{
   "clientName": "Customer",
-  "scopeItems": ["detailed work item 1", "detailed work item 2", "detailed work item 3"],
-  "totalPrice": 1200,
+  "scopeItems": ["specific work item 1", "specific work item 2"],
+  "totalPrice": 0,
+  "labourDays": 0,
+  "labourCost": 0,
+  "materials": [{{"item": "material name", "qty": "quantity", "unitCost": 0, "total": 0}}],
+  "materialsCost": 0,
+  "markupAmount": 0,
   "leadTimeDays": "3-5",
-  "note": "important caveat if needed, or empty string",
+  "note": "any important caveat or empty string",
   "summary": "one friendly sentence confirming quote is ready"
 }}
 
-Rules:
-- scopeItems: 3-6 specific bullet points for the exact work described
-- totalPrice: realistic UK {trade} price as a number only, no £ sign
-- clientName: use name if mentioned in description, otherwise Customer
-- note: caveats about extra charges if applicable, or empty string"""}]
+PRICING RULES:
+- Labour = labourDays × £{day_rate:.0f} day rate
+- Materials = realistic UK trade prices (2024/2025)
+- Materials total AFTER adding {markup:.0f}% markup
+- totalPrice = labourCost + materialsCost (rounded to nearest £5)
+- Be accurate — tradespeople will use these prices with real clients
+- For {trade} jobs use typical {trade} material costs
+
+MATERIAL COST REFERENCE (UK trade prices):
+Plastering: plasterboard £8-12/sheet, bonding coat £15/bag, finishing plaster £12/bag, beads £2-3/m
+Painting: trade emulsion £20-30/5L, gloss £18/2.5L, undercoat £18/2.5L, masking tape £3, prep materials £10-20
+Plumbing: copper pipe £3-5/m, fittings £2-5 each, solder/flux £8, PTFE £2, pipe clips £0.50 each
+Electrical: 2.5mm twin & earth £1.50/m, 1.5mm £1.20/m, back boxes £1.50, sockets/switches £5-15, consumer unit £80-150
+Carpentry: MDF £25-35/sheet, timber £3-6/m, screws/fixings £5-15, adhesive £5-8, hinges/hardware £5-20
+Tiling: standard tiles £15-40/m², adhesive £15/20kg, grout £8/3kg, spacers £3, trim £3-5/m
+Roofing: felt £30-50/roll, nails £5, lead £30-50/m², tiles £40-80/m²
+Flooring: laminate £15-30/m², underlay £3-5/m², adhesive £20, threshold strips £8"""
+
+        messages = []
+        for h in history:
+            messages.append({"role": h["role"], "content": h["content"]})
+        messages.append({"role": "user", "content": message})
+
+        response = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=1500,
+            system=system,
+            messages=messages
         )
 
+        reply = response.content[0].text.strip()
+
         import re
-        raw = response.content[0].text.strip()
-        raw = re.sub(r'```json|```', '', raw).strip()
-        quote_data = json.loads(raw)
+        if "QUOTE_READY:" in reply:
+            json_str = reply.split("QUOTE_READY:")[1].strip()
+            json_str = re.sub(r'```json|```', '', json_str).strip()
+            quote_data = json.loads(json_str)
+            quote_data["type"] = "quote"
+            quote_data["profile"] = {
+                "bizName": biz_name,
+                "trade": trade,
+                "phone": phone_num,
+                "email": email,
+                "location": location,
+                "accent": accent,
+                "dark": dark,
+                "designStyle": design_style,
+                "inclusionItems": inclusion_items,
+                "commitment": commitment,
+                "leadTime": lead_time,
+                "showVat": show_vat,
+                "logoUrl": logo_url
+            }
+            return jsonify(quote_data)
+        else:
+            return jsonify({"type": "question", "message": reply})
 
-        quote_data["profile"] = {
-            "bizName": biz_name,
-            "trade": trade,
-            "phone": phone_num,
-            "email": email,
-            "location": location,
-            "accent": accent,
-            "dark": dark,
-            "designStyle": design_style,
-            "inclusionItems": inclusion_items,
-            "commitment": commitment,
-            "leadTime": lead_time,
-            "showVat": show_vat,
-            "logoUrl": logo_url
-        }
-
-        return jsonify(quote_data)
     except Exception as e:
         print("Generate quote AI error: " + str(e))
         return jsonify({"error": str(e)}), 500
