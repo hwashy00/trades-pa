@@ -2093,11 +2093,15 @@ QUOTE_READY:{{
   "summary": "one friendly sentence confirming quote is ready"
 }}
 
-PRICING RULES:
-- Labour = labourDays × £{day_rate:.0f} day rate
-- Materials = realistic UK trade prices (2024/2025)
-- Materials total AFTER adding {markup:.0f}% markup
-- totalPrice = labourCost + materialsCost (rounded to nearest £5)
+PRICING RULES — FOLLOW EXACTLY:
+- labourCost = labourDays × £{day_rate:.0f}
+- Calculate raw material costs at trade prices first (before any markup)
+- markupAmount = raw materials total × {markup:.0f} / 100
+- materialsCost = raw materials total + markupAmount (this is what goes in materialsCost)
+- totalPrice = labourCost + materialsCost, rounded to nearest £5
+- The "total" field in each material item should be the RAW cost (before markup)
+- markupAmount is shown separately so the tradesperson can see it clearly
+- NEVER invent a different markup percentage — always use exactly {markup:.0f}%
 - Be accurate — tradespeople will use these prices with real clients
 - For {trade} jobs use typical {trade} material costs
 
