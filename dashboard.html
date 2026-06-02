@@ -2136,7 +2136,7 @@ function qgShowPriceSummary(q){
         <div style="font-weight:600;color:var(--t1)">£${Number(m.total||0).toFixed(2)}</div>
       </div>`).join('') +
       `<div style="display:flex;justify-content:space-between;padding:8px 0;font-size:.78rem">
-        <div style="color:var(--t3)">Markup (${q.markupAmount?Math.round((q.markupAmount/((q.materialsCost||1)-(q.markupAmount||0)))*100):0}%)</div>
+        <div style="color:var(--t3)">Markup (${window._vanofficeProfile?window._vanofficeProfile.materials_markup||20:20}%)</div>
         <div style="color:var(--t3)">£${Number(q.markupAmount||0).toFixed(2)}</div>
       </div>`;
   } else {
