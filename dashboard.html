@@ -2041,12 +2041,13 @@ async function qsPreview(){
 async function qsSaveAndContinue(){
   const btn = document.getElementById('qsSaveBtn');
   const msg = document.getElementById('qsMsg');
+  console.log('qsSaveAndContinue called, userPhone:', userPhone, 'userPin:', userPin, '_pendingAppData:', !!_pendingAppData);
   btn.textContent = 'Saving...';
   btn.disabled = true;
   msg.textContent = '';
   try{
     if(!userPhone || !userPin){
-      msg.textContent = 'Session expired — please log in again.';
+      msg.textContent = 'Session expired — please log in again. (phone:' + userPhone + ')';
       btn.textContent = 'Save & go to dashboard →';
       btn.disabled = false;
       return;
@@ -2258,3 +2259,8 @@ async function qgSend(){
   input.disabled = false;
   input.focus();
 }
+
+
+</script>
+</body>
+</html>
