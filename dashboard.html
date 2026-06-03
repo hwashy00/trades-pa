@@ -1520,17 +1520,36 @@ function updateInvoiceTotal(){
 
 function openQuoteModal(clientName, jobType, clientNumber, e){
   if(e)e.stopPropagation();
-  quoteItems=[];
-  document.getElementById('qu-items').innerHTML='';
-  document.getElementById('qu-client').value=clientName||'';
-  document.getElementById('qu-address').value='';
-  document.getElementById('qu-job').value=jobType||'';
-  document.getElementById('qu-client-number').value=clientNumber||'';
-  document.getElementById('quModalErr').textContent='';
-  document.getElementById('qu-total-display').textContent='£0.00';
-  addQuoteItem();
-  document.getElementById('quoteModalOverlay').style.display='block';
-  document.getElementById('quoteModal').style.display='block';
+  // Close any open drawer
+  const drawer = document.getElementById('jobDrawer');
+  const overlay = document.getElementById('drawerOverlay');
+  if(drawer) drawer.style.transform='translateY(100%)';
+  if(overlay) overlay.style.display='none';
+  // Pre-fill AI quote and navigate
+  qgStartFromJob(clientName, jobType);
+}
+
+function qgStartFromJob(clientName, jobType){
+  // Reset the quote chat
+  qgReset();
+  // Navigate to AI Quote tab
+  go('quotegen');
+  // Short delay so the screen renders, then inject the context
+  setTimeout(()=>{
+    const name = clientName || 'the client';
+    const job = jobType || '';
+    // Pre-fill input and send automatically
+    const msg = job
+      ? `Client: ${name}. Job: ${job}`
+      : `Client: ${name}`;
+    // Add a system-style message showing context was loaded
+    qgAddMsg('ai', `Got it — quoting for <strong>${name}</strong>${job ? ' for <em>' + job + '</em>' : ''}. What are the details? (room size, scope, any special requirements)`);
+    // Store client name for the quote
+    window._qgPrefilledClient = clientName;
+    // Pre-fill input with job context so they can just add dimensions
+    const input = document.getElementById('qgInput');
+    if(input && job){ input.value = job; input.focus(); }
+  }, 320);
 }
 
 function closeQuoteModal(){
@@ -2392,6 +2411,7 @@ function qgReset(){
   qgQuoteData = null;
   qgBreakdownVisible = false;
   qgPhotoBase64 = null;
+  window._qgPrefilledClient = null;
   qgStopVoice();
   window.speechSynthesis && window.speechSynthesis.cancel();
   document.getElementById('qgPhotoPreview').style.display = 'none';
@@ -2531,7 +2551,11 @@ async function qgSend(){
   qgAddMsg('user', val);
   input.value = '';
 
-  qgHistory.push({role:'user', content: val});
+  // If client was prefilled from a job, inject name into first message context
+  const msgWithContext = (window._qgPrefilledClient && qgHistory.length === 0)
+    ? `Client name: ${window._qgPrefilledClient}. ${val}`
+    : val;
+  qgHistory.push({role:'user', content: msgWithContext});
 
   const typingEl = document.createElement('div');
   typingEl.id = 'qgTyping';
@@ -2546,7 +2570,7 @@ async function qgSend(){
   qgClearPhoto();
 
   try{
-    const body = {message: val, history: qgHistory.slice(0,-1)};
+    const body = {message: msgWithContext, history: qgHistory.slice(0,-1)};
     if(photoToSend){ body.image = photoToSend; body.imageType = photoType; }
 
     const res = await fetch('/api/generate-quote-ai?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin), {
