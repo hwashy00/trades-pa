@@ -304,12 +304,21 @@ def run_invoice_chase():
                 sender     = inv.get("sender", "")
                 next_chase = chase_count + 1
 
+                # Get tradesperson's business name for the message
+                biz_name = sender
+                try:
+                    prof = supabase.table("profiles").select("business_name,owner_name").eq("sender", sender).limit(1).execute()
+                    if prof.data:
+                        biz_name = prof.data[0].get("business_name") or prof.data[0].get("owner_name") or sender
+                except:
+                    pass
+
                 if next_chase == 1:
-                    msg = f"Hi {first_name}, just a reminder that invoice {inv_num} for £{total} is now {days_overdue} day(s) overdue. Please arrange payment at your earliest convenience. Thanks, {sender}"
+                    msg = f"Hi {first_name}, just a friendly reminder that invoice {inv_num} for £{total} is now due. Please arrange payment at your earliest convenience. Many thanks, {biz_name}"
                 elif next_chase == 2:
-                    msg = f"Hi {first_name}, second reminder — invoice {inv_num} for £{total} is {days_overdue} days overdue. Please settle this as soon as possible."
+                    msg = f"Hi {first_name}, second reminder — invoice {inv_num} for £{total} is now {days_overdue} days overdue. Please settle this as soon as possible. {biz_name}"
                 else:
-                    msg = f"FINAL NOTICE: {first_name}, invoice {inv_num} for £{total} is {days_overdue} days overdue. Immediate payment required or we may pursue this through small claims. Please contact us urgently."
+                    msg = f"FINAL NOTICE: Hi {first_name}, invoice {inv_num} for £{total} is {days_overdue} days overdue. Immediate payment is required. Please contact us urgently. {biz_name}"
 
                 twilio_client.messages.create(to=phone, from_=from_number, body=msg)
 
@@ -333,6 +342,7 @@ def run_invoice_chase():
 scheduler = BackgroundScheduler()
 scheduler.add_job(send_morning_summary, "cron", hour=8, minute=0)
 scheduler.add_job(scan_all_emails, "interval", minutes=15)
+scheduler.add_job(run_invoice_chase, "cron", hour=9, minute=0)
 scheduler.start()
 
 
