@@ -4,7 +4,7 @@ import traceback
 import datetime
 import io
 import json
-from flask import Flask, request, jsonify, send_file, redirect, session
+from flask import Flask, request, jsonify, send_file, redirect, session, Response
 import anthropic
 from supabase import create_client
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -2295,6 +2295,47 @@ Flooring: laminate £15-30/m², underlay £3-5/m², adhesive £20, threshold str
 
     except Exception as e:
         print("Generate quote AI error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/tts", methods=["POST"])
+def tts():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        if not phone or not pin:
+            return jsonify({"error": "Auth required"}), 401
+        result = supabase.table("profiles").select("pin").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+
+        text = (request.json.get("text") or "")[:800]
+        if not text:
+            return jsonify({"error": "No text"}), 400
+
+        import requests as http_requests
+        voice_id = os.environ.get("ELEVEN_VOICE_ID", "")
+        api_key  = os.environ.get("ELEVEN_API_KEY", "")
+        if not voice_id or not api_key:
+            return jsonify({"error": "ElevenLabs not configured"}), 503
+
+        r = http_requests.post(
+            f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+            headers={"xi-api-key": api_key, "Content-Type": "application/json"},
+            json={
+                "text": text,
+                "model_id": "eleven_flash_v2_5",
+                "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
+            },
+            params={"output_format": "mp3_44100_128"},
+            timeout=15
+        )
+        if r.status_code != 200:
+            return jsonify({"error": "ElevenLabs error", "detail": r.text}), 502
+        return Response(r.content, mimetype="audio/mpeg",
+                        headers={"Cache-Control": "no-store"})
+    except Exception as e:
+        print("TTS error:", e)
         return jsonify({"error": str(e)}), 500
 
 
