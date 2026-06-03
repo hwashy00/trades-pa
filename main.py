@@ -1857,6 +1857,30 @@ def save_design_template():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/save-profile", methods=["POST"])
+def save_profile():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        data = request.json or {}
+        update = {}
+        fields = ["business_name", "trade", "day_rate", "half_day_rate", "hourly_rate",
+                  "materials_markup", "payment_terms", "vat_registered", "logo"]
+        for f in fields:
+            if f in data and data[f] is not None:
+                update[f] = data[f]
+        if update:
+            supabase.table("profiles").update(update).eq("sender", profile["sender"]).execute()
+        return jsonify({"success": True})
+    except Exception as e:
+        print("Save profile error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/create-quote", methods=["POST"])
 def create_quote():
     try:
