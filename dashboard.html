@@ -2857,7 +2857,7 @@ async function qgSend(){
 
 
 /* ════════ HANDS-FREE VOICE LOOP ════════ */
-let hfState='idle', hfRecog=null, hfRecogActive=false, hfFinal='', hfSttOK=true, hfWaveTimer=null, hfOpened=false;
+let hfState='idle', hfRecog=null, hfRecogActive=false, hfFinal='', hfSttOK=true, hfWaveTimer=null, hfOpened=false, hfAudio=null;
 const HF_LABELS={idle:['Tap to talk','Have a proper conversation \u2014 hands free.'],
   listening:['Listening\u2026','Speak now \u2014 I\'ll reply out loud.'],
   thinking:['Thinking\u2026','Working it out.'],
@@ -2881,18 +2881,41 @@ function hfBanner(m){const b=document.getElementById('hfBanner');b.textContent=m
 function hfWaveOn(){const bars=document.querySelectorAll('#hfWave i');let p=0;hfWaveTimer=setInterval(()=>{p+=0.4;bars.forEach((b,i)=>{b.style.height=(8+Math.abs(Math.sin(p+i))*22*Math.random())+'px';});},80);}
 function hfWaveOff(){clearInterval(hfWaveTimer);}
 
-/* —— VOICE OUT —— swap this one function for ElevenLabs/OpenAI later —— */
-function hfSpeak(text){
+/* —— VOICE OUT —— ElevenLabs neural TTS via /api/tts ——
+   Change voice: update ELEVEN_VOICE_ID env var in Railway —— */
+function hfBrowserSpeak(text){
   return new Promise(res=>{
     if(!window.speechSynthesis){res();return;}
     window.speechSynthesis.cancel();
-    const clean=String(text).replace(/[\u00A3\u20AC$]/g,' pounds ').replace(/[*_#]/g,'').substring(0,400);
+    const clean=String(text).replace(/£/g,' pounds ').replace(/[*_#]/g,'').substring(0,300);
     const u=new SpeechSynthesisUtterance(clean);
     const vs=window.speechSynthesis.getVoices();
     const v=vs.find(x=>/en-GB/i.test(x.lang)&&/male|daniel|arthur|george/i.test(x.name))||vs.find(x=>/en-GB/i.test(x.lang))||vs.find(x=>/^en/i.test(x.lang));
-    if(v)u.voice=v; u.lang=(v&&v.lang)||'en-GB'; u.rate=1.05; u.pitch=1;
+    if(v)u.voice=v; u.lang='en-GB'; u.rate=1.05; u.pitch=1;
     u.onend=res; u.onerror=res;
     window.speechSynthesis.speak(u);
+  });
+}
+async function hfSpeak(text){
+  return new Promise(async res=>{
+    try{
+      const r=await fetch('/api/tts?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({text:String(text).replace(/[*_#]/g,'').substring(0,800)})
+      });
+      if(!r.ok) throw new Error('tts '+r.status);
+      const blob=await r.blob();
+      const url=URL.createObjectURL(blob);
+      const audio=new Audio(url);
+      hfAudio=audio;
+      audio.onended=()=>{hfAudio=null;URL.revokeObjectURL(url);res();};
+      audio.onerror=()=>{hfAudio=null;URL.revokeObjectURL(url);res();};
+      await audio.play();
+    }catch(e){
+      console.warn('ElevenLabs TTS failed, using browser voice:',e.message);
+      await hfBrowserSpeak(text);
+      res();
+    }
   });
 }
 /* —— VOICE IN —— */
@@ -2937,10 +2960,16 @@ function hfOpen(){
 }
 function hfTap(){
   if(hfState==='idle') hfListen();
-  else if(hfState==='speaking'){ if(window.speechSynthesis)window.speechSynthesis.cancel(); hfListen(); }
+  else if(hfState==='speaking'){
+    if(hfAudio){hfAudio.pause();hfAudio=null;}
+    if(window.speechSynthesis)window.speechSynthesis.cancel();
+    hfListen();
+  }
 }
 function hfEnd(){
-  hfStopListen(); if(window.speechSynthesis)window.speechSynthesis.cancel();
+  hfStopListen();
+  if(hfAudio){hfAudio.pause();hfAudio=null;}
+  if(window.speechSynthesis)window.speechSynthesis.cancel();
   hfSet('idle'); document.getElementById('hfOverlay').classList.remove('open');
   document.getElementById('hfScroll').innerHTML='';
 }
