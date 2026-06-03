@@ -1610,8 +1610,8 @@ def preview_quote():
         saved_template = template_result.data[0] if template_result.data else {}
 
         template = {
-            "design_style": saved_template.get("design_style", design_style),
-            "design_template": saved_template.get("design_template") or json.dumps(style)
+            "design_style": design_style,
+            "design_template": json.dumps(style) if style else saved_template.get("design_template", "{}")
         }
 
         if quote_data:
