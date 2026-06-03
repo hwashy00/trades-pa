@@ -838,6 +838,8 @@ def whatsapp():
     incoming_msg = request.form.get("Body", "").strip()
     sender = request.form.get("From", "")
     num_media = int(request.form.get("NumMedia", 0))
+    wa_image_data = None
+    wa_image_type = "image/jpeg"
 
     if num_media > 0:
         media_type = request.form.get("MediaContentType0", "")
@@ -863,6 +865,19 @@ def whatsapp():
                 resp = MessagingResponse()
                 resp.message("Sorry, could not transcribe your voice note. Try again or type your message.")
                 return str(resp)
+        elif "image" in media_type:
+            try:
+                import requests as req
+                account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+                auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+                img_response = req.get(media_url, auth=(account_sid, auth_token))
+                wa_image_data = base64.b64encode(img_response.content).decode()
+                wa_image_type = media_type
+                if not incoming_msg:
+                    incoming_msg = "Please analyse this photo and help me quote this job."
+                print("WhatsApp image received, size: " + str(len(wa_image_data)))
+            except Exception as e:
+                print("WhatsApp image error: " + str(e))
 
     from twilio.twiml.messaging_response import MessagingResponse
     resp = MessagingResponse()
@@ -972,42 +987,74 @@ def whatsapp():
     if sender not in conversation_history:
         conversation_history[sender] = []
 
-    conversation_history[sender].append({"role": "user", "content": incoming_msg})
+    if wa_image_data:
+        user_content = [
+            {"type": "image", "source": {"type": "base64", "media_type": wa_image_type, "data": wa_image_data}},
+            {"type": "text", "text": incoming_msg}
+        ]
+        conversation_history[sender].append({"role": "user", "content": user_content})
+    else:
+        conversation_history[sender].append({"role": "user", "content": incoming_msg})
 
     today = datetime.date.today().strftime("%A %d %B %Y")
 
-    system_prompt = "You are a PA for a trades business. Today is " + today + ".\n"
-    system_prompt += "The user details are:\n"
-    system_prompt += "Business: " + str(profile.get("business_name")) + "\n"
-    system_prompt += "Name: " + str(profile.get("owner_name")) + "\n"
-    system_prompt += "Trade: " + str(profile.get("trade")) + "\n"
-    system_prompt += "Day rate: " + str(profile.get("day_rate")) + "\n"
-    system_prompt += "Half day rate: " + str(profile.get("half_day_rate")) + "\n"
-    system_prompt += "Hourly rate: " + str(profile.get("hourly_rate")) + "\n"
-    system_prompt += "Materials markup: " + str(profile.get("materials_markup")) + "% (apply this silently - never show the markup to the customer)\n"
-    system_prompt += "Payment terms: " + str(profile.get("payment_terms")) + " days\n"
-    system_prompt += "VAT registered: " + str(profile.get("vat_registered")) + "\n\n"
-    system_prompt += "You help with:\n"
-    system_prompt += "1. Logging job enquiries - extract client name, address, job type, urgency\n"
-    system_prompt += "2. Generating quotes - use their exact rates above. Present the quote clearly to the user on WhatsApp.\n"
-    system_prompt += "3. Booking in jobs - extract client, job type, location, date, time, duration\n"
-    system_prompt += "4. Tracking outstanding jobs and payments\n"
-    system_prompt += "5. General scheduling and reminders\n\n"
-    system_prompt += "Always be concise - this is WhatsApp. Do NOT say you cannot send messages. Just present the quote directly.\n\n"
-    system_prompt += "When generating a QUOTE, present it on WhatsApp like this:\n"
-    system_prompt += "Quote for [client name]\n"
-    system_prompt += "[job description] at [address]\n\n"
-    system_prompt += "Labour: [X] days @ [rate] = [amount]\n"
-    system_prompt += "Materials: [total amount after markup already applied - never show the markup percentage to the customer]\n"
-    system_prompt += "TOTAL: [amount]\n"
-    system_prompt += "Payment due within [X] days\n\n"
-    system_prompt += "Reply PDF to get this as a professional PDF document.\n\n"
-    system_prompt += "Then end your reply with this data tag on a new line:\n"
-    system_prompt += "LOG:name=<client name>|job=<job type>|location=<location>|status=quoted\n"
-    system_prompt += "QUOTEDATA:" + json.dumps({"items": [{"description": "example", "qty": 1, "unit_price": 0}], "subtotal": "0", "total": "0"}) + "\n"
-    system_prompt += "Replace the QUOTEDATA with the actual quote line items as valid JSON.\n\n"
-    system_prompt += "If logging an enquiry (not a quote) end your reply with:\n"
-    system_prompt += "LOG:name=<client name>|job=<job type>|location=<location>|status=new\n\n"
+    day_rate_wa = float(str(profile.get("day_rate") or "250").replace("£","").replace(",","").strip() or 250)
+    if day_rate_wa == 0: day_rate_wa = 250
+    markup_wa = float(str(profile.get("materials_markup") or "20").replace("%","").strip() or 20)
+
+    system_prompt = f"""You are a smart PA and quoting assistant for a trades business on WhatsApp. Today is {today}.
+
+BUSINESS DETAILS:
+- Business: {profile.get("business_name","")}
+- Owner: {profile.get("owner_name","")}
+- Trade: {profile.get("trade","")}
+- Day rate: £{day_rate_wa:.0f}
+- Half day rate: £{float(str(profile.get("half_day_rate") or day_rate_wa/2).replace("£","") or day_rate_wa/2):.0f}
+- Materials markup: {markup_wa:.0f}% (apply silently — never show % to client)
+- Payment terms: {profile.get("payment_terms","30")} days
+- VAT registered: {profile.get("vat_registered","no")}
+
+YOU CAN HELP WITH:
+1. Logging job enquiries
+2. Generating professional quotes (with PDF)
+3. Booking in jobs
+4. Tracking jobs and payments
+5. Scheduling and reminders
+6. Answering general questions
+
+QUOTING — TWO MODES:
+
+MODE 1 - MANUAL: If the user gives their own numbers (e.g. "materials £340, 2 days labour") use them exactly. Don't add markup — they've priced it themselves.
+
+MODE 2 - AI CALCULATED: If just describing the job, calculate using rates above.
+- labourCost = days × £{day_rate_wa:.0f}
+- markupAmount = raw materials × {markup_wa:.0f} / 100
+- materialsCost = raw materials + markupAmount
+- totalPrice = labourCost + materialsCost rounded to nearest £5
+
+WHEN GENERATING A QUOTE — always end reply with QUOTE_READY: tag on its own line:
+QUOTE_READY:{{"clientName":"Client","scopeItems":["item 1","item 2","item 3"],"totalPrice":0,"labourDays":0,"labourCost":0,"materials":[{{"item":"material","qty":"qty","unitCost":0,"total":0}}],"materialsCost":0,"markupAmount":0,"leadTimeDays":"3-5","note":"","summary":"Quote ready"}}
+
+Before the QUOTE_READY tag, send a brief WhatsApp-friendly summary:
+Quote for [client] — [job]
+Labour: [X] days @ £{day_rate_wa:.0f} = £[amount]
+Materials: £[amount]
+*TOTAL: £[amount]*
+Payment due within {profile.get("payment_terms","30")} days
+Generating your PDF now... 📄
+
+ALSO end reply with LOG: tag:
+LOG:name=<client>|job=<job>|location=<location>|status=quoted
+
+If logging enquiry only (no quote): LOG:name=<client>|job=<job>|location=<location>|status=new
+
+WHEN BOOKING: end with BOOK:name=<client>|job=<job>|location=<location>|date=<date>|time=<time>|days=<duration>
+
+WHEN INVOICING: present invoice clearly then end with:
+INV:name=<client>|job=<job>|location=<location>|total=<amount>|due=<date>
+INVOICEDATA:{{"items":[{{"description":"item","qty":1,"unit_price":0}}],"subtotal":"0","total":"0"}}
+
+Always be concise — this is WhatsApp. Never say you can't do something."""
     system_prompt += "If generating an INVOICE, present it on WhatsApp like this:\n"
     system_prompt += "Invoice for [client name]\n"
     system_prompt += "[job description] at [address]\n\n"
@@ -1033,12 +1080,67 @@ def whatsapp():
     quote_items = []
     quote_subtotal = "0"
     quote_total = "0"
-    if "QUOTEDATA:" in reply:
+    # Handle QUOTE_READY (new unified format)
+    pdf_url = None
+    if "QUOTE_READY:" in reply:
+        try:
+            import re as re_mod
+            qr_raw = reply.split("QUOTE_READY:")[1].strip().split("\n")[0]
+            qr_raw = re_mod.sub(r'```json|```', '', qr_raw).strip()
+            qd = json.loads(qr_raw)
+
+            # Fetch template for branding
+            template_result = supabase.table("quote_templates").select("*").eq("sender", sender).execute()
+            template = template_result.data[0] if template_result.data else {}
+
+            # Build quote object for PDF
+            quote_count = supabase.table("quotes").select("id").eq("sender", sender).execute()
+            quote_num = "QU-" + str(len(quote_count.data) + 1).zfill(3)
+            scope_items = qd.get("scopeItems", [])
+            total = str(qd.get("totalPrice", "0"))
+
+            quote_obj = {
+                "client_name": qd.get("clientName", "Client"),
+                "client_address": "",
+                "total": total,
+                "quote_number": quote_num,
+                "line_items": scope_items
+            }
+
+            # Generate PDF using shared build_quote_html
+            html = build_quote_html(quote_obj, profile, template, is_invoice=False)
+
+            # Save to Supabase quotes table
+            saved_quote = supabase.table("quotes").insert({
+                "sender": sender,
+                "client_name": qd.get("clientName", "Client"),
+                "client_address": "",
+                "job_description": ", ".join(scope_items[:2]),
+                "line_items": scope_items,
+                "subtotal": total,
+                "vat": "0",
+                "total": total,
+                "status": "sent",
+                "quote_number": quote_num,
+                "quote_text": html,
+                "client_number": ""
+            }).execute()
+
+            if saved_quote.data:
+                quote_id = saved_quote.data[0]["id"]
+                pdf_url = "https://trades-pa-trades-pa.up.railway.app/generate-pdf/" + str(quote_id)
+
+        except Exception as e:
+            print("QUOTE_READY handler error: " + str(e))
+            import traceback
+            print(traceback.format_exc())
+
+    # Also handle old QUOTEDATA format for backwards compat
+    elif "QUOTEDATA:" in reply:
         try:
             qd_line = reply.split("QUOTEDATA:")[1].strip().split("\n")[0]
             qd = json.loads(qd_line)
             quote_items = qd.get("items", [])
-            quote_subtotal = str(qd.get("subtotal", "0"))
             quote_total = str(qd.get("total", "0"))
         except Exception as e:
             print("QUOTEDATA parse error: " + str(e))
@@ -1046,7 +1148,7 @@ def whatsapp():
     if "LOG:" in reply:
         try:
             log_line = reply.split("LOG:")[1].strip().split("\n")[0]
-            parts = dict(p.split("=") for p in log_line.split("|"))
+            parts = dict(p.split("=") for p in log_line.split("|") if "=" in p)
             status = parts.get("status", "new")
             supabase.table("enquiries").insert({
                 "sender": sender, "message": incoming_msg,
@@ -1056,33 +1158,6 @@ def whatsapp():
                 "location": parts.get("location", ""),
                 "status": status
             }).execute()
-
-            if status == "quoted":
-                quote_count = supabase.table("quotes").select("id").eq("sender", sender).execute()
-                quote_num = "QU-" + str(len(quote_count.data) + 1).zfill(3)
-                clean_text = reply.split("LOG:")[0].split("QUOTEDATA:")[0].strip()
-                # Look up client number from enquiries by name
-                quote_client_num = ""
-                try:
-                    enq_lookup = supabase.table("enquiries").select("sender").ilike("client_name", parts.get("name", "")).order("created_at", desc=True).limit(1).execute()
-                    if enq_lookup.data:
-                        quote_client_num = enq_lookup.data[0].get("sender", "")
-                except Exception as lookup_err:
-                    print("Quote client number lookup error: " + str(lookup_err))
-                supabase.table("quotes").insert({
-                    "sender": sender,
-                    "client_name": parts.get("name", ""),
-                    "client_address": parts.get("location", ""),
-                    "job_description": parts.get("job", ""),
-                    "line_items": quote_items,
-                    "subtotal": quote_subtotal,
-                    "vat": "0",
-                    "total": quote_total,
-                    "status": "sent",
-                    "quote_number": quote_num,
-                    "quote_text": clean_text,
-                    "client_number": quote_client_num
-                }).execute()
         except Exception as e:
             print("Logging error: " + str(e))
 
@@ -1151,7 +1226,11 @@ def whatsapp():
         except Exception as e:
             print("Invoice logging error: " + str(e))
 
-    clean_reply = reply.split("LOG:")[0].split("BOOK:")[0].split("QUOTEDATA:")[0].split("INV:")[0].split("INVOICEDATA:")[0].strip()
+    clean_reply = reply.split("QUOTE_READY:")[0].split("LOG:")[0].split("BOOK:")[0].split("QUOTEDATA:")[0].split("INV:")[0].split("INVOICEDATA:")[0].strip()
+
+    if pdf_url:
+        clean_reply += "\n\n📄 *Your quote PDF:*\n" + pdf_url + "\n\nOpen to download and share with your client."
+
     resp.message(clean_reply)
     return str(resp)
 
