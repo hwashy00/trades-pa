@@ -292,6 +292,77 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .save-btn{display:block;width:calc(100% - 40px);margin:0 20px 20px;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Hanken Grotesk',sans-serif;font-size:.88rem;font-weight:700;color:#1a1206;cursor:pointer;transition:opacity .15s}
 .save-btn:disabled{opacity:.5;cursor:not-allowed}
 .success-msg{text-align:center;font-size:.75rem;color:var(--grn);margin:-10px 20px 20px;min-height:20px}
+
+/* ── AI Quote: build animation + branded card ── */
+@keyframes qgspin{to{transform:rotate(360deg)}}
+@keyframes rowIn{to{opacity:1;transform:none}}
+.qg-spin svg{width:44px;height:44px;animation:qgspin 1.1s linear infinite}
+.qg-brow{display:flex;align-items:center;gap:11px;padding:11px 14px;background:var(--s1);border:1px solid var(--br2);border-radius:12px;opacity:0;transform:translateY(8px);box-shadow:inset 0 1px 0 var(--toplight)}
+.qg-brow.in{animation:rowIn .4s var(--ease-out) forwards}
+.qg-brow .tk{width:22px;height:22px;border-radius:7px;background:var(--grn-d);color:var(--grn);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.qg-brow .tk svg{width:13px;height:13px}
+.qg-brow .tx{font-size:.82rem;font-weight:500;color:var(--t1)}
+.qg-scope-row{display:flex;align-items:flex-start;gap:9px;padding:9px 0;border-bottom:1px solid var(--br2);font-size:.82rem;line-height:1.4}
+.qg-scope-row:last-child{border-bottom:none}
+.qg-scope-row svg{width:15px;height:15px;color:var(--grn);flex-shrink:0;margin-top:2px}
+
+/* ── HANDS-FREE OVERLAY ── */
+#hfOverlay{position:fixed;inset:0;max-width:400px;margin:0 auto;z-index:400;background:radial-gradient(130% 90% at 50% 0%,#15171c,#0b0c0e 70%);display:none;flex-direction:column;overflow:hidden}
+#hfOverlay.open{display:flex}
+#hfOverlay .hf-top{padding:22px 24px 0;display:flex;align-items:center;gap:10px}
+#hfOverlay .hf-brand{font-family:'Archivo',sans-serif;font-weight:800;font-size:1.05rem;letter-spacing:-.04em}
+#hfOverlay .hf-brand b{color:var(--acc)}
+#hfOverlay .hf-pill{margin-left:auto;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);background:var(--s1);border:1px solid var(--br);padding:6px 11px;border-radius:9px}
+#hfOverlay .hf-stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:0 24px;min-height:0}
+#hfOverlay .hf-orbwrap{position:relative;width:220px;height:220px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+#hfOverlay .hf-orb{width:144px;height:144px;border-radius:50%;position:relative;transition:transform .4s var(--ease);background:radial-gradient(circle at 50% 38%,var(--acc2),var(--acc) 52%,var(--acc-deep));box-shadow:0 0 60px -6px var(--acc-glow),inset 0 4px 14px rgba(255,255,255,.35),inset 0 -10px 24px rgba(120,60,0,.4)}
+#hfOverlay .hf-orb::after{content:'';position:absolute;inset:14px;border-radius:50%;background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.45),transparent 60%);opacity:.7}
+#hfOverlay .hf-ring{position:absolute;border-radius:50%;border:2px solid var(--acc);opacity:0}
+#hfOverlay .hf-r1{inset:22px}#hfOverlay .hf-r2{inset:2px}#hfOverlay .hf-r3{inset:-20px}
+#hfOverlay.idle .hf-orb{animation:hfBreathe 4s var(--ease) infinite}
+#hfOverlay.idle .hf-r1{animation:hfRipple 3.5s var(--ease-out) infinite}
+@keyframes hfBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@keyframes hfRipple{0%{transform:scale(.9);opacity:.4}100%{transform:scale(1.5);opacity:0}}
+#hfOverlay.listening .hf-orb{animation:hfListen .9s var(--ease) infinite}
+@keyframes hfListen{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+#hfOverlay.listening .hf-r2,#hfOverlay.listening .hf-r3{animation:hfRipple 1.4s var(--ease-out) infinite}
+#hfOverlay.listening .hf-r3{animation-delay:.4s}
+#hfOverlay .hf-wave{position:absolute;inset:0;display:none;align-items:center;justify-content:center;gap:4px}
+#hfOverlay.listening .hf-wave{display:flex}
+#hfOverlay .hf-wave i{width:5px;height:10px;border-radius:4px;background:rgba(255,255,255,.85);transition:height .08s linear}
+#hfOverlay.thinking .hf-orb{filter:saturate(.6) brightness(.8);animation:hfSwirl 1.4s linear infinite}
+@keyframes hfSwirl{to{transform:rotate(360deg)}}
+#hfOverlay.thinking .hf-dots{display:flex}
+#hfOverlay.speaking .hf-orb{animation:hfSpk .5s var(--ease) infinite}
+@keyframes hfSpk{0%,100%{transform:scale(1.02)}50%{transform:scale(1.12)}}
+#hfOverlay.speaking .hf-r1,#hfOverlay.speaking .hf-r2,#hfOverlay.speaking .hf-r3{animation:hfRipple 1.1s var(--ease-out) infinite}
+#hfOverlay.speaking .hf-r2{animation-delay:.25s}#hfOverlay.speaking .hf-r3{animation-delay:.5s}
+#hfOverlay .hf-dots{display:none;position:absolute;gap:6px}
+#hfOverlay .hf-dots i{width:8px;height:8px;border-radius:50%;background:var(--acc2);animation:hfTD 1.2s infinite}
+#hfOverlay .hf-dots i:nth-child(2){animation-delay:.18s}#hfOverlay .hf-dots i:nth-child(3){animation-delay:.36s}
+@keyframes hfTD{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-6px)}}
+#hfOverlay .hf-label{font-family:'Archivo',sans-serif;font-weight:700;font-size:1.25rem;letter-spacing:-.03em;margin-top:12px;min-height:30px;text-align:center}
+#hfOverlay .hf-sub{font-size:.82rem;color:var(--t3);text-align:center;min-height:22px}
+#hfOverlay .hf-scroll{max-height:26vh;overflow-y:auto;width:100%;padding:6px 2px 0;display:flex;flex-direction:column;gap:9px;margin-top:6px}
+#hfOverlay .hf-scroll::-webkit-scrollbar{display:none}
+#hfOverlay .hf-bub{padding:10px 14px;border-radius:15px;font-size:.85rem;line-height:1.5;max-width:88%;animation:bubbleIn .3s var(--ease-out)}
+#hfOverlay .hf-bub.ai{background:var(--s1);border:1px solid var(--br);color:var(--t1);align-self:flex-start;border-bottom-left-radius:5px}
+#hfOverlay .hf-bub.me{background:var(--acc-d);color:var(--acc2);align-self:flex-end;border-bottom-right-radius:5px;font-weight:500}
+#hfOverlay .hf-bub.interim{opacity:.5;font-style:italic}
+#hfOverlay .hf-ctrl{display:flex;align-items:center;justify-content:center;gap:18px;padding:16px 24px 34px}
+#hfOverlay .hf-cb{width:58px;height:58px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .14s var(--press)}
+#hfOverlay .hf-cb:active{transform:scale(.92)}
+#hfOverlay .hf-cb svg{width:23px;height:23px}
+#hfOverlay .hf-cb.end{background:var(--red);color:#fff;box-shadow:0 8px 24px -8px var(--red)}
+#hfOverlay .hf-cb.sec{width:48px;height:48px;background:var(--s2);border:1px solid var(--br);color:var(--t2)}
+#hfOverlay .hf-cb.sec svg{width:19px;height:19px}
+#hfOverlay .hf-banner{position:absolute;top:62px;left:18px;right:18px;background:var(--red-d);border:1px solid rgba(255,90,95,.3);color:#ffc9cb;font-size:.74rem;line-height:1.5;padding:11px 14px;border-radius:12px;display:none;z-index:5}
+#hfOverlay .hf-banner.show{display:block}
+#hfOverlay .hf-typed{display:none;padding:0 24px 14px;gap:8px}
+#hfOverlay .hf-typed.show{display:flex}
+#hfOverlay .hf-typed input{flex:1;padding:13px 15px;background:var(--s2);border:1px solid var(--br);border-radius:13px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.92rem;outline:none}
+#hfOverlay .hf-typed input:focus{border-color:var(--acc)}
+#hfOverlay .hf-typed button{width:48px;border:none;border-radius:13px;background:var(--acc);color:#1a1206;font-size:1.05rem;cursor:pointer}
 </style>
 </head>
 <body>
@@ -488,6 +559,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px">
         <div class="ph-title" style="margin:0">AI Quote</div>
         <div style="display:flex;gap:6px;align-items:center">
+          <button onclick="hfOpen()" title="Hands-free conversation" style="display:flex;align-items:center;gap:5px;font-size:.68rem;font-weight:700;color:var(--acc2);background:var(--acc-d);border:1px solid rgba(255,158,27,.3);cursor:pointer;font-family:'Hanken Grotesk',sans-serif;padding:5px 10px;border-radius:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="width:1.05em;height:1.05em"><path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg> Hands-free</button>
           <button id="qgVoiceToggle" onclick="qgToggleVoiceMode()" title="Toggle voice mode" style="font-size:.68rem;color:var(--t3);background:none;border:none;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;padding:4px 8px;border-radius:8px;border:1px solid var(--br)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:1.05em;height:1.05em;vertical-align:-.17em;flex-shrink:0"><path d="M5 9h3l4-3v12l-4-3H5z" stroke-linejoin="round"/><path d="M16 9l4 6M20 9l-4 6" stroke-linecap="round"/></svg> Voice off</button>
           <button onclick="qgReset()" style="font-size:.68rem;color:var(--t3);background:none;border:none;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;padding:4px 8px;border-radius:8px;border:1px solid var(--br)">New quote</button>
         </div>
@@ -531,7 +603,35 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
           <button onclick="qgStopVoice()" style="margin-left:auto;background:none;border:none;color:var(--red);font-size:.75rem;font-weight:700;cursor:pointer;font-family:'Hanken Grotesk',sans-serif">Stop</button>
         </div>
 
+        <div id="qgBuild" style="display:none;padding:22px 4px 8px">
+          <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;margin-bottom:18px">
+            <div class="qg-spin"><svg viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2.4"><path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round"/></svg></div>
+            <div id="qgBuildMsg" class="disp" style="font-family:'Archivo',sans-serif;font-weight:700;font-size:.98rem;color:var(--t1)">Reading the job…</div>
+            <div id="qgBuildSub" style="font-size:.74rem;color:var(--t3)">Pricing against your rates</div>
+          </div>
+          <div id="qgBuildList" style="display:flex;flex-direction:column;gap:8px"></div>
+        </div>
+
         <div id="qgQuoteWrap" style="display:none">
+
+          <div id="qgBrandCard" style="background:var(--s1);border:1px solid var(--br);border-radius:18px;overflow:hidden;margin-bottom:12px;box-shadow:inset 0 1px 0 var(--toplight),0 18px 40px -28px #000">
+            <div style="padding:16px 18px;background:linear-gradient(180deg,var(--s2),var(--s1));border-bottom:1px solid var(--br);display:flex;align-items:center;gap:12px">
+              <div id="qgCardLogo" style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Archivo',sans-serif;font-weight:800;color:#1a1206;flex-shrink:0">HC</div>
+              <div style="min-width:0"><div id="qgCardBiz" class="disp" style="font-family:'Archivo',sans-serif;font-weight:700;font-size:.95rem;letter-spacing:-.02em">Your Business</div><div id="qgCardSub" style="font-size:.68rem;color:var(--t3);margin-top:2px">—</div></div>
+            </div>
+            <div style="padding:13px 18px;border-bottom:1px solid var(--br2)"><div style="color:var(--t3);text-transform:uppercase;letter-spacing:.08em;font-weight:700;font-size:.58rem">Quote for</div><div id="qgCardClient" style="font-weight:600;font-size:.86rem;margin-top:3px">Customer</div></div>
+            <div id="qgCardScope" style="padding:4px 18px"></div>
+            <div style="padding:14px 18px;background:var(--s2);border-top:1px solid var(--br);display:flex;justify-content:space-between;align-items:center">
+              <span class="disp" style="font-family:'Archivo',sans-serif;font-weight:700;font-size:1rem">Total</span>
+              <span id="qgCardTotal" class="mono" title="Tap to edit" onclick="document.getElementById('qgTotalInput').focus();document.getElementById('qgTotalInput').scrollIntoView({behavior:'smooth',block:'center'})" style="font-family:'Spline Sans Mono',monospace;font-weight:700;font-size:1.5rem;color:var(--acc2);letter-spacing:-.02em;cursor:pointer">£0</span>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:flex-start;gap:9px;padding:12px 14px;background:var(--blu-d);border-radius:12px;margin-bottom:14px;font-size:.74rem;line-height:1.5;color:var(--t2)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--blu)" stroke-width="1.8" style="width:17px;height:17px;flex-shrink:0;margin-top:1px"><path d="M12 3l8 4v5c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V7z" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div><b style="color:var(--t1)">Nothing's gone out yet.</b> Review it, tweak the total below if needed, then save or send.</div>
+          </div>
+
 
           <div style="background:var(--s1);border-radius:14px;padding:14px 16px;margin-bottom:12px">
             <div style="font-size:.68rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Price summary</div>
@@ -888,6 +988,33 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     </div>
   </div>
   <button id="chatBtn" onclick="toggleChat()" style="display:none;position:fixed;bottom:90px;right:16px;width:56px;height:56px;border-radius:50%;background:var(--acc);border:none;color:#1a1206;font-size:1.5rem;cursor:pointer;z-index:199;box-shadow:0 8px 24px -6px var(--acc-glow);transition:transform .12s var(--press)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:24px;height:24px;display:block"><path d="M21 12a8 8 0 0 1-11 7.4L4 21l1.6-6A8 8 0 1 1 21 12z" stroke-linejoin="round"/></svg></button>
+
+  <div id="hfOverlay" class="idle">
+    <div class="hf-top">
+      <div class="hf-brand">Van<b>Office</b></div>
+      <div class="hf-pill" id="hfPill">Hands-free</div>
+    </div>
+    <div class="hf-banner" id="hfBanner"></div>
+    <div class="hf-stage">
+      <div class="hf-orbwrap" id="hfOrb" onclick="hfTap()">
+        <div class="hf-ring hf-r3"></div><div class="hf-ring hf-r2"></div><div class="hf-ring hf-r1"></div>
+        <div class="hf-orb"></div>
+        <div class="hf-wave" id="hfWave"></div>
+        <div class="hf-dots"><i></i><i></i><i></i></div>
+      </div>
+      <div class="hf-label" id="hfLabel">Tap to talk</div>
+      <div class="hf-sub" id="hfSub">Have a proper conversation \u2014 hands free.</div>
+      <div class="hf-scroll" id="hfScroll"></div>
+    </div>
+    <div class="hf-typed" id="hfTyped">
+      <input id="hfInput" placeholder="Type instead\u2026" onkeypress="if(event.key==='Enter')hfSendTyped()">
+      <button onclick="hfSendTyped()">\u2192</button>
+    </div>
+    <div class="hf-ctrl">
+      <button class="hf-cb sec" onclick="hfToggleTyped()" title="Type"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" stroke-linecap="round"/></svg></button>
+      <button class="hf-cb end" onclick="hfEnd()" title="End"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9c5-4 13-4 18 0l-2.5 3-3.5-1.5V8C13 7 11 7 9 8v1.5L5.5 11z" fill="currentColor" stroke="none"/></svg></button>
+    </div>
+  </div>
 
   <nav class="nav">
     <button class="ni on" id="n-home" onclick="go('home')"><div class="ni-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:21px;height:21px;display:block"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" stroke-linejoin="round"/></svg></div><div class="ni-lbl">Home</div></button>
@@ -2503,10 +2630,11 @@ function qgReset(){
       <div style="width:28px;height:28px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#fff;flex-shrink:0">AI</div>
       <div style="background:var(--s2);border-radius:4px 12px 12px 12px;padding:9px 12px;font-size:.78rem;color:var(--t2);line-height:1.6;max-width:90%" class="bubble-in">Hi! Two ways I can help:
 
-📐 Describe the job — I'll ask a couple of questions and work out the price for you.
+&#9776; Describe the job — I'll ask a couple of questions and work out the price for you.
 
-🔢 Or if you know your numbers already, just say something like: 'materials £340, 2 days labour, skimming lounge and hallway' — and I'll build the quote straight away.</div>
+&#35; Or if you know your numbers already, just say something like: 'materials £340, 2 days labour, skimming lounge and hallway' — and I'll build the quote straight away.</div>
     </div>`;
+  document.getElementById('qgBuild').style.display = 'none';
   document.getElementById('qgQuoteWrap').style.display = 'none';
   document.getElementById('qgDocWrap').style.display = 'none';
   document.getElementById('qgBreakdown').style.display = 'none';
@@ -2532,6 +2660,30 @@ function qgAddMsg(role, text){
   area.scrollTop = area.scrollHeight;
 }
 
+function qgCountUp(el,target){
+  const dur=800,t0=performance.now();
+  function s(now){const p=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-p,3);el.textContent='\u00A3'+Math.round(target*e).toLocaleString('en-GB');if(p<1)requestAnimationFrame(s);}
+  requestAnimationFrame(s);
+}
+const QG_BUILD_MSGS=[['Reading the job\u2026','Pricing against your rates'],['Spotting the work\u2026','Matching to your price book'],['Costing materials\u2026','Applying your markup'],['Totting it up\u2026','Almost there']];
+function qgRunBuild(q){
+  const panel=document.getElementById('qgBuild'), list=document.getElementById('qgBuildList');
+  const msg=document.getElementById('qgBuildMsg'), sub=document.getElementById('qgBuildSub');
+  document.getElementById('qgQuoteWrap').style.display='none';
+  list.innerHTML=''; panel.style.display='block'; panel.scrollIntoView({behavior:'smooth'});
+  let mi=0; msg.textContent=QG_BUILD_MSGS[0][0]; sub.textContent=QG_BUILD_MSGS[0][1];
+  const msgInt=setInterval(()=>{mi=(mi+1)%QG_BUILD_MSGS.length;msg.textContent=QG_BUILD_MSGS[mi][0];sub.textContent=QG_BUILD_MSGS[mi][1];},650);
+  const scope=(q.scopeItems&&q.scopeItems.length)?q.scopeItems:['Labour','Materials & sundries'];
+  scope.forEach((s,i)=>{
+    setTimeout(()=>{
+      const row=document.createElement('div');row.className='qg-brow';
+      row.innerHTML='<div class="tk">'+ICO.check+'</div><div class="tx">'+s+'</div>';
+      list.appendChild(row);requestAnimationFrame(()=>row.classList.add('in'));haptic('light');
+    },350+i*360);
+  });
+  const finish=350+scope.length*360+550;
+  setTimeout(()=>{clearInterval(msgInt);panel.style.display='none';qgShowPriceSummary(q);},finish);
+}
 function qgShowPriceSummary(q){
   qgQuoteData = q;
   const labourCost = q.labourCost || 0;
@@ -2557,8 +2709,23 @@ function qgShowPriceSummary(q){
     document.getElementById('qgBreakdownBtn').style.display = 'none';
   }
 
+  // branded card
+  const prof = q.profile || window._vanofficeProfile || {};
+  const biz = prof.bizName || prof.business_name || 'Your Business';
+  const trade = prof.trade || '';
+  const ph = prof.phone || prof.phone_num || '';
+  document.getElementById('qgCardBiz').textContent = biz;
+  document.getElementById('qgCardSub').textContent = [trade, ph].filter(Boolean).join(' \u00B7 ') || '\u2014';
+  document.getElementById('qgCardLogo').textContent = (biz||'?').substring(0,2).toUpperCase();
+  document.getElementById('qgCardClient').textContent = q.clientName || 'Customer';
+  const scope = (q.scopeItems && q.scopeItems.length) ? q.scopeItems : [];
+  document.getElementById('qgCardScope').innerHTML = scope.map(s=>'<div class="qg-scope-row">'+ICO.check+'<div>'+s+'</div></div>').join('');
+  const totalEl = document.getElementById('qgCardTotal');
+  const ti = document.getElementById('qgTotalInput');
+  ti.oninput = function(){ totalEl.textContent = '\u00A3'+(Number(this.value)||0).toLocaleString('en-GB'); };
   document.getElementById('qgQuoteWrap').style.display='block';haptic('medium');
-  document.getElementById('qgQuoteWrap').scrollIntoView({behavior:'smooth'});
+  qgCountUp(totalEl, Number(q.totalPrice)||0);
+  document.getElementById('qgBrandCard').scrollIntoView({behavior:'smooth'});
 }
 
 function qgToggleBreakdown(){
@@ -2675,7 +2842,7 @@ async function qgSend(){
       qgAddMsg('ai', summary);
       qgHistory.push({role:'assistant', content: summary});
       if(qgVoiceEnabled || qgListening) qgSpeak(summary);
-      qgShowPriceSummary(q);
+      qgRunBuild(q);
     }
   }catch(e){
     const typing = document.getElementById('qgTyping');
@@ -2688,6 +2855,97 @@ async function qgSend(){
   input.focus();
 }
 
+
+/* ════════ HANDS-FREE VOICE LOOP ════════ */
+let hfState='idle', hfRecog=null, hfRecogActive=false, hfFinal='', hfSttOK=true, hfWaveTimer=null, hfOpened=false;
+const HF_LABELS={idle:['Tap to talk','Have a proper conversation \u2014 hands free.'],
+  listening:['Listening\u2026','Speak now \u2014 I\'ll reply out loud.'],
+  thinking:['Thinking\u2026','Working it out.'],
+  speaking:['Speaking\u2026','Tap the orb to jump in.']};
+function hfSet(s){
+  hfState=s; const o=document.getElementById('hfOverlay'); o.className='open '+s;
+  document.getElementById('hfLabel').textContent=HF_LABELS[s][0];
+  document.getElementById('hfSub').textContent=HF_LABELS[s][1];
+  document.getElementById('hfPill').textContent = s==='idle'?'Hands-free':s.charAt(0).toUpperCase()+s.slice(1);
+}
+function hfBub(role,text,interim){
+  const sc=document.getElementById('hfScroll');
+  if(interim){let el=document.getElementById('hfInterim');if(!el){el=document.createElement('div');el.id='hfInterim';el.className='hf-bub me interim';sc.appendChild(el);}el.textContent=text;sc.scrollTop=sc.scrollHeight;return;}
+  const old=document.getElementById('hfInterim'); if(old)old.remove();
+  const el=document.createElement('div'); el.className='hf-bub '+(role==='ai'?'ai':'me'); el.textContent=text;
+  sc.appendChild(el); sc.scrollTop=sc.scrollHeight;
+}
+function hfBanner(m){const b=document.getElementById('hfBanner');b.textContent=m;b.classList.add('show');}
+// waveform
+(function(){const w=document.getElementById('hfWave'); if(w){for(let i=0;i<5;i++)w.appendChild(document.createElement('i'));}})();
+function hfWaveOn(){const bars=document.querySelectorAll('#hfWave i');let p=0;hfWaveTimer=setInterval(()=>{p+=0.4;bars.forEach((b,i)=>{b.style.height=(8+Math.abs(Math.sin(p+i))*22*Math.random())+'px';});},80);}
+function hfWaveOff(){clearInterval(hfWaveTimer);}
+
+/* —— VOICE OUT —— swap this one function for ElevenLabs/OpenAI later —— */
+function hfSpeak(text){
+  return new Promise(res=>{
+    if(!window.speechSynthesis){res();return;}
+    window.speechSynthesis.cancel();
+    const clean=String(text).replace(/[\u00A3\u20AC$]/g,' pounds ').replace(/[*_#]/g,'').substring(0,400);
+    const u=new SpeechSynthesisUtterance(clean);
+    const vs=window.speechSynthesis.getVoices();
+    const v=vs.find(x=>/en-GB/i.test(x.lang)&&/male|daniel|arthur|george/i.test(x.name))||vs.find(x=>/en-GB/i.test(x.lang))||vs.find(x=>/^en/i.test(x.lang));
+    if(v)u.voice=v; u.lang=(v&&v.lang)||'en-GB'; u.rate=1.05; u.pitch=1;
+    u.onend=res; u.onerror=res;
+    window.speechSynthesis.speak(u);
+  });
+}
+/* —— VOICE IN —— */
+function hfInitRecog(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){hfSttOK=false;return null;}
+  const r=new SR(); r.lang='en-GB'; r.continuous=false; r.interimResults=true; r.maxAlternatives=1;
+  r.onresult=e=>{let interim='',fin='';for(let i=e.resultIndex;i<e.results.length;i++){const tx=e.results[i][0].transcript;if(e.results[i].isFinal)fin+=tx;else interim+=tx;}if(interim)hfBub('me',interim,true);if(fin)hfFinal+=fin;};
+  r.onend=()=>{hfRecogActive=false;if(hfState!=='listening')return;if(hfFinal.trim()){hfTurn(hfFinal.trim());hfFinal='';}else{hfListen();}};
+  r.onerror=ev=>{hfRecogActive=false;if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){hfSttOK=false;hfBanner('Mic blocked or unsupported here. Use the keyboard \u2014 I\'ll still talk back. (Android Chrome does full hands-free; iPhone needs a tap per turn.)');hfToggleTyped(true);hfSet('idle');}};
+  return r;
+}
+function hfListen(){ if(!hfSttOK){hfSet('idle');return;} hfSet('listening'); hfWaveOn(); hfFinal=''; try{hfRecog.start();hfRecogActive=true;}catch(e){} }
+function hfStopListen(){ hfWaveOff(); if(hfRecog&&hfRecogActive){try{hfRecog.stop();}catch(e){}} }
+
+async function hfTurn(text){
+  hfStopListen(); hfBub('me',text); qgHistory.push({role:'user',content:text}); hfSet('thinking');
+  let q=null;
+  try{
+    const res=await fetch('/api/generate-quote-ai?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:text,history:qgHistory.slice(0,-1)})});
+    q=await res.json();
+  }catch(e){ q={error:true}; }
+  let say='';
+  if(!q||q.error){ say="Sorry, I didn't catch that \u2014 say it again?"; }
+  else if(q.type==='question'){ say=q.message; qgHistory.push({role:'assistant',content:q.message}); }
+  else if(q.type==='quote'){ say=(q.summary||'Quote ready.')+' I\'ve put the full quote on your screen.'; qgHistory.push({role:'assistant',content:q.summary||'Quote ready.'}); try{qgShowPriceSummary(q);}catch(e){} }
+  else { say=q.message||'Okay.'; }
+  hfBub('ai',say); hfSet('speaking'); await hfSpeak(say);
+  if(hfState==='speaking') hfListen();   // loop hands-free
+}
+
+function hfOpen(){
+  document.getElementById('hfOverlay').classList.add('open');
+  hfOpened=true;
+  if(window.speechSynthesis) window.speechSynthesis.resume();
+  if(!hfRecog) hfRecog=hfInitRecog();
+  const greet="Alright \u2014 what can I sort for you?";
+  hfBub('ai',greet); qgHistory.push({role:'assistant',content:greet});
+  hfSet('speaking'); hfSpeak(greet).then(()=>{ if(hfState==='speaking') hfListen(); });
+}
+function hfTap(){
+  if(hfState==='idle') hfListen();
+  else if(hfState==='speaking'){ if(window.speechSynthesis)window.speechSynthesis.cancel(); hfListen(); }
+}
+function hfEnd(){
+  hfStopListen(); if(window.speechSynthesis)window.speechSynthesis.cancel();
+  hfSet('idle'); document.getElementById('hfOverlay').classList.remove('open');
+  document.getElementById('hfScroll').innerHTML='';
+}
+function hfToggleTyped(force){const tp=document.getElementById('hfTyped');const show=force===true?true:!tp.classList.contains('show');tp.classList.toggle('show',show);if(show)setTimeout(()=>document.getElementById('hfInput').focus(),100);}
+function hfSendTyped(){const v=document.getElementById('hfInput').value.trim();if(!v)return;document.getElementById('hfInput').value='';if(!hfRecog)hfRecog=hfInitRecog();hfTurn(v);}
 
 </script>
 </body>
