@@ -902,8 +902,8 @@ def whatsapp():
                     supabase.table("profiles").insert({
                         "sender": sender, "business_name": data.get("business_name", ""),
                         "owner_name": data.get("owner_name", ""), "phone": phone,
-                        "trade": data.get("trade", ""), "day_rate": "0", "half_day_rate": "0",
-                        "hourly_rate": "0", "materials_markup": "20", "payment_terms": "30",
+                        "trade": data.get("trade", ""), "day_rate": "250", "half_day_rate": "125",
+                        "hourly_rate": "35", "materials_markup": "20", "payment_terms": "30",
                         "vat_registered": "no", "vat_number": "", "twilio_number": "",
                         "pin": data.get("pin", ""), "reset_code": "",
                         "gmail_token": "", "gmail_refresh_token": ""
@@ -2053,7 +2053,13 @@ def generate_quote_ai():
         show_vat = dt.get("showVat", False)
         logo_url = profile.get("logo_url") or ""
 
-        day_rate = float(str(profile.get("day_rate") or 250).replace("£","").replace(",","") or 250)
+        day_rate_raw = str(profile.get("day_rate") or "0").replace("£","").replace(",","").strip()
+        day_rate = float(day_rate_raw or 0)
+        if day_rate == 0:
+            day_rate = 250
+            day_rate_warning = True
+        else:
+            day_rate_warning = False
         markup = float(str(profile.get("materials_markup") or 20).replace("%","") or 20)
 
         data = request.json
