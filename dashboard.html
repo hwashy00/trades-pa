@@ -2922,7 +2922,7 @@ async function hfSpeak(text){
 function hfInitRecog(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){hfSttOK=false;return null;}
-  const r=new SR(); r.lang='en-GB'; r.continuous=true; r.interimResults=true; r.maxAlternatives=1;
+  const r=new SR(); r.lang='en-GB'; r.continuous=false; r.interimResults=true; r.maxAlternatives=1;
   r.onresult=e=>{let interim='',fin='';for(let i=e.resultIndex;i<e.results.length;i++){const tx=e.results[i][0].transcript;if(e.results[i].isFinal)fin+=tx;else interim+=tx;}if(interim){hfBub('me',interim,true);hfLastInterim=interim;}if(fin)hfFinal+=fin;clearTimeout(hfSilence);hfSilence=setTimeout(()=>{if(hfState==='listening'&&hfRecogActive){try{hfRecog.stop();}catch(e){}}},2800);};
   r.onend=()=>{hfRecogActive=false;clearTimeout(hfSilence);if(hfState!=='listening')return;const said=(hfFinal.trim()||hfLastInterim.trim());if(said){hfFinal='';hfLastInterim='';hfTurn(said);}else{hfListen();}};
   r.onerror=ev=>{hfRecogActive=false;if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){hfSttOK=false;hfBanner('Mic blocked or unsupported here. Use the keyboard \u2014 I\'ll still talk back. (Android Chrome does full hands-free; iPhone needs a tap per turn.)');hfToggleTyped(true);hfSet('idle');}};
