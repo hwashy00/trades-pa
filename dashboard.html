@@ -3,2610 +3,573 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>VanOffice</title>
+<title>VanOffice — redesign</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-/* ─── RESET & TOKENS ─────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
 :root{
-  /* surfaces */
-  --bg:#0a0a0a;--s1:#111213;--s2:#18191b;--s3:#1f2022;--s4:#27282b;
-  /* text */
-  --t1:#f0f0f2;--t2:rgba(240,240,242,0.55);--t3:rgba(240,240,242,0.28);--t4:rgba(240,240,242,0.1);
-  /* borders */
-  --br:rgba(255,255,255,0.07);--br2:rgba(255,255,255,0.04);
-  /* accent - Revolut blue-purple */
-  --acc:#5b6cff;--acc2:#8b96ff;--acc-d:rgba(91,108,255,0.14);--acc-glow:rgba(91,108,255,0.25);
-  /* status */
-  --grn:#01c896;--grn-d:rgba(1,200,150,0.1);
-  --red:#ff3d55;--red-d:rgba(255,61,85,0.1);
-  --amb:#f5a623;--amb-d:rgba(245,166,35,0.1);
-  /* motion */
-  --spring:cubic-bezier(.22,.68,0,1.2);
-  --spring-hard:cubic-bezier(.22,.68,0,1.5);
-  --ease-out:cubic-bezier(.16,1,.3,1);
+  /* ── Surfaces: warm graphite, top-lit ── */
+  --bg:#0b0c0e;
+  --s1:#131519;        /* base card */
+  --s2:#181b20;        /* raised */
+  --s3:#20242b;        /* control */
+  --s4:#2a2f37;        /* pressed */
+  --hairline:rgba(255,255,255,.06);
+  --hairline2:rgba(255,255,255,.035);
+  --toplight:rgba(255,255,255,.05);   /* light source from above */
+
+  /* ── Text ── */
+  --t1:#f4f3f0; --t2:rgba(244,243,240,.6); --t3:rgba(244,243,240,.34); --t4:rgba(244,243,240,.13);
+
+  /* ── Accent: hi-vis signal amber (trade identity, not fintech blue) ── */
+  --acc:#ff9e1b; --acc2:#ffc266; --acc-deep:#c9760a;
+  --acc-d:rgba(255,158,27,.12); --acc-glow:rgba(255,158,27,.28);
+
+  /* ── Status ── */
+  --grn:#3ad29f; --grn-d:rgba(58,210,159,.12);
+  --red:#ff5a5f; --red-d:rgba(255,90,95,.12);
+  --blu:#5aa9ff; --blu-d:rgba(90,169,255,.12);
+
+  /* ── Motion: refined, NO overshoot ── */
+  --ease:cubic-bezier(.4,0,.2,1);        /* standard */
+  --ease-out:cubic-bezier(.16,1,.3,1);   /* decelerate / reveals */
+  --spring:cubic-bezier(.34,1.12,.64,1); /* tiny, tasteful spring only */
+  --press:cubic-bezier(.3,.8,.5,1);
 }
 
-/* ─── BASE ───────────────────────────────────────────── */
 html,body{height:100%;overflow:hidden}
-body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;max-width:390px;margin:0 auto;display:flex;flex-direction:column;position:relative;font-feature-settings:"cv02","cv03","cv04","cv11"}
-.content{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:80px;-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--t1);
+  font-family:'Hanken Grotesk',sans-serif; font-feature-settings:"tnum";
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  max-width:400px; margin:0 auto; display:flex; flex-direction:column;
+  position:relative;
+}
+/* Blueprint grid + vignette atmosphere */
+body::before{
+  content:''; position:fixed; inset:0; max-width:400px; margin:0 auto; pointer-events:none; z-index:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
+  background-size:26px 26px;
+  -webkit-mask-image:radial-gradient(120% 80% at 50% 0%,#000 25%,transparent 75%);
+          mask-image:radial-gradient(120% 80% at 50% 0%,#000 25%,transparent 75%);
+}
+/* Grain */
+body::after{
+  content:''; position:fixed; inset:0; max-width:400px; margin:0 auto; pointer-events:none; z-index:1; opacity:.4;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.4'/%3E%3C/svg%3E");
+  mix-blend-mode:overlay;
+}
+.content{flex:1; overflow-y:auto; overflow-x:hidden; padding-bottom:96px; position:relative; z-index:2; -webkit-overflow-scrolling:touch}
 .content::-webkit-scrollbar{display:none}
+.mono{font-family:'Spline Sans Mono',monospace; font-feature-settings:"tnum"}
+.disp{font-family:'Archivo',sans-serif}
 
-/* ─── LOGIN ──────────────────────────────────────────── */
-.login-screen{position:absolute;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;padding:72px 28px 48px;transition:opacity .25s var(--ease-out),transform .25s var(--ease-out)}
-.login-screen.out{opacity:0;pointer-events:none;transform:translateY(-14px)}
-.login-screen.hidden{display:none}
-.logo{font-size:2rem;font-weight:900;letter-spacing:-.06em;color:var(--t1);margin-bottom:5px}
-.logo b{color:var(--acc2);font-weight:900}
-.logo-sub{font-size:.75rem;color:var(--t3);margin-bottom:56px}
-.lbl{font-size:.65rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
-.inp{width:100%;padding:16px 18px;background:var(--s2);border:1.5px solid var(--br);border-radius:16px;font-family:'Inter',sans-serif;font-size:.95rem;color:var(--t1);outline:none;margin-bottom:14px;transition:border-color .18s,box-shadow .18s}
+/* ════════ BOOT ════════ */
+#boot{position:fixed; inset:0; max-width:400px; margin:0 auto; z-index:60; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; transition:opacity .5s var(--ease), transform .5s var(--ease)}
+#boot.gone{opacity:0; transform:scale(1.04); pointer-events:none}
+.boot-mark{width:64px; height:64px; position:relative; opacity:0; animation:bootMark .7s var(--ease-out) .1s forwards}
+@keyframes bootMark{from{opacity:0; transform:translateY(8px) scale(.9)} to{opacity:1; transform:none}}
+.boot-word{font-family:'Archivo'; font-weight:800; font-size:1.35rem; letter-spacing:-.04em; opacity:0; animation:bootMark .6s var(--ease-out) .28s forwards}
+.boot-word b{color:var(--acc)}
+.boot-bar{width:120px; height:2px; background:var(--s3); border-radius:2px; overflow:hidden; opacity:0; animation:bootMark .5s var(--ease-out) .4s forwards}
+.boot-bar i{display:block; height:100%; width:40%; background:linear-gradient(90deg,transparent,var(--acc),transparent); animation:sweep 1.1s var(--ease) infinite}
+@keyframes sweep{from{transform:translateX(-160%)} to{transform:translateX(420%)}}
+
+/* ════════ LOGIN ════════ */
+.login{position:absolute; inset:0; max-width:400px; margin:0 auto; z-index:40; background:var(--bg); display:flex; flex-direction:column; padding:64px 26px 40px; transition:opacity .35s var(--ease), transform .35s var(--ease)}
+.login.out{opacity:0; transform:translateY(-12px); pointer-events:none}
+.login.hide{display:none}
+.brand{font-family:'Archivo'; font-weight:800; font-size:2.1rem; letter-spacing:-.05em; line-height:1}
+.brand b{color:var(--acc)}
+.brand-sub{font-size:.78rem; color:var(--t3); margin-top:8px; letter-spacing:.01em}
+.field-grp{margin-top:auto}
+.lbl{font-size:.62rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--t3); margin-bottom:9px}
+.inp{width:100%; padding:16px 18px; background:var(--s1); border:1px solid var(--hairline); border-radius:14px;
+  font-family:'Hanken Grotesk'; font-size:1rem; color:var(--t1); outline:none; margin-bottom:14px;
+  transition:border-color .2s var(--ease), box-shadow .2s var(--ease), background .2s var(--ease)}
 .inp::placeholder{color:var(--t4)}
-.inp:focus{border-color:var(--acc);box-shadow:0 0 0 4px var(--acc-glow)}
+.inp:focus{border-color:var(--acc); background:var(--s2); box-shadow:0 0 0 4px var(--acc-d)}
+.btn{width:100%; padding:17px; background:var(--acc); border:none; border-radius:14px; font-family:'Archivo';
+  font-size:.95rem; font-weight:700; letter-spacing:.01em; color:#1a1206; cursor:pointer;
+  box-shadow:0 8px 28px -8px var(--acc-glow), inset 0 1px 0 rgba(255,255,255,.25);
+  transition:transform .14s var(--press), filter .18s var(--ease)}
+.btn:active{transform:scale(.975); filter:brightness(.96)}
+.login-alt{text-align:center; margin-top:16px; font-size:.82rem; color:var(--t3)}
+.login-alt span{color:var(--acc2); cursor:pointer; font-weight:600}
+.login-foot{margin-top:36px; text-align:center; font-size:.62rem; color:var(--t4); line-height:2; letter-spacing:.04em}
 
-/* CTA button — Revolut-style pill with glow */
-.btn-cta{width:100%;padding:17px;background:var(--acc);border:none;border-radius:16px;font-family:'Inter',sans-serif;font-size:.95rem;font-weight:700;color:#fff;cursor:pointer;margin-top:4px;transition:transform .1s var(--spring),box-shadow .18s,background .15s;box-shadow:0 4px 24px var(--acc-glow);will-change:transform}
-.btn-cta:active{transform:scale(.955);box-shadow:0 2px 10px var(--acc-glow)}
-.btn-cta:hover{box-shadow:0 6px 32px var(--acc-glow)}
-.login-alt{text-align:center;margin-top:16px;font-size:.75rem;color:var(--t3)}
-.login-alt span{color:var(--acc2);cursor:pointer;font-weight:600}
-.login-foot{margin-top:auto;text-align:center;font-size:.6rem;color:var(--t4);line-height:1.9}
-.err-msg{color:var(--red);font-size:.75rem;text-align:center;margin-top:10px;min-height:20px}
-.back-btn{display:flex;align-items:center;gap:8px;background:none;border:none;color:var(--t3);font-family:'Inter',sans-serif;font-size:.8rem;cursor:pointer;margin-bottom:32px;padding:0;transition:color .15s}
-.back-btn:active{color:var(--t1)}
+/* PIN */
+.pin-dots{display:flex; justify-content:center; gap:20px; margin:26px 0 30px}
+.pin-dot{width:12px; height:12px; border-radius:50%; border:1.5px solid var(--t3); transition:all .22s var(--spring)}
+.pin-dot.fill{background:var(--acc); border-color:var(--acc); box-shadow:0 0 0 4px var(--acc-d)}
+.keypad{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; max-width:280px; margin:0 auto}
+.key{aspect-ratio:1.5; background:var(--s1); border:1px solid var(--hairline); border-radius:14px;
+  font-family:'Spline Sans Mono'; font-size:1.3rem; font-weight:600; color:var(--t1); cursor:pointer;
+  transition:transform .12s var(--press), background .15s var(--ease)}
+.key:active{transform:scale(.96); background:var(--s3)}
+.key.fn{font-size:.95rem; color:var(--t3); font-family:'Hanken Grotesk'}
+.key.ghost{background:none; border:none; cursor:default}
 
-/* ─── PIN ────────────────────────────────────────────── */
-.pin-dots{display:flex;justify-content:center;gap:18px;margin:24px 0 36px}
-.pin-dot{width:13px;height:13px;border-radius:50%;border:2px solid var(--t3);transition:all .18s var(--spring-hard);transform:scale(1)}
-.pin-dot.filled{background:var(--acc);border-color:var(--acc);transform:scale(1.18);box-shadow:0 0 10px var(--acc-glow)}
-.pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:284px;margin:0 auto}
-.pk-btn{padding:19px;background:var(--s2);border:none;border-radius:16px;font-family:'Inter',sans-serif;font-size:1.35rem;font-weight:600;color:var(--t1);cursor:pointer;transition:background .1s,transform .1s var(--spring),box-shadow .1s;will-change:transform}
-.pk-btn:active{transform:scale(.88);background:var(--s4);box-shadow:inset 0 2px 8px rgba(0,0,0,.4)}
-.pk-btn.del{font-size:1rem;color:var(--t3)}
-.pk-btn.empty{background:none;cursor:default}
+/* ════════ APP SHELL ════════ */
+#app{display:none; flex-direction:column; height:100%}
+.topbar{display:flex; align-items:center; justify-content:space-between; padding:18px 22px 8px; position:relative; z-index:3}
+.tb-logo{font-family:'Archivo'; font-weight:800; font-size:1.05rem; letter-spacing:-.04em}
+.tb-logo b{color:var(--acc)}
+.tb-right{display:flex; align-items:center; gap:10px}
+.ib{width:38px; height:38px; border-radius:12px; background:var(--s1); border:1px solid var(--hairline);
+  display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--t2); position:relative;
+  transition:transform .12s var(--press), background .15s var(--ease)}
+.ib:active{transform:scale(.95); background:var(--s3)}
+.ib svg{width:18px; height:18px}
+.ndot{position:absolute; top:8px; right:8px; width:7px; height:7px; border-radius:50%; background:var(--acc); box-shadow:0 0 0 2px var(--s1)}
+.av{width:38px; height:38px; border-radius:12px; background:linear-gradient(150deg,var(--acc),var(--acc-deep));
+  display:flex; align-items:center; justify-content:center; font-family:'Archivo'; font-weight:800; font-size:.85rem; color:#1a1206;
+  cursor:pointer; box-shadow:0 4px 14px -4px var(--acc-glow); transition:transform .12s var(--press)}
+.av:active{transform:scale(.95)}
 
-/* ─── TOPBAR ─────────────────────────────────────────── */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px;flex-shrink:0}
-.topbar-logo{font-size:1.05rem;font-weight:900;letter-spacing:-.05em}
-.topbar-logo b{color:var(--acc2)}
-.topbar-right{display:flex;align-items:center;gap:10px}
-.ib{width:36px;height:36px;border-radius:50%;background:var(--s3);border:1.5px solid var(--br);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1rem;position:relative;color:var(--t2);transition:background .15s,transform .1s var(--spring)}
-.ib:active{transform:scale(.88);background:var(--s4)}
-.ndot{width:7px;height:7px;background:var(--acc);border-radius:50%;position:absolute;top:5px;right:5px;border:2px solid var(--bg);display:none;box-shadow:0 0 6px var(--acc)}
-.av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc2));display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:#fff;cursor:pointer;box-shadow:0 2px 12px var(--acc-glow);transition:transform .1s var(--spring)}
-.av:active{transform:scale(.88)}
+/* Screens slide */
+.screens{position:relative}
+.scr{display:none; padding-top:4px}
+.scr.on{display:block}
+.scr.in-r{animation:slideInR .34s var(--ease-out)}
+.scr.in-l{animation:slideInL .34s var(--ease-out)}
+@keyframes slideInR{from{opacity:0; transform:translateX(22px)} to{opacity:1; transform:none}}
+@keyframes slideInL{from{opacity:0; transform:translateX(-22px)} to{opacity:1; transform:none}}
 
-/* ─── HERO ───────────────────────────────────────────── */
-.hero{padding:6px 20px 28px}
-.hero-label{font-size:.65rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:10px}
-.hero-amount{font-size:3.4rem;font-weight:900;letter-spacing:-.06em;line-height:1;margin-bottom:12px}
-.hero-pills{display:flex;gap:8px}
-.hpill{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:.68rem;font-weight:700;letter-spacing:.01em}
-.hpill-grn{background:var(--grn-d);color:var(--grn)}
-.hpill-red{background:var(--red-d);color:var(--red)}
-.hpill-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
-.hpill-grn .hpill-dot{background:var(--grn)}
-.hpill-red .hpill-dot{background:var(--red)}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
+/* Page header */
+.ph{padding:14px 22px 12px}
+.ph-eyebrow{font-size:.62rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--t3); margin-bottom:6px}
+.ph-title{font-family:'Archivo'; font-weight:800; font-size:1.7rem; letter-spacing:-.045em}
 
-/* ─── QUICK ACTIONS ──────────────────────────────────── */
-.qa-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 20px 28px}
-.qa{display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.qa-box{width:100%;aspect-ratio:1;border-radius:20px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;transition:transform .18s var(--spring-hard),background .1s,box-shadow .15s;border:1.5px solid var(--br);will-change:transform}
-.qa:active .qa-box{transform:scale(.84);background:var(--s4);box-shadow:inset 0 3px 10px rgba(0,0,0,.5)}
-.qa-lbl{font-size:.58rem;font-weight:700;color:var(--t3);letter-spacing:.02em}
+/* ── HERO (instrument panel) ── */
+.hero{margin:4px 16px 18px; padding:24px 22px 22px; border-radius:22px; position:relative; overflow:hidden;
+  background:linear-gradient(180deg,var(--s2),var(--s1));
+  border:1px solid var(--hairline); box-shadow:inset 0 1px 0 var(--toplight), 0 18px 40px -28px #000}
+.hero::before{content:''; position:absolute; right:-30px; top:-40px; width:180px; height:180px; border-radius:50%;
+  background:radial-gradient(circle,var(--acc-glow),transparent 70%); opacity:.5; pointer-events:none}
+.hero-label{font-size:.64rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--t3); display:flex; align-items:center; gap:8px}
+.hero-label::before{content:''; width:6px; height:6px; border-radius:2px; background:var(--acc); box-shadow:0 0 8px var(--acc)}
+.hero-amt{font-family:'Spline Sans Mono'; font-weight:600; font-size:3.1rem; letter-spacing:-.04em; line-height:1; margin:12px 0 14px}
+.hero-amt .p{color:var(--t3); font-size:2rem}
+.hero-pills{display:flex; gap:8px; flex-wrap:wrap}
+.hpill{display:flex; align-items:center; gap:7px; padding:6px 11px; border-radius:10px; font-size:.7rem; font-weight:600}
+.hpill svg{width:13px; height:13px}
+.hp-grn{background:var(--grn-d); color:var(--grn)}
+.hp-red{background:var(--red-d); color:var(--red)}
+.hp-blu{background:var(--blu-d); color:var(--blu)}
 
-/* ─── STATS ──────────────────────────────────────────── */
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 20px 24px}
-.stat{background:var(--s2);border-radius:16px;padding:15px 14px 13px;border:1.5px solid var(--br2);transition:transform .15s var(--spring),box-shadow .15s}
-.stat:active{transform:scale(.96)}
-.stat-v{font-size:1.5rem;font-weight:900;letter-spacing:-.04em;line-height:1;margin-bottom:5px}
-.stat-l{font-size:.54rem;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase}
+/* ── QUICK ACTIONS ── */
+.qa-row{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:0 16px 22px}
+.qa{display:flex; flex-direction:column; align-items:center; gap:9px; background:none; border:none; cursor:pointer}
+.qa-box{width:100%; aspect-ratio:1; border-radius:18px; background:var(--s1); border:1px solid var(--hairline);
+  display:flex; align-items:center; justify-content:center; color:var(--acc);
+  box-shadow:inset 0 1px 0 var(--toplight); transition:transform .15s var(--press), background .15s var(--ease)}
+.qa-box svg{width:22px; height:22px}
+.qa:active .qa-box{transform:scale(.94); background:var(--s3)}
+.qa-lbl{font-size:.64rem; font-weight:600; color:var(--t2); letter-spacing:.01em}
 
-/* ─── SECTIONS ───────────────────────────────────────── */
-.sec{padding:0 20px 20px}
-.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.sec-title{font-size:.92rem;font-weight:700;letter-spacing:-.02em}
-.sec-more{font-size:.7rem;font-weight:600;color:var(--acc2);cursor:pointer}
+/* ── STATS ── */
+.stats{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; padding:0 16px 24px}
+.stat{background:var(--s1); border:1px solid var(--hairline2); border-radius:16px; padding:15px 14px;
+  box-shadow:inset 0 1px 0 var(--toplight); transition:transform .14s var(--press)}
+.stat:active{transform:scale(.97)}
+.stat-v{font-family:'Spline Sans Mono'; font-weight:600; font-size:1.5rem; letter-spacing:-.03em; line-height:1; margin-bottom:7px}
+.stat-l{font-size:.58rem; font-weight:700; color:var(--t3); letter-spacing:.1em; text-transform:uppercase}
 
-/* ─── LIST ITEMS ─────────────────────────────────────── */
-.list{display:flex;flex-direction:column;gap:2px}
-.li{display:flex;align-items:center;gap:13px;padding:13px 14px;background:var(--s1);border-radius:16px;cursor:pointer;transition:background .1s,transform .12s var(--spring);border:1.5px solid transparent;will-change:transform}
-.li:active{background:var(--s3);transform:scale(.978);border-color:var(--br)}
-.li-ico{width:42px;height:42px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.1rem}
-.li-body{flex:1;min-width:0}
-.li-name{font-size:.86rem;font-weight:600;letter-spacing:-.015em;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.li-detail{font-size:.67rem;color:var(--t3);font-weight:400}
-.li-right{text-align:right;flex-shrink:0}
-.li-amt{font-size:.86rem;font-weight:700;letter-spacing:-.02em;margin-bottom:4px}
+/* ── SECTIONS / LIST ── */
+.sec{padding:0 16px 18px}
+.sec-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding:0 6px}
+.sec-title{font-family:'Archivo'; font-weight:700; font-size:.95rem; letter-spacing:-.02em}
+.sec-more{font-size:.72rem; font-weight:600; color:var(--acc2); cursor:pointer}
+.list{display:flex; flex-direction:column; gap:8px}
+.li{display:flex; align-items:center; gap:13px; padding:13px 14px; background:var(--s1); border:1px solid var(--hairline2);
+  border-radius:16px; cursor:pointer; box-shadow:inset 0 1px 0 var(--toplight);
+  transition:transform .14s var(--press), background .15s var(--ease), border-color .15s var(--ease)}
+.li:active{transform:scale(.985); background:var(--s2); border-color:var(--hairline)}
+.li-ico{width:44px; height:44px; border-radius:13px; flex-shrink:0; display:flex; align-items:center; justify-content:center}
+.li-ico svg{width:19px; height:19px}
+.li-body{flex:1; min-width:0}
+.li-name{font-size:.9rem; font-weight:600; letter-spacing:-.01em; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.li-detail{font-size:.7rem; color:var(--t3)}
+.li-right{text-align:right; flex-shrink:0}
+.li-amt{font-family:'Spline Sans Mono'; font-size:.86rem; font-weight:600; letter-spacing:-.02em; margin-bottom:5px}
 
-/* ─── BADGES ─────────────────────────────────────────── */
-.bdg{display:inline-block;font-size:.55rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:7px}
-.b-acc{background:var(--acc-d);color:var(--acc2)}
-.b-grn{background:var(--grn-d);color:var(--grn)}
-.b-red{background:var(--red-d);color:var(--red)}
-.b-amb{background:var(--amb-d);color:var(--amb)}
-.b-muted{background:var(--s3);color:var(--t3)}
+/* Tinted icon backgrounds */
+.t-acc{background:var(--acc-d); color:var(--acc)}
+.t-grn{background:var(--grn-d); color:var(--grn)}
+.t-red{background:var(--red-d); color:var(--red)}
+.t-blu{background:var(--blu-d); color:var(--blu)}
 
-/* ─── NAV ────────────────────────────────────────────── */
-.nav{flex-shrink:0;background:rgba(10,10,10,.92);backdrop-filter:saturate(200%) blur(28px);-webkit-backdrop-filter:saturate(200%) blur(28px);border-top:1px solid var(--br);display:flex;padding:8px 0 30px}
-.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:8px 0;transition:transform .12s var(--spring-hard);will-change:transform;position:relative}
-.ni:active{transform:scale(.84)}
-.ni-ico{font-size:1.2rem;line-height:1;color:var(--t4);transition:color .2s,transform .2s var(--spring-hard)}
-.ni-lbl{font-size:.55rem;font-weight:700;color:var(--t4);letter-spacing:.03em;transition:color .2s}
-.ni.on .ni-ico{color:var(--t1);transform:scale(1.12)}
-.ni.on .ni-lbl{color:var(--t1)}
-.ni.on::after{content:'';position:absolute;top:4px;width:20px;height:3px;border-radius:2px;background:var(--acc);box-shadow:0 0 8px var(--acc);}
+/* Badges */
+.bdg{display:inline-flex; align-items:center; font-size:.56rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:4px 8px; border-radius:7px}
+.b-acc{background:var(--acc-d); color:var(--acc2)}
+.b-grn{background:var(--grn-d); color:var(--grn)}
+.b-red{background:var(--red-d); color:var(--red)}
+.b-blu{background:var(--blu-d); color:var(--blu)}
 
-/* ─── PAGE HEADER ────────────────────────────────────── */
-.ph{display:flex;align-items:center;justify-content:space-between;padding:22px 20px 14px}
-.ph-title{font-size:1.65rem;font-weight:900;letter-spacing:-.05em}
-
-/* ─── FILTERS ────────────────────────────────────────── */
-.filters{display:flex;gap:7px;padding:0 20px 16px;overflow-x:auto;scrollbar-width:none}
-.filters::-webkit-scrollbar{display:none}
-.fp{flex-shrink:0;padding:7px 16px;border-radius:22px;font-size:.7rem;font-weight:700;border:1.5px solid var(--br);background:none;color:var(--t3);cursor:pointer;font-family:'Inter',sans-serif;transition:all .18s var(--spring);will-change:transform}
-.fp:active{transform:scale(.92)}
-.fp.on{background:var(--t1);border-color:var(--t1);color:var(--bg)}
-
-/* ─── CALENDAR ───────────────────────────────────────── */
-.cal{padding:0 20px}
-.cal-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-.cal-nav{width:34px;height:34px;background:var(--s2);border:none;border-radius:10px;color:var(--t2);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .1s var(--spring),background .1s}
-.cal-nav:active{transform:scale(.88);background:var(--s4)}
-.cal-mon{font-size:1rem;font-weight:700;letter-spacing:-.03em}
-.cal-hd{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px}
-.cal-hl{text-align:center;font-size:.58rem;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.05em;padding:4px 0 8px}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:24px}
-.cd{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:11px;font-size:.76rem;font-weight:500;color:var(--t3);cursor:pointer;position:relative;transition:background .1s,transform .1s var(--spring)}
-.cd:active{transform:scale(.85)}
-.cd.today{background:var(--acc);color:#fff;font-weight:800;box-shadow:0 2px 12px var(--acc-glow)}
-.cd.hj{color:var(--t1);font-weight:700}
-.cd.hj::after{content:'';width:4px;height:4px;background:var(--acc);border-radius:50%;position:absolute;bottom:3px}
-.cd.empty{cursor:default}
-
-/* ─── PROFILE ────────────────────────────────────────── */
-.prof-hero{display:flex;align-items:center;gap:18px;padding:8px 20px 28px}
-.prof-av{width:64px;height:64px;border-radius:22px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:900;color:#fff;flex-shrink:0;box-shadow:0 4px 20px var(--acc-glow)}
-.prof-name{font-size:1.15rem;font-weight:800;letter-spacing:-.03em;margin-bottom:3px}
-.prof-trade{font-size:.72rem;color:var(--t3)}
-.sg{padding:0 20px 20px}
-.sg-lbl{font-size:.6rem;font-weight:700;color:var(--t4);letter-spacing:.09em;text-transform:uppercase;margin-bottom:8px;padding-left:2px}
-.sg-list{background:var(--s1);border-radius:18px;overflow:hidden;border:1.5px solid var(--br2)}
-.sg-row{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--br)}
+/* Profile */
+.prof-hero{display:flex; align-items:center; gap:16px; padding:8px 22px 24px}
+.prof-av{width:62px; height:62px; border-radius:18px; background:linear-gradient(150deg,var(--acc),var(--acc-deep));
+  display:flex; align-items:center; justify-content:center; font-family:'Archivo'; font-weight:800; font-size:1.5rem; color:#1a1206;
+  box-shadow:0 6px 20px -6px var(--acc-glow)}
+.prof-name{font-family:'Archivo'; font-weight:700; font-size:1.2rem; letter-spacing:-.03em}
+.prof-trade{font-size:.74rem; color:var(--t3); margin-top:2px}
+.sg{padding:0 16px 18px}
+.sg-lbl{font-size:.6rem; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--t3); margin:0 0 9px 6px}
+.sg-list{background:var(--s1); border:1px solid var(--hairline2); border-radius:16px; overflow:hidden; box-shadow:inset 0 1px 0 var(--toplight)}
+.sg-row{display:flex; align-items:center; justify-content:space-between; padding:15px 18px; border-bottom:1px solid var(--hairline2); cursor:pointer; transition:background .15s var(--ease)}
 .sg-row:last-child{border-bottom:none}
-.sg-row-label{font-size:.86rem;font-weight:500;color:var(--t1)}
-.sg-val{font-size:.82rem;color:var(--acc2);font-weight:500;text-align:right;background:none;border:none;font-family:'Inter',sans-serif;outline:none;width:150px;cursor:pointer}
-.sg-val-ta{font-size:.78rem;color:var(--acc2);font-weight:400;text-align:right;background:none;border:none;font-family:'Inter',sans-serif;outline:none;width:150px;cursor:pointer;resize:none;line-height:1.5}
-.sg-danger .sg-row-label{color:var(--red)}
-.sg-danger{cursor:pointer}
-.colour-row{display:flex;gap:8px;padding:12px 18px;flex-wrap:wrap}
-.colour-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .18s var(--spring-hard)}
-.colour-swatch.selected{border-color:var(--t1);transform:scale(1.2);box-shadow:0 0 8px currentColor}
+.sg-row:active{background:var(--s2)}
+.sg-row-l{font-size:.88rem; font-weight:500; display:flex; align-items:center; gap:12px}
+.sg-row-l svg{width:17px; height:17px; color:var(--t3)}
+.sg-val{font-size:.82rem; color:var(--t3); display:flex; align-items:center; gap:6px}
+.sg-val svg{width:15px; height:15px}
 
-/* ─── SAVE BUTTON ────────────────────────────────────── */
-.save-btn{width:calc(100% - 40px);margin:0 20px 20px;padding:16px;background:var(--acc);border:none;border-radius:16px;font-family:'Inter',sans-serif;font-size:.88rem;font-weight:700;color:#fff;cursor:pointer;transition:transform .1s var(--spring),box-shadow .15s;box-shadow:0 4px 20px var(--acc-glow);will-change:transform}
-.save-btn:active{transform:scale(.96);box-shadow:0 2px 8px var(--acc-glow)}
-.success-msg{text-align:center;color:var(--grn);font-size:.75rem;margin:-10px 20px 16px;min-height:20px}
-/* ─── SCREENS ────────────────────────────────────────── */
-.scr{display:none;opacity:0;transform:translateY(10px)}
-.scr.on{display:block;animation:scrIn .3s var(--ease-out) forwards}
-@keyframes scrIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.hidden{display:none!important}
-.loading{text-align:center;padding:40px 20px;color:var(--t3);font-size:.8rem}
-.empty-state{text-align:center;padding:40px 20px;color:var(--t3);font-size:.8rem;line-height:1.8}
+.empty{text-align:center; padding:56px 24px; color:var(--t3)}
+.empty svg{width:34px; height:34px; margin-bottom:14px; color:var(--t4)}
+.empty .e-t{font-family:'Archivo'; font-weight:700; font-size:1rem; color:var(--t2); margin-bottom:6px}
+.empty .e-s{font-size:.78rem; line-height:1.6}
 
-/* ─── NAV ACTIVE INDICATOR ───────────────────────────── */
-.ni.on .ni-ico{animation:niPop .32s var(--spring-hard)}
-@keyframes niPop{0%{transform:scale(1.12)}40%{transform:scale(1.28)}100%{transform:scale(1.12)}}
+/* ════════ BOTTOM NAV ════════ */
+.nav{position:absolute; bottom:0; left:0; right:0; max-width:400px; margin:0 auto; z-index:5;
+  background:linear-gradient(180deg,rgba(11,12,14,.7),rgba(11,12,14,.96));
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--hairline); display:flex; padding:9px 8px 26px}
+.ni{flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; background:none; border:none; cursor:pointer; padding:6px 0; position:relative;
+  transition:transform .12s var(--press)}
+.ni:active{transform:scale(.92)}
+.ni svg{width:21px; height:21px; color:var(--t4); transition:color .22s var(--ease), transform .22s var(--spring)}
+.ni-lbl{font-size:.56rem; font-weight:600; color:var(--t4); letter-spacing:.02em; transition:color .22s var(--ease)}
+.ni.on svg{color:var(--acc); transform:translateY(-1px)}
+.ni.on .ni-lbl{color:var(--acc2)}
+.ni.on::after{content:''; position:absolute; top:-9px; width:22px; height:3px; border-radius:0 0 3px 3px; background:var(--acc); box-shadow:0 0 10px var(--acc)}
 
-/* ─── HERO COUNT UP ──────────────────────────────────── */
-@keyframes countUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.hero-amount{animation:countUp .45s var(--ease-out)}
+/* one-time load stagger (applied only on first app reveal) */
+.reveal>*{opacity:0}
+.reveal.go>*{animation:rise .5s var(--ease-out) forwards}
+.reveal.go>*:nth-child(1){animation-delay:.02s}
+.reveal.go>*:nth-child(2){animation-delay:.08s}
+.reveal.go>*:nth-child(3){animation-delay:.14s}
+.reveal.go>*:nth-child(4){animation-delay:.2s}
+.reveal.go>*:nth-child(5){animation-delay:.26s}
+.reveal.go>*:nth-child(6){animation-delay:.32s}
+@keyframes rise{from{opacity:0; transform:translateY(16px)} to{opacity:1; transform:none}}
+.nav.slideup{animation:navUp .5s var(--ease-out) .2s both}
+@keyframes navUp{from{transform:translateY(110%)} to{transform:none}}
 
-/* ─── STAT CARDS STAGGER ─────────────────────────────── */
-@keyframes statIn{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
-.stat{opacity:0;animation:statIn .4s var(--ease-out) forwards}
-.stat:nth-child(1){animation-delay:.04s}
-.stat:nth-child(2){animation-delay:.1s}
-.stat:nth-child(3){animation-delay:.16s}
-
-/* ─── LIST STAGGER ───────────────────────────────────── */
-@keyframes liIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-.li-anim{opacity:0;animation:liIn .28s var(--ease-out) forwards}
-
-/* ─── SHAKE ──────────────────────────────────────────── */
-@keyframes errShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}40%{transform:translateX(9px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
-.err-shake{animation:errShake .38s cubic-bezier(.36,.07,.19,.97)}
-
-/* ─── SUCCESS POP ────────────────────────────────────── */
-@keyframes successPop{0%{transform:scale(.82);opacity:0}55%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
-.success-pop{animation:successPop .38s var(--spring-hard)}
-
-/* ─── SLIDE UP MODAL ─────────────────────────────────── */
-@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
-.slide-up{animation:slideUp .32s var(--ease-out)}
-
-/* ─── SKELETON ───────────────────────────────────────── */
-@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
-.skeleton{background:linear-gradient(90deg,var(--s2) 25%,var(--s3) 50%,var(--s2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:10px;color:transparent!important}
-
-/* ─── CHAT BUBBLES ───────────────────────────────────── */
-@keyframes bubbleIn{from{opacity:0;transform:translateY(8px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
-.bubble-in{animation:bubbleIn .22s var(--spring)}
-
-/* ─── TYPING DOTS ────────────────────────────────────── */
-@keyframes typingDot{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-5px)}}
-.typing-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--t3);margin:0 2px;animation:typingDot 1.3s infinite}
-.typing-dot:nth-child(2){animation-delay:.18s}
-.typing-dot:nth-child(3){animation-delay:.36s}
-
-/* ─── DOC REVEAL ─────────────────────────────────────── */
-@keyframes docReveal{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
-.doc-reveal{animation:docReveal .32s var(--ease-out)}
-
-/* ─── PROFILE AVATAR ─────────────────────────────────── */
-@keyframes avIn{0%{transform:scale(0) rotate(-10deg);opacity:0}70%{transform:scale(1.08) rotate(2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
-.prof-av{animation:avIn .45s var(--spring-hard)}
-
-/* ─── PAGE TITLE ─────────────────────────────────────── */
-@keyframes titleIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
-.ph-title{animation:titleIn .28s var(--ease-out)}
-
-/* ─── QUOTE DOC ──────────────────────────────────────── */
-@keyframes checkIn{from{stroke-dashoffset:30}to{stroke-dashoffset:0}}
-.check-anim{stroke-dasharray:30;animation:checkIn .4s var(--spring) forwards}
-.colour-row{display:flex;flex-wrap:wrap;gap:10px;padding:14px 18px}
-.colour-swatch{width:32px;height:32px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:border-color .15s}
-.colour-swatch.selected{border-color:var(--t1)}
-.sg-val-ta{font-size:.78rem;color:var(--acc2);font-weight:400;text-align:right;background:none;border:none;font-family:'Inter',sans-serif;outline:none;width:160px;resize:none;line-height:1.5}
-.save-btn{display:block;width:calc(100% - 40px);margin:0 20px 20px;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Inter',sans-serif;font-size:.88rem;font-weight:700;color:#fff;cursor:pointer;transition:opacity .15s}
-.save-btn:disabled{opacity:.5;cursor:not-allowed}
-.success-msg{text-align:center;font-size:.75rem;color:var(--grn);margin:-10px 20px 20px;min-height:20px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001s!important; transition-duration:.001s!important}}
 </style>
 </head>
 <body>
 
-<div id="screenPhone" class="login-screen">
-  <div>
-    <div class="logo">Van<b>Office</b></div>
-    <div class="logo-sub">Your office. In the van.</div>
+<!-- BOOT -->
+<div id="boot">
+  <div class="boot-mark">
+    <svg viewBox="0 0 64 64" fill="none">
+      <rect x="6" y="20" width="40" height="28" rx="5" stroke="#ff9e1b" stroke-width="3"/>
+      <path d="M46 28h7l5 8v12h-12" stroke="#ff9e1b" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="18" cy="50" r="5" stroke="#f4f3f0" stroke-width="3"/>
+      <circle cx="48" cy="50" r="5" stroke="#f4f3f0" stroke-width="3"/>
+    </svg>
   </div>
+  <div class="boot-word disp">Van<b>Office</b></div>
+  <div class="boot-bar"><i></i></div>
+</div>
+
+<!-- LOGIN: phone -->
+<div id="loginPhone" class="login hide">
   <div>
+    <div class="brand disp">Van<b>Office</b></div>
+    <div class="brand-sub">Your office. In the van.</div>
+  </div>
+  <div class="field-grp">
     <div class="lbl">Phone number</div>
-    <input type="tel" class="inp" id="phoneInput" placeholder="+44 7700 000000">
-    <button class="btn-cta" onclick="submitPhone()">Continue</button>
-    <div class="err-msg" id="phoneErr"></div>
-    <div class="login-alt">No account? <span onclick="doDemo()">Try demo</span></div>
+    <input class="inp" type="tel" placeholder="+44 7700 000000" value="+44 7700 900123">
+    <button class="btn" onclick="toPin()">Continue</button>
+    <div class="login-alt">First time? <span onclick="toPin()">Set up account</span></div>
   </div>
-  <div class="login-foot">VanOffice · Built for UK tradespeople<br>Encrypted · Private · Yours</div>
+  <div class="login-foot">VANOFFICE · BUILT FOR UK TRADESPEOPLE<br>ENCRYPTED · PRIVATE · YOURS</div>
 </div>
 
-<div id="screenPin" class="login-screen hidden">
+<!-- LOGIN: PIN -->
+<div id="loginPin" class="login hide">
   <div>
-    <button class="back-btn" onclick="goBack()">← Back</button>
-    <div class="logo">Van<b>Office</b></div>
-    <div class="logo-sub">Enter your PIN</div>
+    <div class="brand disp">Van<b>Office</b></div>
+    <div class="brand-sub">Enter your PIN</div>
   </div>
-  <div>
+  <div class="field-grp">
     <div class="pin-dots">
-      <div class="pin-dot" id="d0"></div><div class="pin-dot" id="d1"></div>
-      <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
+      <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
     </div>
-    <div class="err-msg" id="pinErr"></div>
-    <div class="pin-keypad">
-      <button class="pk-btn" onclick="pinKey('1')">1</button>
-      <button class="pk-btn" onclick="pinKey('2')">2</button>
-      <button class="pk-btn" onclick="pinKey('3')">3</button>
-      <button class="pk-btn" onclick="pinKey('4')">4</button>
-      <button class="pk-btn" onclick="pinKey('5')">5</button>
-      <button class="pk-btn" onclick="pinKey('6')">6</button>
-      <button class="pk-btn" onclick="pinKey('7')">7</button>
-      <button class="pk-btn" onclick="pinKey('8')">8</button>
-      <button class="pk-btn" onclick="pinKey('9')">9</button>
-      <button class="pk-btn empty"></button>
-      <button class="pk-btn" onclick="pinKey('0')">0</button>
-      <button class="pk-btn del" onclick="pinDel()">⌫</button>
-    </div>
-    <div style="text-align:center;margin-top:24px">
-      <span style="font-size:.75rem;color:var(--t3);cursor:pointer" onclick="showForgotPin()">Forgot PIN?</span>
-    </div>
+    <div class="keypad" id="keypad"></div>
+    <div style="text-align:center;margin-top:22px"><span style="font-size:.78rem;color:var(--t3)">Forgot PIN?</span></div>
   </div>
 </div>
 
-<div id="screenForgot" class="login-screen hidden">
-  <div>
-    <button class="back-btn" onclick="showPinScreen()">← Back</button>
-    <div class="logo">Van<b>Office</b></div>
-    <div class="logo-sub">We'll send a reset code to your phone</div>
-  </div>
-  <div>
-    <div class="lbl">Your phone number</div>
-    <input type="tel" class="inp" id="forgotPhone" placeholder="+44 7700 000000">
-    <button class="btn-cta" onclick="sendReset()">Send reset code</button>
-    <div class="err-msg" id="forgotErr"></div>
-  </div>
-</div>
-
-<div id="screenReset" class="login-screen hidden">
-  <div>
-    <button class="back-btn" onclick="showForgotPin()">← Back</button>
-    <div class="logo">Van<b>Office</b></div>
-    <div class="logo-sub">Enter the 6-digit code sent to your phone</div>
-  </div>
-  <div>
-    <div class="lbl">Reset code</div>
-    <input type="number" class="inp" id="resetCode" placeholder="000000">
-    <div class="lbl" style="margin-top:4px">New PIN</div>
-    <input type="password" class="inp" id="newPin" placeholder="4 digits" maxlength="4">
-    <button class="btn-cta" onclick="submitReset()">Set new PIN</button>
-    <div class="err-msg" id="resetErr"></div>
-  </div>
-</div>
-
-<div id="screenQuoteSetup" class="login-screen hidden" style="padding:0;overflow-y:auto;-webkit-overflow-scrolling:touch">
-  <div style="padding:32px 28px 48px">
-    <div class="logo">Van<b>Office</b></div>
-    <div style="font-size:1rem;font-weight:700;margin-bottom:4px">One last thing!</div>
-    <div style="font-size:.75rem;color:var(--t3);margin-bottom:20px">Choose a quote style — this will be used on every quote you send. You can change it later in Profile.</div>
-
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px" id="qs-templates">
-      <div id="qs-gold" onclick="qsPickStyle('gold')" style="border:1.5px solid var(--acc);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
-        <div style="background:#1a1a1a;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:900;color:#c9a84c">GOLD</div>
-        <div style="padding:10px 14px;flex:1"><div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Premium Gold</div><div style="font-size:.65rem;color:var(--t3)">Dark background, gold accents</div></div>
-        <div id="qs-gold-tick" style="margin-right:14px;color:var(--acc);font-size:1rem">✓</div>
-      </div>
-      <div id="qs-navy" onclick="qsPickStyle('navy')" style="border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
-        <div style="background:#0f2b5b;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:900;color:#e8b84b">NAVY</div>
-        <div style="padding:10px 14px;flex:1"><div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Navy Pro</div><div style="font-size:.65rem;color:var(--t3)">Corporate navy & gold</div></div>
-        <div id="qs-navy-tick" style="margin-right:14px;color:var(--acc);font-size:1rem;visibility:hidden">✓</div>
-      </div>
-      <div id="qs-slate" onclick="qsPickStyle('slate')" style="border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
-        <div style="background:#3d3d3d;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:900;color:#fff">SLATE</div>
-        <div style="padding:10px 14px;flex:1"><div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Slate Clean</div><div style="font-size:.65rem;color:var(--t3)">Modern charcoal with numbered steps</div></div>
-        <div id="qs-slate-tick" style="margin-right:14px;color:var(--acc);font-size:1rem;visibility:hidden">✓</div>
-      </div>
-      <div id="qs-green" onclick="qsPickStyle('green')" style="border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
-        <div style="background:#1e4d2b;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:900;color:#7ab648">GRN</div>
-        <div style="padding:10px 14px;flex:1"><div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Forest Green</div><div style="font-size:.65rem;color:var(--t3)">Earthy green — great for outdoor trades</div></div>
-        <div id="qs-green-tick" style="margin-right:14px;color:var(--acc);font-size:1rem;visibility:hidden">✓</div>
-      </div>
-      <div id="qs-mono" onclick="qsPickStyle('mono')" style="border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
-        <div style="background:#f5f5f5;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:900;color:#111">MONO</div>
-        <div style="padding:10px 14px;flex:1"><div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Mono Minimal</div><div style="font-size:.65rem;color:var(--t3)">Clean black & white</div></div>
-        <div id="qs-mono-tick" style="margin-right:14px;color:var(--acc);font-size:1rem;visibility:hidden">✓</div>
-      </div>
-    </div>
-
-    <div style="margin-bottom:16px">
-      <div style="font-size:.75rem;font-weight:600;margin-bottom:8px">Brand colour</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap" id="qsColours">
-        <div onclick="qsPickColour(this,'#c9a84c')" style="width:32px;height:32px;border-radius:50%;background:#c9a84c;cursor:pointer;border:2px solid #fff;box-shadow:0 0 0 2px #c9a84c"></div>
-        <div onclick="qsPickColour(this,'#0f2b5b')" style="width:32px;height:32px;border-radius:50%;background:#0f2b5b;cursor:pointer;border:2px solid transparent"></div>
-        <div onclick="qsPickColour(this,'#1e4d2b')" style="width:32px;height:32px;border-radius:50%;background:#1e4d2b;cursor:pointer;border:2px solid transparent"></div>
-        <div onclick="qsPickColour(this,'#993333')" style="width:32px;height:32px;border-radius:50%;background:#993333;cursor:pointer;border:2px solid transparent"></div>
-        <div onclick="qsPickColour(this,'#334499')" style="width:32px;height:32px;border-radius:50%;background:#334499;cursor:pointer;border:2px solid transparent"></div>
-        <div onclick="qsPickColour(this,'#555555')" style="width:32px;height:32px;border-radius:50%;background:#555555;cursor:pointer;border:2px solid transparent"></div>
-        <label style="width:32px;height:32px;border-radius:50%;background:conic-gradient(red,yellow,green,cyan,blue,magenta,red);cursor:pointer;border:2px solid transparent;display:block" title="Custom colour">
-          <input type="color" id="qsCustomColour" onchange="qsPickColour(null,this.value)" style="opacity:0;width:0;height:0">
-        </label>
-      </div>
-    </div>
-
-    <button onclick="qsPreview()" style="width:100%;padding:13px;background:var(--s2);border:1px solid var(--br);border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:var(--t1);cursor:pointer;margin-bottom:10px" id="qsPreviewBtn">👁 Preview</button>
-    <button onclick="qsSaveAndContinue()" style="width:100%;padding:14px;background:var(--acc);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.9rem;font-weight:700;color:#fff;cursor:pointer" id="qsSaveBtn">Save & go to dashboard →</button>
-    <div id="qsMsg" style="text-align:center;font-size:.72rem;color:var(--t3);margin-top:8px;min-height:16px"></div>
-  </div>
-</div>
-
-<div id="app" class="hidden" style="display:flex;flex-direction:column;height:100%">
+<!-- APP -->
+<div id="app">
   <div class="content" id="content">
-
-    <div id="s-home" class="scr on">
-      <div class="topbar">
-        <div class="topbar-logo">Van<b>Office</b></div>
-        <div class="topbar-right">
-          <button class="ib">🔔<div class="ndot" id="notifDot"></div></button>
-          <div class="av" id="avInit">H</div>
-        </div>
-      </div>
-      <div class="hero">
-        <div class="hero-label">Overview</div>
-        <div class="hero-amount" id="heroAmount">—</div>
-        <div class="hero-pills">
-          <div class="hpill hpill-grn"><div class="hpill-dot"></div><span id="heroNew">0 enquiries</span></div>
-          <div class="hpill hpill-red"><div class="hpill-dot"></div><span id="heroMissed">0 missed</span></div>
-        </div>
-      </div>
-      <div class="qa-row">
-        <button class="qa" onclick="go('jobs')"><div class="qa-box">🔨</div><div class="qa-lbl">Jobs</div></button>
-        <button class="qa" onclick="go('quotes')"><div class="qa-box">📋</div><div class="qa-lbl">Quotes</div></button>
-        <button class="qa" onclick="go('invoices')"><div class="qa-box">💳</div><div class="qa-lbl">Invoices</div></button>
-        <button class="qa" onclick="go('calendar')"><div class="qa-box">📅</div><div class="qa-lbl">Calendar</div></button>
-      </div>
-      <div class="stats">
-        <div class="stat"><div class="stat-v" id="statEnq">—</div><div class="stat-l">Enquiries</div></div>
-        <div class="stat"><div class="stat-v" id="statBooked" style="color:var(--acc2)">—</div><div class="stat-l">Booked</div></div>
-        <div class="stat"><div class="stat-v" id="statMissed" style="color:var(--amb)">—</div><div class="stat-l">Missed</div></div>
-      </div>
-      <div class="sec">
-        <div class="sec-head"><div class="sec-title">Recent activity</div><div class="sec-more" onclick="go('jobs')">See all</div></div>
-        <div class="list" id="recentList"><div class="loading">Loading...</div></div>
-      </div>
-      <div class="sec">
-        <div class="sec-head"><div class="sec-title">Upcoming jobs</div><div class="sec-more" onclick="go('calendar')">Calendar</div></div>
-        <div class="list" id="upcomingList"><div class="loading">Loading...</div></div>
+    <div class="topbar">
+      <div class="tb-logo disp">Van<b>Office</b></div>
+      <div class="tb-right">
+        <button class="ib" id="i-bell"><span class="ndot"></span></button>
+        <div class="av disp">HW</div>
       </div>
     </div>
 
-    <div id="s-jobs" class="scr">
-      <div class="ph"><div class="ph-title">Jobs</div></div>
-      <div class="filters">
-        <button class="fp on" onclick="filt(this,'all')">All</button>
-        <button class="fp" onclick="filt(this,'new')">New</button>
-        <button class="fp" onclick="filt(this,'missed call')">Missed</button>
-        <button class="fp" onclick="filt(this,'quoted')">Quoted</button>
-      </div>
-      <div class="sec"><div class="list" id="jobsList"><div class="loading">Loading...</div></div></div>
-    </div>
-
-    <div id="s-quotes" class="scr">
-      <div class="ph"><div class="ph-title">Quotes</div></div>
-      <div class="sec"><div class="list" id="quotesList"><div class="loading">Loading...</div></div></div>
-    </div>
-
-    <div id="s-quotegen" class="scr">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px">
-        <div class="ph-title" style="margin:0">AI Quote</div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <button id="qgVoiceToggle" onclick="qgToggleVoiceMode()" title="Toggle voice mode" style="font-size:.68rem;color:var(--t3);background:none;border:none;cursor:pointer;font-family:Inter,sans-serif;padding:4px 8px;border-radius:8px;border:1px solid var(--br)">🔇 Voice off</button>
-          <button onclick="qgReset()" style="font-size:.68rem;color:var(--t3);background:none;border:none;cursor:pointer;font-family:Inter,sans-serif;padding:4px 8px;border-radius:8px;border:1px solid var(--br)">New quote</button>
-        </div>
-      </div>
-      <div style="padding:0 20px 20px">
-
-        <div id="qgChatArea" style="background:var(--s1);border-radius:14px;padding:12px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto">
-          <div style="display:flex;gap:8px;align-items:flex-start">
-            <div style="width:28px;height:28px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#fff;flex-shrink:0">AI</div>
-            <div style="background:var(--s2);border-radius:4px 12px 12px 12px;padding:9px 12px;font-size:.78rem;color:var(--t2);line-height:1.6;max-width:90%" class="bubble-in">Hi! Two ways I can help:
-
-📐 Describe the job — I'll ask a couple of questions and work out the price for you.
-
-🔢 Or if you know your numbers already, just say something like: 'materials £340, 2 days labour, skimming lounge and hallway' — and I'll build the quote straight away.</div>
-          </div>
-        </div>
-
-        <div id="qgPhotoPreview" style="display:none;margin-bottom:8px;position:relative">
-          <img id="qgPhotoImg" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;border:1px solid var(--br)">
-          <button onclick="qgClearPhoto()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);border:none;color:#fff;width:24px;height:24px;border-radius:50%;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
-          <div style="font-size:.65rem;color:var(--t3);margin-top:4px;padding:0 2px" id="qgPhotoLabel">Photo attached</div>
-        </div>
-
-        <div id="qgRateBar" style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--s2);border-radius:10px;margin-bottom:8px">
-          <div style="font-size:.7rem;color:var(--t3)">Using: <span id="qgRateLabel" style="color:var(--t2);font-weight:600">£250/day · 20% markup</span></div>
-          <button onclick="go('profile')" style="background:none;border:none;color:var(--acc2);font-size:.68rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;padding:0">Edit ›</button>
-        </div>
-
-        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
-          <input id="qgInput" placeholder="Describe the job or just tap the mic..." style="flex:1;padding:11px 12px;background:var(--s2);border:1px solid var(--br);border-radius:12px;font-family:Inter,sans-serif;font-size:.82rem;color:var(--t1);outline:none" onkeypress="if(event.key==='Enter')qgSend()">
-          <button id="qgMicBtn" onclick="qgToggleVoice()" title="Voice input" style="width:42px;height:42px;background:var(--s2);border:1px solid var(--br);border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;flex-shrink:0">🎤</button>
-          <label title="Add photo" style="width:42px;height:42px;background:var(--s2);border:1px solid var(--br);border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;flex-shrink:0">
-            📷<input type="file" accept="image/*" capture="environment" onchange="qgHandlePhoto(this)" style="display:none" id="qgPhotoInput">
-          </label>
-          <button id="qgBtn" onclick="qgSend()" style="width:42px;height:42px;background:var(--acc);border:none;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0">→</button>
-        </div>
-
-        <div id="qgVoiceBar" style="display:none;background:var(--red-d);border-radius:10px;padding:8px 14px;margin-bottom:8px;display:none;align-items:center;gap:10px">
-          <div style="width:8px;height:8px;border-radius:50%;background:var(--red);animation:pulse 1s infinite"></div>
-          <div style="font-size:.75rem;color:var(--red);font-weight:600">Listening... speak now</div>
-          <button onclick="qgStopVoice()" style="margin-left:auto;background:none;border:none;color:var(--red);font-size:.75rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">Stop</button>
-        </div>
-
-        <div id="qgQuoteWrap" style="display:none">
-
-          <div style="background:var(--s1);border-radius:14px;padding:14px 16px;margin-bottom:12px">
-            <div style="font-size:.68rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Price summary</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <div style="font-size:.82rem;color:var(--t2)">Labour</div>
-              <div style="font-size:.82rem;font-weight:600;color:var(--t1)" id="qgLabourLine">—</div>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <div style="font-size:.82rem;color:var(--t2)">Materials</div>
-              <div style="font-size:.82rem;font-weight:600;color:var(--t1)" id="qgMatsLine">—</div>
-            </div>
-            <div style="height:0.5px;background:var(--br);margin:10px 0"></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-              <div style="font-size:.88rem;font-weight:700;color:var(--t1)">Total</div>
-              <div style="display:flex;align-items:center;gap:6px">
-                <div style="font-size:.8rem;color:var(--t3)">£</div>
-                <input id="qgTotalInput" type="number" style="width:90px;padding:6px 10px;background:var(--s2);border:1px solid var(--br);border-radius:8px;font-family:Inter,sans-serif;font-size:1rem;font-weight:900;color:var(--t1);text-align:right;outline:none">
-              </div>
-            </div>
-            <button onclick="qgToggleBreakdown()" id="qgBreakdownBtn" style="width:100%;padding:9px;background:none;border:1px solid var(--br);border-radius:10px;font-family:Inter,sans-serif;font-size:.75rem;font-weight:600;color:var(--t3);cursor:pointer">▼ Show materials breakdown</button>
-          </div>
-
-          <div id="qgBreakdown" style="display:none;background:var(--s1);border-radius:14px;padding:14px 16px;margin-bottom:12px">
-            <div style="font-size:.68rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Materials breakdown</div>
-            <div id="qgBreakdownItems"></div>
-          </div>
-
-          <button onclick="qgGenerateQuote()" style="width:100%;padding:14px;background:var(--acc);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.88rem;font-weight:700;color:#fff;cursor:pointer;margin-bottom:8px" id="qgGenBtn">Generate quote document →</button>
-
-          <div id="qgDocWrap" style="display:none">
-            <div id="qgQuoteDoc" style="background:#fff;border-radius:14px;overflow:hidden;font-family:Arial,sans-serif;font-size:12px;color:#1a1a1a;border:1px solid #ddd"></div>
-            <div style="display:flex;gap:8px;margin-top:10px">
-              <button onclick="qgSaveQuote()" style="flex:1;padding:11px;background:var(--grn);border:none;border-radius:10px;font-family:Inter,sans-serif;font-size:.78rem;font-weight:700;color:#000;cursor:pointer">💾 Save to quotes</button>
-              <button onclick="window.print()" style="flex:1;padding:11px;background:var(--s2);border:1px solid var(--br);border-radius:10px;font-family:Inter,sans-serif;font-size:.78rem;font-weight:600;color:var(--t1);cursor:pointer">🖨 Print / PDF</button>
+    <div class="screens">
+      <!-- HOME -->
+      <div id="s-home" class="scr on">
+        <div class="reveal" id="homeReveal">
+          <div class="hero">
+            <div class="hero-label">This month · outstanding</div>
+            <div class="hero-amt mono"><span class="p">£</span><span id="heroAmount">0</span></div>
+            <div class="hero-pills">
+              <div class="hpill hp-grn" id="i-trend"><span></span>+18% vs last month</div>
+              <div class="hpill hp-blu" id="i-enq"><span></span>3 new enquiries</div>
+              <div class="hpill hp-red" id="i-missed"><span></span>1 missed call</div>
             </div>
           </div>
 
-        </div>
-      </div>
-    </div>
-    <div id="s-invoices" class="scr">
-      <div class="ph"><div class="ph-title">Invoices</div></div>
-      <div class="filters">
-        <button class="fp on" onclick="filtInv(this,'all')">All</button>
-        <button class="fp" onclick="filtInv(this,'unpaid')">Unpaid</button>
-        <button class="fp" onclick="filtInv(this,'paid')">Paid</button>
-        <button class="fp" onclick="filtInv(this,'overdue')">Overdue</button>
-      </div>
-      <div class="sec"><div class="list" id="invoicesList"><div class="loading">Loading...</div></div></div>
-    </div>
-
-    <div id="s-calendar" class="scr">
-      <div class="ph"><div class="ph-title">Calendar</div></div>
-      <div class="cal">
-        <div class="cal-top">
-          <button class="cal-nav" onclick="chM(-1)">&#8249;</button>
-          <div class="cal-mon" id="calMon"></div>
-          <button class="cal-nav" onclick="chM(1)">&#8250;</button>
-        </div>
-        <div class="cal-hd">
-          <div class="cal-hl">M</div><div class="cal-hl">T</div><div class="cal-hl">W</div>
-          <div class="cal-hl">T</div><div class="cal-hl">F</div><div class="cal-hl">S</div><div class="cal-hl">S</div>
-        </div>
-        <div class="cal-grid" id="calGrid"></div>
-      </div>
-      <div class="sec">
-        <div class="sec-head"><div class="sec-title">Booked jobs</div></div>
-        <div class="list" id="bookingsList"><div class="loading">Loading...</div></div>
-      </div>
-    </div>
-
-    <div id="s-designer" class="scr">
-      <div class="ph"><div class="ph-title">Quote Style</div></div>
-      <div style="padding:0 20px 24px">
-
-        <div style="background:var(--s1);border-radius:14px;padding:14px 16px;margin-bottom:20px;border:1px dashed var(--br)">
-          <div style="font-size:.8rem;font-weight:600;margin-bottom:3px">Already have a quote template?</div>
-          <div style="font-size:.68rem;color:var(--t3);margin-bottom:10px">Upload it and we'll match your style automatically</div>
-          <div id="pdfUploadArea">
-            <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:var(--s2);border:1px solid var(--br);border-radius:10px;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--t2)">
-              📄 Upload PDF, Word, JPG or PNG
-              <input id="pdfFileInput" type="file" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/jpg" onchange="analyseTemplatePDF(this)" style="display:none">
-            </label>
-          </div>
-          <div id="pdfUploadedBar" style="display:none;background:var(--grn-d);border-radius:10px;padding:10px 12px;display:none;align-items:center;justify-content:space-between;gap:8px">
-            <div style="font-size:.75rem;font-weight:600;color:var(--grn)">✓ <span id="pdfFileName">template.pdf</span></div>
-            <button onclick="clearPdfUpload()" style="background:none;border:none;color:var(--red);font-size:.72rem;font-weight:700;cursor:pointer;padding:0;font-family:Inter,sans-serif">✕ Remove</button>
-          </div>
-          <div id="pdfUploadMsg" style="text-align:center;font-size:.68rem;color:var(--t3);margin-top:8px;min-height:16px"></div>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div style="font-size:.72rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Or pick a template</div>
-          <div style="font-size:.65rem;color:var(--t3)">Tap to preview instantly</div>
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
-
-          <div id="ds-gold" onclick="pickDesignStyle('gold')" style="border:1.5px solid var(--acc);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center;gap:0">
-            <div style="background:#1a1a1a;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:900;color:#c9a84c;letter-spacing:.5px">GOLD</div>
-            <div style="padding:10px 14px;flex:1">
-              <div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Premium Gold</div>
-              <div style="font-size:.65rem;color:var(--t3)">Dark background, gold accents — premium feel</div>
-            </div>
-            <div id="ds-gold-tick" style="margin-right:14px;color:var(--acc);font-size:1rem">✓</div>
+          <div class="qa-row">
+            <button class="qa" onclick="go('jobs',2)"><div class="qa-box" id="qa1"></div><div class="qa-lbl">Jobs</div></button>
+            <button class="qa" onclick="go('quote',2)"><div class="qa-box" id="qa2"></div><div class="qa-lbl">Quote</div></button>
+            <button class="qa" onclick="go('invoices',2)"><div class="qa-box" id="qa3"></div><div class="qa-lbl">Invoice</div></button>
+            <button class="qa" onclick="go('home',2)"><div class="qa-box" id="qa4"></div><div class="qa-lbl">Diary</div></button>
           </div>
 
-          <div id="ds-navy" onclick="pickDesignStyle('navy')" style="border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
-            <div style="background:#0f2b5b;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:900;color:#e8b84b;letter-spacing:.5px">NAVY</div>
-            <div style="padding:10px 14px;flex:1">
-              <div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Navy Pro</div>
-              <div style="font-size:.65rem;color:var(--t3)">Corporate navy & gold — professional and sharp</div>
-            </div>
-            <div id="ds-navy-tick" style="margin-right:14px;color:var(--acc);font-size:1rem;visibility:hidden">✓</div>
+          <div class="stats">
+            <div class="stat"><div class="stat-v mono">12</div><div class="stat-l">Enquiries</div></div>
+            <div class="stat"><div class="stat-v mono" style="color:var(--acc2)">7</div><div class="stat-l">Booked</div></div>
+            <div class="stat"><div class="stat-v mono" style="color:var(--red)">1</div><div class="stat-l">Missed</div></div>
           </div>
 
-          <div id="ds-slate" onclick="pickDesignStyle('slate')" style="border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
-            <div style="background:#3d3d3d;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:900;color:#fff;letter-spacing:.5px">SLATE</div>
-            <div style="padding:10px 14px;flex:1">
-              <div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Slate Clean</div>
-              <div style="font-size:.65rem;color:var(--t3)">Modern charcoal with numbered steps</div>
-            </div>
-            <div id="ds-slate-tick" style="margin-right:14px;color:var(--acc);font-size:1rem;visibility:hidden">✓</div>
+          <div class="sec">
+            <div class="sec-head"><div class="sec-title">Recent activity</div><div class="sec-more" onclick="go('jobs',2)">See all</div></div>
+            <div class="list" id="recentList"></div>
           </div>
 
-          <div id="ds-green" onclick="pickDesignStyle('green')" style="border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
-            <div style="background:#1e4d2b;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:900;color:#7ab648;letter-spacing:.5px">GRN</div>
-            <div style="padding:10px 14px;flex:1">
-              <div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Forest Green</div>
-              <div style="font-size:.65rem;color:var(--t3)">Earthy green — great for outdoor trades</div>
-            </div>
-            <div id="ds-green-tick" style="margin-right:14px;color:var(--acc);font-size:1rem;visibility:hidden">✓</div>
-          </div>
-
-          <div id="ds-mono" onclick="pickDesignStyle('mono')" style="border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
-            <div style="background:#f5f5f5;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:900;color:#111;letter-spacing:.5px">MONO</div>
-            <div style="padding:10px 14px;flex:1">
-              <div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Mono Minimal</div>
-              <div style="font-size:.65rem;color:var(--t3)">Clean black & white — works for any trade</div>
-            </div>
-            <div id="ds-mono-tick" style="margin-right:14px;color:var(--acc);font-size:1rem;visibility:hidden">✓</div>
-          </div>
-
-        </div>
-
-        <div style="background:var(--s1);border-radius:12px;padding:12px 14px;margin-bottom:12px">
-          <div style="font-size:.72rem;font-weight:600;margin-bottom:6px">Business logo (optional)</div>
-          <div style="font-size:.65rem;color:var(--t3);margin-bottom:8px">Describe your logo and AI will generate one, or upload yours in Profile</div>
-          <input id="logoPromptInput" placeholder="e.g. a plumbing wrench, GW initials, a house outline..." style="width:100%;padding:9px 12px;background:var(--s3);border:1px solid var(--br);border-radius:8px;font-family:Inter,sans-serif;font-size:.75rem;color:var(--t1);outline:none;margin-bottom:8px">
-          <button onclick="generateLogo()" style="width:100%;padding:11px;background:var(--s2);border:1px solid var(--br);border-radius:10px;font-family:Inter,sans-serif;font-size:.78rem;font-weight:700;color:var(--t1);cursor:pointer" id="genLogoBtn">🎨 Generate logo with AI</button>
-          <div id="logoGenMsg" style="text-align:center;font-size:.68rem;color:var(--t3);margin-top:8px;min-height:16px"></div>
-          <div id="logoGenPreview" style="display:none;text-align:center;margin-top:10px">
-            <img id="logoGenImg" style="width:80px;height:80px;border-radius:10px;object-fit:contain;background:var(--s2);padding:4px">
-            <div style="display:flex;gap:8px;margin-top:8px">
-              <button onclick="saveLogo()" style="flex:1;padding:8px;background:var(--grn);border:none;border-radius:8px;font-family:Inter,sans-serif;font-size:.72rem;font-weight:700;color:#000;cursor:pointer">Save to profile</button>
-              <button onclick="generateLogo()" style="flex:1;padding:8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;font-family:Inter,sans-serif;font-size:.72rem;font-weight:700;color:var(--t2);cursor:pointer">Regenerate</button>
-            </div>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:8px;margin-bottom:6px">
-          <button onclick="generateAndPreview()" style="flex:1;padding:14px;background:var(--s2);border:1.5px solid var(--br);border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:var(--t1);cursor:pointer" id="genPreviewBtn">👁 Preview</button>
-          <button onclick="saveDesignStyle()" style="flex:1;padding:14px;background:var(--acc);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:#fff;cursor:pointer" id="saveStyleBtn">✓ Save style</button>
-        </div>
-        <div id="saveDesignMsg" style="text-align:center;font-size:.72rem;color:var(--grn);margin-top:4px;min-height:18px"></div>
-
-      </div>
-    </div>
-
-    <div id="previewModal" style="display:none;position:fixed;inset:0;z-index:500;background:#1a1a1a;flex-direction:column;max-width:390px;margin:0 auto;">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;flex-shrink:0;background:#111;border-bottom:1px solid rgba(255,255,255,0.1)">
-        <div style="font-size:.92rem;font-weight:700;color:#fff">Quote Preview</div>
-        <button onclick="closePreview()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px">&#215;</button>
-      </div>
-      <div style="flex:1;overflow-y:auto;overflow-x:hidden;background:#e8e8e8;padding:8px;" id="previewContent">
-        <div style="width:100%;overflow:hidden;border-radius:6px;background:#fff;" id="previewInner"></div>
-      </div>
-    </div>
-
-    <div id="s-profile" class="scr">
-      <div class="ph"><div class="ph-title">Profile</div></div>
-      <div class="prof-hero">
-        <div class="prof-av" id="profAv">H</div>
-        <div><div class="prof-name" id="profName">Loading...</div><div class="prof-trade" id="profTrade">VanOffice</div></div>
-      </div>
-
-      <div class="sg">
-        <div class="sg-lbl">Business</div>
-        <div class="sg-list" id="profDetails"><div class="sg-row"><div class="sg-row-label">Loading...</div></div></div>
-      </div>
-
-      <div class="sg">
-        <div class="sg-lbl">Rates</div>
-        <div class="sg-list" id="profRates"><div class="sg-row"><div class="sg-row-label">Set rates via WhatsApp</div></div></div>
-      </div>
-
-      <button class="save-btn" onclick="saveProfile()" id="saveProfileBtn">Save profile & rates</button>
-      <div class="success-msg" id="saveProfileMsg"></div>
-
-      <div class="sg">
-        <div class="sg-lbl">Business logo</div>
-        <div class="sg-list">
-          <div class="sg-row" style="flex-direction:column;align-items:stretch;gap:12px;padding:16px 18px">
-            <div id="logoPreview" style="width:80px;height:80px;border-radius:12px;background:var(--s3);display:flex;align-items:center;justify-content:center;overflow:hidden;margin:0 auto">
-              <span style="color:var(--t4);font-size:.7rem" id="logoPlaceholder">No logo</span>
-              <img id="logoImg" style="width:100%;height:100%;object-fit:contain;display:none">
-            </div>
-            <label style="display:block;text-align:center;padding:10px 16px;background:var(--acc);border-radius:10px;font-size:.75rem;font-weight:600;color:#fff;cursor:pointer">
-              Upload logo
-              <input type="file" accept="image/*" onchange="handleLogo(this)" style="display:none">
-            </label>
+          <div class="sec">
+            <div class="sec-head"><div class="sec-title">Upcoming jobs</div><div class="sec-more">Diary</div></div>
+            <div class="list" id="upcomingList"></div>
           </div>
         </div>
       </div>
 
-      <!-- QUOTE TEMPLATE -->
-      <div class="sg">
-        <div class="sg-lbl">Quote style</div>
-        <div class="sg-list">
-          <div class="sg-row" style="flex-direction:column;align-items:stretch;gap:10px;padding:16px 18px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <div>
-                <div style="font-size:.85rem;font-weight:600;color:var(--t1)" id="profileStyleName">Premium Gold</div>
-                <div style="font-size:.68rem;color:var(--t3);margin-top:2px">Used on all quotes & invoices</div>
-              </div>
-              <div id="profileStyleSwatch" style="width:36px;height:36px;border-radius:8px;background:#1a1a1a;flex-shrink:0"></div>
-            </div>
-            <button onclick="go('designer')" style="width:100%;padding:11px;background:var(--s2);border:1px solid var(--br);border-radius:10px;font-family:Inter,sans-serif;font-size:.78rem;font-weight:700;color:var(--t1);cursor:pointer">✏️ Change quote style</button>
-          </div>
+      <!-- JOBS -->
+      <div id="s-jobs" class="scr">
+        <div class="ph"><div class="ph-eyebrow">Pipeline</div><div class="ph-title disp">Jobs</div></div>
+        <div class="sec"><div class="list" id="jobsList"></div></div>
+      </div>
+
+      <!-- QUOTE -->
+      <div id="s-quote" class="scr">
+        <div class="ph"><div class="ph-eyebrow">AI assist</div><div class="ph-title disp">New quote</div></div>
+        <div class="empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v18M3 12h18" stroke-linecap="round"/></svg>
+          <div class="e-t">Describe the job</div>
+          <div class="e-s">Speak or type the work — VanOffice drafts a<br>priced, branded quote ready to send.</div>
         </div>
       </div>
 
-      <div class="sg">
-        <div class="sg-lbl">Quote footer</div>
-        <div class="sg-list">
-          <div class="sg-row" style="align-items:flex-start;padding:14px 18px">
-            <div class="sg-row-label" style="padding-top:2px">Payment details</div>
-            <textarea class="sg-val-ta" id="qt-payment" rows="2" placeholder="Sort code: 00-00-00&#10;Account: 00000000"></textarea>
-          </div>
-          <div class="sg-row" style="align-items:flex-start;padding:14px 18px">
-            <div class="sg-row-label" style="padding-top:2px">Terms</div>
-            <textarea class="sg-val-ta" id="qt-terms" rows="3" placeholder="All work guaranteed for 12 months. Payment due within 30 days of invoice."></textarea>
-          </div>
-          <div class="sg-row" style="align-items:flex-start;padding:14px 18px">
-            <div class="sg-row-label" style="padding-top:2px">Footer note</div>
-            <textarea class="sg-val-ta" id="qt-footer" rows="2" placeholder="Thank you for your business."></textarea>
-          </div>
+      <!-- INVOICES -->
+      <div id="s-invoices" class="scr">
+        <div class="ph"><div class="ph-eyebrow">Cashflow</div><div class="ph-title disp">Invoices</div></div>
+        <div class="sec"><div class="list" id="invList"></div></div>
+      </div>
+
+      <!-- STYLE -->
+      <div id="s-style" class="scr">
+        <div class="ph"><div class="ph-eyebrow">Branding</div><div class="ph-title disp">Quote style</div></div>
+        <div class="empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20l4-1 10-10-3-3L5 16l-1 4z" stroke-linejoin="round"/><path d="M14 6l3 3" stroke-linecap="round"/></svg>
+          <div class="e-t">Design your documents</div>
+          <div class="e-s">Logo, colours and layout — applied to every<br>quote and invoice you send.</div>
         </div>
       </div>
 
-      <button class="save-btn" id="saveTemplateBtn" onclick="saveTemplate()">Save quote template</button>
-      <div class="success-msg" id="saveMsg"></div>
-
-      <div class="sg">
-        <div class="sg-lbl">Account</div>
-        <div class="sg-list">
-          <div class="sg-row" style="cursor:pointer" onclick="showForgotPin()"><div class="sg-row-label">Change PIN</div><div style="color:var(--t4)">›</div></div>
-          <div class="sg-row sg-danger" onclick="doLogout()"><div class="sg-row-label">Sign out</div><div style="color:var(--t4)">›</div></div>
+      <!-- PROFILE -->
+      <div id="s-profile" class="scr">
+        <div class="prof-hero">
+          <div class="prof-av disp">HW</div>
+          <div><div class="prof-name disp">Harry W.</div><div class="prof-trade">Carpenter · Devon</div></div>
+        </div>
+        <div class="sg">
+          <div class="sg-lbl">Business</div>
+          <div class="sg-list">
+            <div class="sg-row"><span class="sg-row-l" id="p1">Business name</span><span class="sg-val">Fifields Ltd <span id="pc1"></span></span></div>
+            <div class="sg-row"><span class="sg-row-l" id="p2">Trade</span><span class="sg-val">Carpentry <span id="pc2"></span></span></div>
+            <div class="sg-row"><span class="sg-row-l" id="p3">Service area</span><span class="sg-val">South Hams <span id="pc3"></span></span></div>
+          </div>
+        </div>
+        <div class="sg">
+          <div class="sg-lbl">Account</div>
+          <div class="sg-list">
+            <div class="sg-row"><span class="sg-row-l" id="p4">WhatsApp number</span><span class="sg-val">·· 900123 <span id="pc4"></span></span></div>
+            <div class="sg-row"><span class="sg-row-l" id="p5">Notifications</span><span class="sg-val">On <span id="pc5"></span></span></div>
+            <div class="sg-row" onclick="logout()"><span class="sg-row-l" style="color:var(--red)" id="p6">Sign out</span></div>
+          </div>
         </div>
       </div>
-      <div style="text-align:center;padding:8px 0;font-size:.58rem;color:var(--t4)">VanOffice v0.1 · Built in Devon</div>
-    </div>
-
-  </div>
-
-  <!-- CREATE INVOICE MODAL -->
-  <div id="invoiceModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeInvoiceModal()"></div>
-  <div id="invoiceModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px;max-height:90vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <div style="font-size:1rem;font-weight:800">Create Invoice</div>
-      <button onclick="closeInvoiceModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div><div class="lbl">Client name</div><input class="inp" id="inv-client" placeholder="e.g. Dave Jones" style="margin-bottom:0"></div>
-      <div><div class="lbl">Client address</div><input class="inp" id="inv-address" placeholder="e.g. 12 High St, Exeter" style="margin-bottom:0"></div>
-      <div><div class="lbl">Job description</div><input class="inp" id="inv-job" placeholder="e.g. Full bathroom refit" style="margin-bottom:0"></div>
-      <div>
-        <div class="lbl">Line items</div>
-        <div id="inv-items" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
-        <button onclick="addInvoiceItem()" style="width:100%;padding:10px;background:var(--s3);border:none;border-radius:10px;font-family:Inter,sans-serif;font-size:.75rem;font-weight:600;color:var(--t3);cursor:pointer">+ Add item</button>
-      </div>
-      <div><div class="lbl">Due date</div><input class="inp" id="inv-due" type="date" style="margin-bottom:0"></div>
-      <div style="background:var(--s2);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:.82rem;font-weight:700;color:var(--t2)">Total</span>
-        <span style="font-size:1rem;font-weight:900;color:var(--t1)" id="inv-total-display">£0.00</span>
-      </div>
-      <input type="hidden" id="inv-client-number">
-      <div id="invModalErr" style="color:var(--red);font-size:.75rem;min-height:18px"></div>
-      <button onclick="submitInvoiceModal()" style="width:100%;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:Inter,sans-serif;font-size:.9rem;font-weight:700;color:#fff;cursor:pointer" id="invModalBtn">Create Invoice & View PDF</button>
     </div>
   </div>
 
-  <!-- JOB DETAIL DRAWER -->
-  <div id="jobDrawerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeJobDrawer()"></div>
-  <div id="jobDrawer" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px;max-height:85vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <div style="font-size:1rem;font-weight:800" id="drawerClientName">Client</div>
-      <button onclick="closeJobDrawer()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
-    </div>
-    <div id="drawerStatus" style="margin-bottom:16px"></div>
-    <div style="background:var(--s2);border-radius:12px;padding:14px;margin-bottom:14px">
-      <div style="font-size:.6rem;font-weight:700;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">What they said</div>
-      <div id="drawerMessage" style="font-size:.85rem;color:var(--t2);line-height:1.6;font-style:italic"></div>
-    </div>
-    <div style="background:var(--s2);border-radius:12px;padding:14px;margin-bottom:20px">
-      <div style="font-size:.6rem;font-weight:700;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">Details</div>
-      <div id="drawerDetails" style="display:flex;flex-direction:column;gap:7px;font-size:.82rem"></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <button id="drawerQuoteBtn" onclick="openQuoteFromDrawer()" style="padding:14px;background:var(--amb-d);color:var(--amb);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">+ Quote</button>
-      <button id="drawerInvBtn" onclick="openInvoiceFromDrawer()" style="padding:14px;background:var(--acc-d);color:var(--acc2);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">+ Invoice</button>
-    </div>
-  </div>
-
-  <!-- CREATE QUOTE MODAL -->
-  <div id="quoteModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeQuoteModal()"></div>
-  <div id="quoteModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px;max-height:90vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <div style="font-size:1rem;font-weight:800">Create Quote</div>
-      <button onclick="closeQuoteModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div><div class="lbl">Client name</div><input class="inp" id="qu-client" placeholder="e.g. Dave Jones" style="margin-bottom:0"></div>
-      <div><div class="lbl">Client address</div><input class="inp" id="qu-address" placeholder="e.g. 12 High St, Exeter" style="margin-bottom:0"></div>
-      <div><div class="lbl">Job description</div><input class="inp" id="qu-job" placeholder="e.g. Full bathroom refit" style="margin-bottom:0"></div>
-      <div>
-        <div class="lbl">Line items</div>
-        <div id="qu-items" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
-        <button onclick="addQuoteItem()" style="width:100%;padding:10px;background:var(--s3);border:none;border-radius:10px;font-family:Inter,sans-serif;font-size:.75rem;font-weight:600;color:var(--t3);cursor:pointer">+ Add item</button>
-      </div>
-      <div style="background:var(--s2);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:.82rem;font-weight:700;color:var(--t2)">Total</span>
-        <span style="font-size:1rem;font-weight:900;color:var(--t1)" id="qu-total-display">£0.00</span>
-      </div>
-      <input type="hidden" id="qu-client-number">
-      <div id="quModalErr" style="color:var(--red);font-size:.75rem;min-height:18px"></div>
-      <button onclick="submitQuoteModal()" style="width:100%;padding:15px;background:var(--amb);border:none;border-radius:14px;font-family:Inter,sans-serif;font-size:.9rem;font-weight:700;color:#fff;cursor:pointer" id="quModalBtn">Create Quote & View PDF</button>
-    </div>
-  </div>
-
-  <!-- CHAT -->
-  <div id="chatOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200" onclick="toggleChat()"></div>
-  <div id="chatWindow" style="display:none;position:fixed;bottom:80px;right:12px;left:12px;max-width:370px;height:65vh;background:var(--bg);border:1px solid var(--br);border-radius:20px;z-index:201;display:none;flex-direction:column;overflow:hidden">
-    <div style="padding:16px 18px;border-bottom:1px solid var(--br);display:flex;justify-content:space-between;align-items:center">
-      <div style="font-size:.9rem;font-weight:700">VanOffice AI</div>
-      <button onclick="toggleChat()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
-    </div>
-    <div id="chatMessages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px">
-      <div style="background:var(--acc-d);color:var(--acc2);padding:12px 16px;border-radius:14px 14px 14px 4px;font-size:.82rem;line-height:1.5;max-width:85%;align-self:flex-start">Hi! I'm your VanOffice assistant. Ask me anything about your jobs, quotes, invoices or business.</div>
-    </div>
-    <div style="padding:12px;border-top:1px solid var(--br);display:flex;gap:8px">
-      <input type="text" id="chatInput" placeholder="Type a message..." style="flex:1;padding:12px 16px;background:var(--s2);border:1px solid var(--br);border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;color:var(--t1);outline:none" onkeypress="if(event.key==='Enter')sendChat()">
-      <button onclick="sendChat()" style="width:44px;height:44px;border-radius:12px;background:var(--acc);border:none;color:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">→</button>
-    </div>
-  </div>
-  <button id="chatBtn" onclick="toggleChat()" style="display:none;position:fixed;bottom:90px;right:16px;width:56px;height:56px;border-radius:50%;background:var(--acc);border:none;color:#fff;font-size:1.5rem;cursor:pointer;z-index:199;box-shadow:0 4px 20px rgba(91,108,255,0.4);transition:transform .15s">💬</button>
-
-  <nav class="nav">
-    <button class="ni on" id="n-home" onclick="go('home')"><div class="ni-ico">🏠</div><div class="ni-lbl">Home</div></button>
-    <button class="ni" id="n-jobs" onclick="go('jobs')"><div class="ni-ico">🔨</div><div class="ni-lbl">Jobs</div></button>
-    <button class="ni" id="n-quotegen" onclick="go('quotegen')" style="position:relative"><div class="ni-ico">✨</div><div class="ni-lbl">AI Quote</div></button>
-    <button class="ni" id="n-invoices" onclick="go('invoices')"><div class="ni-ico">💳</div><div class="ni-lbl">Invoices</div></button>
-    <button class="ni" id="n-designer" onclick="go('designer')"><div class="ni-ico">✏️</div><div class="ni-lbl">Style</div></button>
-    <button class="ni" id="n-profile" onclick="go('profile')"><div class="ni-ico">👤</div><div class="ni-lbl">Profile</div></button>
+  <nav class="nav" id="nav">
+    <button class="ni on" id="n-home" onclick="go('home',0)"><span class="ni-i"></span><span class="ni-lbl">Home</span></button>
+    <button class="ni" id="n-jobs" onclick="go('jobs',1)"><span class="ni-i"></span><span class="ni-lbl">Jobs</span></button>
+    <button class="ni" id="n-quote" onclick="go('quote',2)"><span class="ni-i"></span><span class="ni-lbl">Quote</span></button>
+    <button class="ni" id="n-invoices" onclick="go('invoices',3)"><span class="ni-i"></span><span class="ni-lbl">Money</span></button>
+    <button class="ni" id="n-style" onclick="go('style',4)"><span class="ni-i"></span><span class="ni-lbl">Style</span></button>
+    <button class="ni" id="n-profile" onclick="go('profile',5)"><span class="ni-i"></span><span class="ni-lbl">You</span></button>
   </nav>
 </div>
 
 <script>
-let cm=new Date().getMonth(),cy=new Date().getFullYear();
-let currentFilter='all';
-let allEnquiries=[],allBookings=[];
-let userPhone='',userPin='',userSender='',pinBuffer='';
-let selectedColour='#1a1a2e';
-
-function submitPhone(){
-  const phone=document.getElementById('phoneInput').value.trim();
-  if(!phone){document.getElementById('phoneErr').textContent='Please enter your phone number';return}
-  userPhone=phone;
-  document.getElementById('forgotPhone').value=phone;
-  showPinScreen();
-}
-
-function showPinScreen(){
-  ['screenPhone','screenForgot','screenReset'].forEach(id=>{const el=document.getElementById(id);el.style.opacity='0';el.style.transform='translateY(-10px)';setTimeout(()=>el.classList.add('hidden'),180);});
-  setTimeout(()=>{const p=document.getElementById('screenPin');p.classList.remove('hidden');p.style.opacity='0';p.style.transform='translateY(14px)';requestAnimationFrame(()=>{p.style.transition='opacity .25s,transform .3s cubic-bezier(.22,.68,0,1.2)';p.style.opacity='1';p.style.transform='translateY(0)';});},160);
-  pinBuffer='';updatePinDots();
-  document.getElementById('pinErr').textContent='';
-}
-
-function showForgotPin(){
-  document.getElementById('screenPin').classList.add('hidden');
-  document.getElementById('screenForgot').classList.remove('hidden');
-}
-
-function goBack(){
-  document.getElementById('screenPin').classList.add('hidden');
-  document.getElementById('screenPhone').classList.remove('hidden');
-}
-
-function pinKey(k){
-  if(pinBuffer.length>=4)return;
-  haptic('light');
-  pinBuffer+=k;updatePinDots();
-  if(pinBuffer.length===4){haptic('medium');setTimeout(submitPin,150);}
-}
-
-function pinDel(){pinBuffer=pinBuffer.slice(0,-1);updatePinDots()}
-
-function updatePinDots(){
-  for(let i=0;i<4;i++)document.getElementById('d'+i).classList.toggle('filled',i<pinBuffer.length);
-}
-
-async function submitPin(){
-  userPin=pinBuffer;
-  document.getElementById('pinErr').textContent='';
-  try{
-    const res=await fetch('/api/stats?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin));
-    const data=await res.json();
-    if(res.status===401||data.error){
-      document.getElementById('pinErr').textContent='Incorrect PIN. Try again.';
-      const pkp=document.querySelector('.pin-keypad');if(pkp){pkp.classList.remove('err-shake');void pkp.offsetWidth;pkp.classList.add('err-shake');}
-      haptic('heavy');
-      pinBuffer='';updatePinDots();return;
-    }
-    showApp(data);
-  }catch(e){
-    document.getElementById('pinErr').textContent='Connection error. Try again.';
-    pinBuffer='';updatePinDots();
-  }
-}
-
-async function sendReset(){
-  const phone=document.getElementById('forgotPhone').value.trim();
-  if(!phone){document.getElementById('forgotErr').textContent='Enter your phone number';return}
-  document.getElementById('forgotErr').textContent='Sending...';
-  try{
-    const res=await fetch('/api/reset-pin?phone='+encodeURIComponent(phone));
-    const data=await res.json();
-    if(data.error){document.getElementById('forgotErr').textContent=data.error;return}
-    userPhone=phone;
-    document.getElementById('screenForgot').classList.add('hidden');
-    document.getElementById('screenReset').classList.remove('hidden');
-    document.getElementById('forgotErr').textContent='';
-  }catch(e){document.getElementById('forgotErr').textContent='Error. Try again.'}
-}
-
-async function submitReset(){
-  const code=document.getElementById('resetCode').value.trim();
-  const newPin=document.getElementById('newPin').value.trim();
-  if(!code||!newPin){document.getElementById('resetErr').textContent='Fill in both fields';return}
-  if(newPin.length!==4||!/^\d+$/.test(newPin)){document.getElementById('resetErr').textContent='PIN must be 4 digits';return}
-  try{
-    const res=await fetch('/api/confirm-reset?phone='+encodeURIComponent(userPhone)+'&code='+encodeURIComponent(code)+'&newpin='+encodeURIComponent(newPin));
-    const data=await res.json();
-    if(data.error){document.getElementById('resetErr').textContent=data.error;return}
-    userPin=newPin;showPinScreen();
-    setTimeout(()=>document.getElementById('pinErr').textContent='PIN updated. Log in with your new PIN.',100);
-  }catch(e){document.getElementById('resetErr').textContent='Error. Try again.'}
-}
-
-let _pendingAppData = null;
-
-function showApp(data){
-  document.getElementById('screenPin').classList.add('hidden');
-  if(data.profile){window._vanofficeProfile=data.profile;}
-
-  // First time user — no template saved yet, show quote setup
-  if(!data.template || !data.template.design_style){
-    _pendingAppData = data;
-    document.getElementById('screenQuoteSetup').classList.remove('hidden');
-    // Pre-fill designer template with their profile info
-    if(data.profile){
-      designerTemplate.bizName = data.profile.business_name || 'Your Business';
-      designerTemplate.trade = data.profile.trade || 'Your Trade';
-      designerTemplate.phone = data.profile.phone || '';
-    }
-    qsPickStyle('gold');
-    return;
-  }
-  _launchApp(data);
-}
-
-function _launchApp(data){
-  document.getElementById('chatBtn').style.display='block';
-  document.getElementById('screenQuoteSetup').classList.add('hidden');
-  const app=document.getElementById('app');
-  app.classList.remove('hidden');app.style.display='flex';
-  allEnquiries=data.recent||[];
-  allBookings=data.bookings||[];
-  if(data.profile)userSender=data.profile.sender||'';
-  updateStats(data);
-  renderRecent(allEnquiries);
-  renderUpcoming(allBookings);
-  renderJobs(allEnquiries,'all');
-  renderQuotes(allEnquiries);
-  renderBookings(allBookings);
-  allInvoices=data.invoices||[];
-  renderInvoices(allInvoices,'all');
-  allQuotes=data.quotes||[];
-  renderQuotesList(allQuotes);
-  if(data.profile){
-    renderProfile(data.profile);
-    window._vanofficeProfile=data.profile;
-    const dr = data.profile.day_rate || '250';
-    const mk = data.profile.materials_markup || '20';
-    const rateEl = document.getElementById('qgRateLabel');
-    if(rateEl) rateEl.textContent = '£'+dr+'/day · '+mk+'% markup';
-    if(parseInt(dr)===0){
-      if(rateEl) rateEl.style.color='var(--amb)';
-      if(rateEl) rateEl.textContent = '⚠️ Day rate not set — tap Edit';
-    }
-  }
-  if(data.template)loadTemplate(data.template);
-  const n=data.profile&&data.profile.owner_name?data.profile.owner_name[0].toUpperCase():'H';
-  document.getElementById('avInit').textContent=n;
-  renderCal();
-}
-
-function doLogout(){
-  document.getElementById('chatBtn').style.display='none';
-  document.getElementById('chatWindow').style.display='none';
-  document.getElementById('chatOverlay').style.display='none';
-  document.getElementById('app').style.display='none';
-  document.getElementById('app').classList.add('hidden');
-  document.getElementById('screenPin').classList.add('hidden');
-  document.getElementById('screenQuoteSetup').classList.add('hidden');
-  document.getElementById('screenPhone').classList.remove('hidden');
-  _pendingAppData=null;
-  pinBuffer='';userPhone='';userPin='';userSender='';
-}
-
-function doDemo(){
-  showApp({
-    enquiries:3,unpaid:2,missed:1,
-    recent:[
-      {client_name:'Dave Thompson',job_type:'Kitchen fitting',location:'Tiverton',status:'new'},
-      {client_name:'Sarah Mitchell',job_type:'Missed call',location:'',status:'missed call'},
-      {client_name:'Mrs Jones',job_type:'Bathroom refit',location:'Exeter',status:'quoted'}
-    ],
-    bookings:[
-      {client_name:'Mrs Jones',job_type:'Bathroom refit',location:'Exeter',date:'2026-06-02',time:'09:00',duration_days:'3',status:'booked'},
-      {client_name:'Mrs Lewis',job_type:'Staircase',location:'Exeter',date:'2026-06-10',time:'08:00',duration_days:'4',status:'booked'}
-    ],
-    profile:{owner_name:'Harry',business_name:"Harry's Carpentry",trade:'Carpenter',phone:'07504544469',day_rate:'300',half_day_rate:'175',hourly_rate:'45',materials_markup:'20',payment_terms:'30',vat_registered:'no'},
-    template:null
-  });
-}
-
-function updateStats(data){
-  document.getElementById('statEnq').textContent=data.enquiries||0;
-  document.getElementById('statBooked').textContent=(data.bookings||[]).length;
-  document.getElementById('statMissed').textContent=data.missed||0;
-  document.getElementById('heroAmount').textContent=(data.enquiries||0)+' active';
-  document.getElementById('heroNew').textContent=(data.enquiries||0)+' enquiries';
-  document.getElementById('heroMissed').textContent=(data.missed||0)+' missed';
-  if(data.missed>0)document.getElementById('notifDot').style.display='block';
-}
-
-function statusBadge(s){
-  const m={'new':'<span class="bdg b-acc">New</span>','quoted':'<span class="bdg b-amb">Quoted</span>','missed call':'<span class="bdg b-red">Missed</span>','incoming call':'<span class="bdg b-muted">Call</span>','done':'<span class="bdg b-grn">Done</span>','booked':'<span class="bdg b-grn">Booked</span>'};
-  return m[s]||'<span class="bdg b-muted">'+s+'</span>';
-}
-
-function statusIcon(s){
-  const styles={'new':'background:var(--acc-d)','quoted':'background:var(--amb-d)','missed call':'background:var(--red-d)','incoming call':'background:var(--grn-d)','done':'background:var(--grn-d)','booked':'background:var(--grn-d)'};
-  const emojis={'new':'👤','quoted':'📋','missed call':'📞','incoming call':'📞','done':'✅','booked':'📅'};
-  return{style:styles[s]||'background:var(--s3)',emoji:emojis[s]||'📋'};
-}
-
-function renderRecent(items){
-  const el=document.getElementById('recentList');
-  if(!items||!items.length){el.innerHTML='<div class="empty-state">No activity yet.<br>Send a WhatsApp to get started.</div>';return}
-  el.innerHTML=items.slice(0,5).map((item,idx)=>{
-    const ico=statusIcon(item.status);
-    const snippet=item.summary||item.message||'';
-    const preview=snippet.length>55?snippet.slice(0,55)+'…':snippet;
-    return`<div class="li" onclick="openJobDrawer(${idx},allEnquiries)" style="cursor:pointer">
-      <div class="li-ico" style="${ico.style}">${ico.emoji}</div>
-      <div class="li-body">
-        <div class="li-name">${item.client_name||'Unknown'}</div>
-        <div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div>
-        ${preview?`<div class="li-detail" style="margin-top:2px;font-style:italic">"${preview}"</div>`:''}
-      </div>
-      <div class="li-right">${statusBadge(item.status)}</div>
-    </div>`;
-  }).join('');
-}
-
-function renderUpcoming(bookings){
-  const el=document.getElementById('upcomingList');
-  if(!bookings||!bookings.length){el.innerHTML='<div class="empty-state">No jobs booked yet.<br>Text "book in [client] [job] [date]"</div>';return}
-  const today=new Date().toISOString().split('T')[0];
-  const upcoming=bookings.filter(b=>b.date>=today).slice(0,3);
-  if(!upcoming.length){el.innerHTML='<div class="empty-state">No upcoming jobs booked.</div>';return}
-  el.innerHTML=upcoming.map(b=>{
-    const d=new Date(b.date);
-    const dateStr=d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
-    return`<div class="li"><div class="li-ico" style="background:var(--grn-d)">📅</div><div class="li-body"><div class="li-name">${b.client_name||'Unknown'}</div><div class="li-detail">${b.job_type||''}${b.location?' · '+b.location:''}</div></div><div class="li-right"><div class="li-amt" style="font-size:.75rem">${dateStr}</div><span class="bdg b-grn">${b.duration_days||1}d</span></div></div>`;
-  }).join('');
-}
-
-function renderJobs(items,filter){
-  const el=document.getElementById('jobsList');
-  let f=filter==='all'?items:items.filter(i=>i.status===filter);
-  if(!f||!f.length){el.innerHTML='<div class="empty-state">No jobs found.</div>';return}
-  el.innerHTML=f.map((item,idx)=>{
-    const ico=statusIcon(item.status);
-    const snippet=item.summary||item.message||'';
-    const preview=snippet.length>60?snippet.slice(0,60)+'…':snippet;
-    return`<div class="li" onclick="openJobDrawer(${idx},${filter==='all'?'allEnquiries':'allEnquiries.filter(i=>i.status===\''+filter+'\')'})" style="flex-direction:column;align-items:stretch;gap:0;cursor:pointer">
-      <div style="display:flex;align-items:center;gap:13px">
-        <div class="li-ico" style="${ico.style}">${ico.emoji}</div>
-        <div class="li-body">
-          <div class="li-name">${item.client_name||'Unknown'}</div>
-          <div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div>
-          ${preview?`<div class="li-detail" style="margin-top:3px;font-style:italic;color:var(--t3)">"${preview}"</div>`:''}
-        </div>
-        <div class="li-right">${statusBadge(item.status)}</div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-let allQuotes=[];
-
-function renderQuotes(items){
-  const el=document.getElementById('quotesList');
-  const q=items.filter(i=>i.status==='quoted');
-  if(!q||!q.length){el.innerHTML='<div class="empty-state">No quotes yet.<br>Generate quotes via WhatsApp.</div>';return}
-  el.innerHTML=q.map(item=>`<div class="li"><div class="li-ico" style="background:var(--amb-d)">📋</div><div class="li-body"><div class="li-name">${item.client_name||'Unknown'}</div><div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div></div><div class="li-right"><span class="bdg b-amb">Quoted</span></div></div>`).join('');
-}
-
-function renderQuotesList(quotes){
-  const el=document.getElementById('quotesList');
-  if(!quotes||!quotes.length){el.innerHTML='<div class="empty-state">No quotes yet.<br>Generate quotes via WhatsApp or tap + Quote on a job.</div>';return}
-  el.innerHTML=quotes.map(q=>{
-    const total=q.total?'£'+q.total:'';
-    return`<div class="li"><div class="li-ico" style="background:var(--amb-d)">📋</div><div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.quote_number||''} · ${q.job_description||''}</div></div><div class="li-right"><div class="li-amt">${total}</div><span class="bdg b-amb">Sent</span></div></div>`;
-  }).join('');
-}
-
-function renderBookings(bookings){
-  const el=document.getElementById('bookingsList');
-  if(!bookings||!bookings.length){el.innerHTML='<div class="empty-state">No jobs booked yet.<br>Text "book in [client] [job] [date]"</div>';return}
-  el.innerHTML=bookings.map(b=>{
-    const d=new Date(b.date);
-    const dateStr=d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
-    return`<div class="li"><div class="li-ico" style="background:var(--grn-d)">📅</div><div class="li-body"><div class="li-name">${b.client_name||'Unknown'}</div><div class="li-detail">${b.job_type||''}${b.location?' · '+b.location:''}<br>${dateStr} at ${b.time||'TBC'} · ${b.duration_days||1} day(s)</div></div><div class="li-right"><span class="bdg b-grn">Booked</span></div></div>`;
-  }).join('');
-}
-
-let allInvoices=[],currentInvFilter='all';
-
-function renderInvoices(invoices,filter){
-  const el=document.getElementById('invoicesList');
-  let f=invoices;
-  if(filter==='unpaid')f=invoices.filter(i=>i.status==='unpaid');
-  if(filter==='paid')f=invoices.filter(i=>i.status==='paid');
-  if(filter==='overdue'){
-    const today=new Date().toISOString().split('T')[0];
-    f=invoices.filter(i=>i.status==='unpaid'&&i.due_date&&i.due_date<today);
-  }
-  if(!f||!f.length){el.innerHTML='<div class="empty-state">No invoices found.<br>Generate invoices via WhatsApp.</div>';return}
-  el.innerHTML=f.map(inv=>{
-    const isPaid=inv.status==='paid';
-    const isOverdue=inv.status==='unpaid'&&inv.due_date&&inv.due_date<new Date().toISOString().split('T')[0];
-    const badge=isPaid?'<span class="bdg b-grn">Paid</span>':isOverdue?'<span class="bdg b-red">Overdue</span>':'<span class="bdg b-amb">Unpaid</span>';
-    const ico=isPaid?'background:var(--grn-d)':isOverdue?'background:var(--red-d)':'background:var(--amb-d)';
-    const emoji=isPaid?'✅':isOverdue?'⚠️':'💳';
-    const dueStr=inv.due_date?new Date(inv.due_date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
-    const paidBtn=!isPaid?`<button onclick="markPaid(${inv.id},event)" style="margin-top:6px;padding:5px 10px;background:var(--grn-d);color:var(--grn);border:none;border-radius:8px;font-size:.6rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">Mark Paid</button>`:'';
-    return`<div class="li"><div class="li-ico" style="${ico}">${emoji}</div><div class="li-body"><div class="li-name">${inv.client_name||'Unknown'}</div><div class="li-detail">${inv.invoice_number||''} · ${inv.job_description||''}${dueStr?' · Due '+dueStr:''}</div></div><div class="li-right"><div class="li-amt">£${inv.total||'0'}</div>${badge}${paidBtn}</div></div>`;
-  }).join('');
-}
-
-async function markPaid(invoiceId,e){
-  e.stopPropagation();
-  if(!confirm('Mark this invoice as paid?'))return;
-  try{
-    const res=await fetch('/api/invoices/'+invoiceId+'/mark-paid?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST'});
-    const data=await res.json();
-    if(data.ok){
-      const inv=allInvoices.find(i=>i.id===invoiceId);
-      if(inv)inv.status='paid';
-      renderInvoices(allInvoices,currentInvFilter);
-    }else{
-      alert('Error: '+(data.error||'Could not update invoice'));
-    }
-  }catch(e){
-    alert('Connection error. Try again.');
-  }
-}
-
-function filtInv(el,filter){
-  el.closest('.filters').querySelectorAll('.fp').forEach(f=>f.classList.remove('on'));
-  el.classList.add('on');currentInvFilter=filter;
-  renderInvoices(allInvoices,filter);
-}
-
-function renderProfile(p){
-  document.getElementById('profName').textContent=p.owner_name||'Unknown';
-  document.getElementById('profTrade').textContent=(p.trade||'Tradesperson')+' · Devon';
-  document.getElementById('profAv').textContent=(p.owner_name||'?')[0].toUpperCase();
-  if(p.logo){
-    currentLogo=p.logo;
-    document.getElementById('logoImg').src=p.logo;
-    document.getElementById('logoImg').style.display='block';
-    document.getElementById('logoPlaceholder').style.display='none';
-  }
-  document.getElementById('profDetails').innerHTML=`
-    <div class="sg-row"><div class="sg-row-label">Business</div><input class="sg-val" id="p-business" value="${p.business_name||''}"></div>
-    <div class="sg-row"><div class="sg-row-label">Trade</div><input class="sg-val" id="p-trade" value="${p.trade||''}"></div>
-    <div class="sg-row"><div class="sg-row-label">Phone</div><input class="sg-val" id="p-phone" value="${p.phone||''}"></div>`;
-  document.getElementById('profRates').innerHTML=`
-    <div class="sg-row"><div class="sg-row-label">Day rate</div><input class="sg-val" id="p-dayrate" value="${p.day_rate||0}"></div>
-    <div class="sg-row"><div class="sg-row-label">Half day</div><input class="sg-val" id="p-halfday" value="${p.half_day_rate||0}"></div>
-    <div class="sg-row"><div class="sg-row-label">Hourly</div><input class="sg-val" id="p-hourly" value="${p.hourly_rate||0}"></div>
-    <div class="sg-row"><div class="sg-row-label">Markup</div><input class="sg-val" id="p-markup" value="${p.materials_markup||20}"></div>
-    <div class="sg-row"><div class="sg-row-label">Terms</div><input class="sg-val" id="p-terms" value="${p.payment_terms||30}"></div>
-    <div class="sg-row"><div class="sg-row-label">VAT</div><input class="sg-val" id="p-vat" value="${p.vat_registered||'No'}"></div>`;
-}
-
-function loadTemplate(t){
-  if(!t)return;
-  const styleNames = {gold:'Premium Gold',navy:'Navy Pro',slate:'Slate Clean',green:'Forest Green',mono:'Mono Minimal'};
-  const styleColors = {gold:'#1a1a1a',navy:'#0f2b5b',slate:'#3d3d3d',green:'#1e4d2b',mono:'#f5f5f5'};
-  const s = t.design_style || 'gold';
-  const nameEl = document.getElementById('profileStyleName');
-  const swatchEl = document.getElementById('profileStyleSwatch');
-  if(nameEl) nameEl.textContent = styleNames[s] || 'Premium Gold';
-  if(swatchEl) swatchEl.style.background = styleColors[s] || '#1a1a1a';
-  designerStyle = s;
-  pickDesignStyle(s);
-  if(t.design_template){
-    try{
-      const dt = JSON.parse(t.design_template);
-      Object.assign(designerTemplate, dt);
-    }catch(e){}
-  }
-}
-
-function selectColour(el){
-  document.querySelectorAll('.colour-swatch').forEach(s=>s.classList.remove('selected'));
-  el.classList.add('selected');
-  selectedColour=el.dataset.colour;
-}
-
-async function saveTemplate(){
-  const btn=document.getElementById('saveTemplateBtn');
-  btn.textContent='Saving...';
-  btn.disabled=true;
-  try{
-    const res=await fetch('/api/save-template?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        business_name:document.getElementById('qt-business-name').value,
-        business_address:document.getElementById('qt-address').value,
-        business_phone:document.getElementById('qt-phone').value,
-        business_email:document.getElementById('qt-email').value,
-        quote_validity_days:document.getElementById('qt-validity').value||'30',
-        brand_colour:selectedColour,
-        payment_details:document.getElementById('qt-payment').value,
-        terms:document.getElementById('qt-terms').value,
-        footer_text:document.getElementById('qt-footer').value
-      })
-    });
-    const data=await res.json();
-    if(data.error){document.getElementById('saveMsg').textContent='Error: '+data.error;return}
-    document.getElementById('saveMsg').textContent='✓ Template saved';
-    setTimeout(()=>document.getElementById('saveMsg').textContent='',3000);
-  }catch(e){
-    document.getElementById('saveMsg').textContent='Error saving. Try again.';
-  }finally{
-    const btn2=document.getElementById('saveTemplateBtn');
-    btn2.textContent='Save quote template';
-    btn2.disabled=false;
-  }
-}
-
-let currentLogo='';
-
-function handleLogo(input){
-  if(!input.files||!input.files[0])return;
-  const file=input.files[0];
-  if(file.size>500000){alert('Logo must be under 500KB');return}
-  const reader=new FileReader();
-  reader.onload=function(e){
-    currentLogo=e.target.result;
-    document.getElementById('logoImg').src=currentLogo;
-    document.getElementById('logoImg').style.display='block';
-    document.getElementById('logoPlaceholder').style.display='none';
-  };
-  reader.readAsDataURL(file);
-}
-
-async function saveProfile(){
-  const btn=document.getElementById('saveProfileBtn');
-  btn.textContent='Saving...';
-  btn.disabled=true;
-  try{
-    const res=await fetch('/api/save-profile?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        business_name:document.getElementById('p-business').value,
-        trade:document.getElementById('p-trade').value,
-        day_rate:document.getElementById('p-dayrate').value.replace('£','').replace(',','').trim(),
-        half_day_rate:document.getElementById('p-halfday').value.replace('£','').replace(',','').trim(),
-        hourly_rate:document.getElementById('p-hourly').value.replace('£','').replace(',','').trim(),
-        materials_markup:document.getElementById('p-markup').value.replace('%','').trim(),
-        payment_terms:document.getElementById('p-terms').value.replace('days','').trim(),
-        vat_registered:document.getElementById('p-vat').value,
-        logo:currentLogo||undefined
-      })
-    });
-    const data=await res.json();
-    if(data.error){document.getElementById('saveProfileMsg').textContent='Error: '+data.error;return}
-    document.getElementById('saveProfileMsg').textContent='✓ Profile saved';
-    setTimeout(()=>document.getElementById('saveProfileMsg').textContent='',3000);
-  }catch(e){
-    document.getElementById('saveProfileMsg').textContent='Error saving. Try again.';
-  }finally{
-    btn.textContent='Save profile & rates';
-    btn.disabled=false;
-  }
-}
-
-let chatHistory=[];
-
-function toggleChat(){
-  const w=document.getElementById('chatWindow');
-  const o=document.getElementById('chatOverlay');
-  const isOpen=w.style.display==='flex';
-  w.style.display=isOpen?'none':'flex';
-  o.style.display=isOpen?'none':'block';
-  if(!isOpen)document.getElementById('chatInput').focus();
-}
-
-async function sendChat(){
-  const input=document.getElementById('chatInput');
-  const msg=input.value.trim();
-  if(!msg)return;
-  input.value='';
-
-  const messages=document.getElementById('chatMessages');
-  messages.innerHTML+='<div style="background:var(--s3);color:var(--t1);padding:12px 16px;border-radius:14px 14px 4px 14px;font-size:.82rem;line-height:1.5;max-width:85%;align-self:flex-end">'+msg+'</div>';
-  messages.innerHTML+='<div id="chatTyping" style="color:var(--t3);font-size:.75rem;padding:4px 8px">Thinking...</div>';
-  messages.scrollTop=messages.scrollHeight;
-
-  chatHistory.push({role:"user",content:msg});
-
-  try{
-    const res=await fetch('/api/chat?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:msg,history:chatHistory})
-    });
-    const data=await res.json();
-    const typing=document.getElementById('chatTyping');
-    if(typing)typing.remove();
-
-    if(data.reply){
-      chatHistory.push({role:"assistant",content:data.reply});
-      const formatted=data.reply.replace(/\n/g,'<br>');
-      messages.innerHTML+='<div style="background:var(--acc-d);color:var(--acc2);padding:12px 16px;border-radius:14px 14px 14px 4px;font-size:.82rem;line-height:1.5;max-width:85%;align-self:flex-start">'+formatted+'</div>';
-    }else{
-      messages.innerHTML+='<div style="color:var(--red);font-size:.75rem;padding:4px 8px">Error getting response</div>';
-    }
-  }catch(e){
-    const typing=document.getElementById('chatTyping');
-    if(typing)typing.remove();
-    messages.innerHTML+='<div style="color:var(--red);font-size:.75rem;padding:4px 8px">Connection error</div>';
-  }
-  messages.scrollTop=messages.scrollHeight;
-}
-
-function haptic(style='light'){
-  if(navigator.vibrate){
-    navigator.vibrate(style==='heavy'?30:style==='medium'?15:8);
-  }
-}
-
-function go(name){
-  haptic('light');
-  const prev = document.querySelector('.scr.on');
-  if(prev) prev.classList.remove('on');
-  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
-  const next = document.getElementById('s-'+name);
-  if(next){ next.classList.add('on'); }
-  const nb=document.getElementById('n-'+name);
-  if(nb) nb.classList.add('on');
-  document.getElementById('content').scrollTop=0;
-  if(name==='jobs')renderJobs(allEnquiries,currentFilter);
-  if(name==='quotes')renderQuotesList(allQuotes);
-  if(name==='designer')initDesigner();
-  if(name==='invoices')renderInvoices(allInvoices,currentInvFilter);
-  if(name==='calendar'){renderBookings(allBookings);renderCal()}
-  setTimeout(()=>animateListItems(document.getElementById('s-'+name)),50);
-}
-
-function animateListItems(container){
-  const items = container ? container.querySelectorAll('.li') : document.querySelectorAll('.li');
-  items.forEach((el,i)=>{
-    el.classList.add('li-anim');
-    el.style.animationDelay = (i * 0.04) + 's';
-  });
-}
-
-function filt(el,filter){
-  haptic('light');
-  el.closest('.filters').querySelectorAll('.fp').forEach(f=>f.classList.remove('on'));
-  el.classList.add('on');currentFilter=filter;
-  renderJobs(allEnquiries,filter);
-}
-
-let activeDrawerItem=null;
-
-function openJobDrawer(idx, list){
-  const item=list[idx];
-  if(!item)return;
-  activeDrawerItem=item;
-  document.getElementById('drawerClientName').textContent=item.client_name||'Unknown';
-  document.getElementById('drawerStatus').innerHTML=statusBadge(item.status);
-  const msg=item.message||'';
-  const summary=item.summary||'';
-  document.getElementById('drawerMessage').textContent=msg||(summary||'No message recorded.');
-  const details=[];
-  if(item.job_type)details.push(`<div><span style="color:var(--t4)">Job: </span>${item.job_type}</div>`);
-  if(item.location)details.push(`<div><span style="color:var(--t4)">Location: </span>${item.location}</div>`);
-  if(item.sender)details.push(`<div><span style="color:var(--t4)">Number: </span>${item.sender}</div>`);
-  if(item.created_at){const d=new Date(item.created_at);details.push(`<div><span style="color:var(--t4)">Received: </span>${d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>`);}
-  document.getElementById('drawerDetails').innerHTML=details.join('')||'<div style="color:var(--t3)">No details recorded.</div>';
-  document.getElementById('jobDrawerOverlay').style.display='block';
-  document.getElementById('jobDrawer').style.display='block';
-}
-
-function closeJobDrawer(){
-  document.getElementById('jobDrawerOverlay').style.display='none';
-  document.getElementById('jobDrawer').style.display='none';
-}
-
-function openQuoteFromDrawer(){
-  if(!activeDrawerItem)return;
-  closeJobDrawer();
-  openQuoteModal(activeDrawerItem.client_name||'',activeDrawerItem.job_type||'',activeDrawerItem.sender||'',null);
-}
-
-function openInvoiceFromDrawer(){
-  if(!activeDrawerItem)return;
-  closeJobDrawer();
-  openInvoiceModal(activeDrawerItem.client_name||'',activeDrawerItem.job_type||'',activeDrawerItem.sender||'',null);
-}
-
-let quoteItems=[];
-let invoiceItems=[];
-
-function makeItemRow(items, containerId, updateFn){
-  const idx=items.length;
-  items.push({description:'',qty:1,unit_price:0});
-  const row=document.createElement('div');
-  row.style.cssText='display:grid;grid-template-columns:1fr 40px 60px 24px;gap:4px;align-items:center';
-  row.innerHTML=`
-    <input placeholder="Description" style="padding:8px 10px;background:var(--s3);border:1px solid var(--br);border-radius:8px;font-family:Inter,sans-serif;font-size:.75rem;color:var(--t1);outline:none" oninput="quItemUpdate('${containerId}',${idx},'description',this.value)">
-    <input type="number" placeholder="Qty" value="1" style="padding:8px 6px;background:var(--s3);border:1px solid var(--br);border-radius:8px;font-family:Inter,sans-serif;font-size:.75rem;color:var(--t1);outline:none;text-align:center" oninput="quItemUpdate('${containerId}',${idx},'qty',this.value)">
-    <input type="number" placeholder="£" style="padding:8px 6px;background:var(--s3);border:1px solid var(--br);border-radius:8px;font-family:Inter,sans-serif;font-size:.75rem;color:var(--t1);outline:none" oninput="quItemUpdate('${containerId}',${idx},'unit_price',this.value)">
-    <button onclick="removeItem('${containerId}',${idx})" style="background:none;border:none;color:var(--red);font-size:1rem;cursor:pointer;padding:0">×</button>`;
-  document.getElementById(containerId).appendChild(row);
-  updateFn();
-}
-
-function quItemUpdate(containerId, idx, field, val){
-  const items=containerId==='qu-items'?quoteItems:invoiceItems;
-  if(items[idx])items[idx][field]=field==='description'?val:parseFloat(val)||0;
-  const fn=containerId==='qu-items'?updateQuoteTotal:updateInvoiceTotal;
-  fn();
-}
-
-function removeItem(containerId, idx){
-  const items=containerId==='qu-items'?quoteItems:invoiceItems;
-  items.splice(idx,1);
-  const el=document.getElementById(containerId);
-  el.innerHTML='';
-  const copy=[...items];
-  const fn=containerId==='qu-items'?addQuoteItem:addInvoiceItem;
-  items.length=0;
-  copy.forEach(()=>fn());
-  // restore values
-  const inputs=el.querySelectorAll('input');
-  let i=0;
-  copy.forEach(item=>{
-    if(inputs[i])inputs[i].value=item.description;
-    if(inputs[i+1])inputs[i+1].value=item.qty;
-    if(inputs[i+2])inputs[i+2].value=item.unit_price;
-    i+=4;
-  });
-  const updateFn=containerId==='qu-items'?updateQuoteTotal:updateInvoiceTotal;
-  updateFn();
-}
-
-function addQuoteItem(){makeItemRow(quoteItems,'qu-items',updateQuoteTotal)}
-function addInvoiceItem(){makeItemRow(invoiceItems,'inv-items',updateInvoiceTotal)}
-
-function updateQuoteTotal(){
-  const t=quoteItems.reduce((s,i)=>s+(parseFloat(i.qty)||0)*(parseFloat(i.unit_price)||0),0);
-  document.getElementById('qu-total-display').textContent='£'+t.toFixed(2);
-}
-
-function updateInvoiceTotal(){
-  const t=invoiceItems.reduce((s,i)=>s+(parseFloat(i.qty)||0)*(parseFloat(i.unit_price)||0),0);
-  document.getElementById('inv-total-display').textContent='£'+t.toFixed(2);
-}
-
-function openQuoteModal(clientName, jobType, clientNumber, e){
-  if(e)e.stopPropagation();
-  // Close any open drawer
-  const drawer = document.getElementById('jobDrawer');
-  const overlay = document.getElementById('drawerOverlay');
-  if(drawer) drawer.style.transform='translateY(100%)';
-  if(overlay) overlay.style.display='none';
-  // Pre-fill AI quote and navigate
-  qgStartFromJob(clientName, jobType);
-}
-
-function qgStartFromJob(clientName, jobType){
-  // Reset the quote chat
-  qgReset();
-  // Navigate to AI Quote tab
-  go('quotegen');
-  // Short delay so the screen renders, then inject the context
-  setTimeout(()=>{
-    const name = clientName || 'the client';
-    const job = jobType || '';
-    // Pre-fill input and send automatically
-    const msg = job
-      ? `Client: ${name}. Job: ${job}`
-      : `Client: ${name}`;
-    // Add a system-style message showing context was loaded
-    qgAddMsg('ai', `Got it — quoting for <strong>${name}</strong>${job ? ' for <em>' + job + '</em>' : ''}. What are the details? (room size, scope, any special requirements)`);
-    // Store client name for the quote
-    window._qgPrefilledClient = clientName;
-    // Pre-fill input with job context so they can just add dimensions
-    const input = document.getElementById('qgInput');
-    if(input && job){ input.value = job; input.focus(); }
-  }, 320);
-}
-
-function closeQuoteModal(){
-  document.getElementById('quoteModalOverlay').style.display='none';
-  document.getElementById('quoteModal').style.display='none';
-}
-
-async function submitQuoteModal(){
-  const btn=document.getElementById('quModalBtn');
-  const client=document.getElementById('qu-client').value.trim();
-  const job=document.getElementById('qu-job').value.trim();
-  const address=document.getElementById('qu-address').value.trim();
-  const clientNumber=document.getElementById('qu-client-number').value.trim();
-  const total=quoteItems.reduce((s,i)=>s+(parseFloat(i.qty)||0)*(parseFloat(i.unit_price)||0),0);
-  if(!client||!job){document.getElementById('quModalErr').textContent='Please fill in client and job';return}
-  if(!quoteItems.length||!quoteItems.some(i=>i.description)){document.getElementById('quModalErr').textContent='Add at least one line item';return}
-  btn.textContent='Creating...';btn.disabled=true;
-  try{
-    const res=await fetch('/api/create-quote?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({client_name:client,client_address:address,job_description:job,line_items:quoteItems,total:total.toFixed(2),subtotal:total.toFixed(2),client_number:clientNumber})
-    });
-    const data=await res.json();
-    if(data.ok){
-      allQuotes.unshift(data.quote);
-      closeQuoteModal();
-      window.open('/generate-pdf/'+data.quote.id,'_blank');
-      go('quotes');
-    }else{
-      document.getElementById('quModalErr').textContent=data.error||'Error creating quote';
-    }
-  }catch(e){
-    document.getElementById('quModalErr').textContent='Connection error. Try again.';
-  }finally{
-    btn.textContent='Create Quote & View PDF';btn.disabled=false;
-  }
-}
-
-function openInvoiceModal(clientName, jobType, clientNumber, e){
-  if(e)e.stopPropagation();
-  invoiceItems=[];
-  document.getElementById('inv-items').innerHTML='';
-  document.getElementById('inv-client').value=clientName||'';
-  document.getElementById('inv-address').value='';
-  document.getElementById('inv-job').value=jobType||'';
-  document.getElementById('inv-client-number').value=clientNumber||'';
-  document.getElementById('invModalErr').textContent='';
-  document.getElementById('inv-total-display').textContent='£0.00';
-  const due=new Date();due.setDate(due.getDate()+30);
-  document.getElementById('inv-due').value=due.toISOString().split('T')[0];
-  addInvoiceItem();
-  document.getElementById('invoiceModalOverlay').style.display='block';
-  document.getElementById('invoiceModal').style.display='block';
-}
-
-function closeInvoiceModal(){
-  document.getElementById('invoiceModalOverlay').style.display='none';
-  document.getElementById('invoiceModal').style.display='none';
-}
-
-async function submitInvoiceModal(){
-  const btn=document.getElementById('invModalBtn');
-  const client=document.getElementById('inv-client').value.trim();
-  const job=document.getElementById('inv-job').value.trim();
-  const address=document.getElementById('inv-address').value.trim();
-  const due=document.getElementById('inv-due').value.trim();
-  const clientNumber=document.getElementById('inv-client-number').value.trim();
-  const total=invoiceItems.reduce((s,i)=>s+(parseFloat(i.qty)||0)*(parseFloat(i.unit_price)||0),0);
-  if(!client||!job){document.getElementById('invModalErr').textContent='Please fill in client and job';return}
-  if(!invoiceItems.length||!invoiceItems.some(i=>i.description)){document.getElementById('invModalErr').textContent='Add at least one line item';return}
-  btn.textContent='Creating...';btn.disabled=true;
-  try{
-    const res=await fetch('/api/create-invoice?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({client_name:client,client_address:address,job_description:job,line_items:invoiceItems,total:total.toFixed(2),subtotal:total.toFixed(2),due_date:due,client_number:clientNumber})
-    });
-    const data=await res.json();
-    if(data.ok){
-      allInvoices.unshift(data.invoice);
-      closeInvoiceModal();
-      window.open('/generate-invoice-pdf/'+data.invoice.id,'_blank');
-      go('invoices');
-    }else{
-      document.getElementById('invModalErr').textContent=data.error||'Could not create invoice';
-    }
-  }catch(e){
-    document.getElementById('invModalErr').textContent='Connection error. Try again.';
-  }finally{
-    btn.textContent='Create Invoice & View PDF';btn.disabled=false;
-  }
-}
-
-let designerStyle = 'gold';
-
-function pickDesignStyle(s){
-  designerStyle = s;
-  const styles = ['gold','navy','slate','green','mono'];
-  styles.forEach(style=>{
-    const el = document.getElementById('ds-'+style);
-    const tick = document.getElementById('ds-'+style+'-tick');
-    if(el) el.style.border = style===s ? '1.5px solid var(--acc)' : '1px solid var(--br)';
-    if(tick) tick.style.visibility = style===s ? 'visible' : 'hidden';
-  });
-  const accents = {gold:'#c9a84c',navy:'#e8b84b',slate:'#3d3d3d',green:'#7ab648',mono:'#111'};
-  const darks = {gold:'#1a1a1a',navy:'#0f2b5b',slate:'#3d3d3d',green:'#1e4d2b',mono:'#ffffff'};
-  if(accents[s]) designerTemplate.accent = accents[s];
-  if(darks[s]) designerTemplate.dark = darks[s];
-  if(document.getElementById('previewModal').style.display === 'flex') generateAndPreview();
-}
-let designerTemplate = {
-  bizName:'Your Business', trade:'Your Trade',
-  phone:'', email:'', location:'',
-  accent:'#c9a227', dark:'#1a1a1a',
-  intro:'Thank you for the opportunity to provide this quotation. Please find below the scope of works and cost breakdown for your consideration.',
-  scopeItems:['Supply and install as per agreed specification','All work completed to industry standards','Site clean-down on completion'],
-  inclusionItems:['All labour','All materials','Site clean-down'],
-  note:'Any additional works found outside the agreed scope will be quoted separately.',
-  commitment:'We take pride in delivering quality workmanship. Your satisfaction is our priority.',
-  leadTime:'To be arranged at a convenient time. Duration subject to scope.',
-  paymentTerms:'50% deposit required. Balance on completion.',
-  showNote:true, showCommitment:true, showLeadTime:true, showVat:false
+/* ─── ICON SET (stroke line-icons, replaces emoji) ─── */
+const I = {
+  home:'<path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" stroke-linejoin="round"/>',
+  jobs:'<path d="M14 7l3-3 3 3-3 3M14 7l-9 9v3h3l9-9M14 7l-3 3" stroke-linejoin="round" stroke-linecap="round"/>',
+  quote:'<path d="M12 3v18M5 8l7-5 7 5M5 8v9l7 4 7-4V8" stroke-linejoin="round"/>',
+  invoice:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5" stroke-linecap="round"/>',
+  diary:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke-linecap="round"/>',
+  style:'<path d="M4 20l4-1 10-10-3-3L5 16l-1 4z" stroke-linejoin="round"/><path d="M14 6l3 3"/>',
+  profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0" stroke-linecap="round"/>',
+  bell:'<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6zM10 20a2 2 0 0 0 4 0" stroke-linejoin="round"/>',
+  phone:'<path d="M5 4h4l1 5-3 2a12 12 0 0 0 6 6l2-3 5 1v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" stroke-linejoin="round"/>',
+  chevron:'<path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/>',
+  check:'<path d="M5 12l5 5 9-11" stroke-linecap="round" stroke-linejoin="round"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round"/>',
+  trend:'<path d="M3 17l6-6 4 4 8-8M21 7v5M21 7h-5" stroke-linecap="round" stroke-linejoin="round"/>',
+  spark:'<path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" stroke-linejoin="round"/>',
+  miss:'<path d="M16 8l-8 8M8 8l8 8" stroke-linecap="round"/>'
 };
+const svg=(p,w=24)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">${p}</svg>`;
 
-const DESIGNER_SYSTEM = `You are a quote template designer for VanOffice, a UK trades app.
-You help tradespeople customise how their quotes look. You can change these fields:
-bizName, trade, phone, email, location, accent (brand colour as hex), dark (dark section colour as hex),
-intro (opening paragraph), scopeItems (array), inclusionItems (array), note, commitment, leadTime, paymentTerms,
-showNote (bool), showCommitment (bool), showLeadTime (bool), showVat (bool).
+/* inject nav + quick-action + topbar + inline pill icons */
+const navIcons={home:'home',jobs:'jobs',quote:'quote',invoices:'invoice',style:'style',profile:'profile'};
+Object.entries(navIcons).forEach(([id,ic])=>{document.querySelector('#n-'+id+' .ni-i').innerHTML=svg(I[ic]);});
+qa1.innerHTML=svg(I.jobs); qa2.innerHTML=svg(I.quote); qa3.innerHTML=svg(I.invoice); qa4.innerHTML=svg(I.diary);
+document.getElementById('i-bell').insertAdjacentHTML('afterbegin',svg(I.bell));
+['i-trend','i-enq','i-missed'].forEach((id,k)=>{document.getElementById(id).querySelector('span').outerHTML=svg([I.trend,I.spark,I.miss][k]);});
+[['p1','jobs'],['p2','jobs'],['p3','diary'],['p4','phone'],['p5','bell']].forEach(([id])=>{});
+document.getElementById('p1').insertAdjacentHTML('afterbegin',svg(I.invoice));
+document.getElementById('p2').insertAdjacentHTML('afterbegin',svg(I.jobs));
+document.getElementById('p3').insertAdjacentHTML('afterbegin',svg(I.diary));
+document.getElementById('p4').insertAdjacentHTML('afterbegin',svg(I.phone));
+document.getElementById('p5').insertAdjacentHTML('afterbegin',svg(I.bell));
+['pc1','pc2','pc3','pc4','pc5'].forEach(id=>document.getElementById(id).innerHTML=svg(I.chevron));
 
-Always reply with 1-2 sentences then: TMPL_JSON: followed by JSON of ONLY changed fields.
+/* ─── MOCK DATA ─── */
+const recent=[
+  {n:'Dave Jones',d:'New enquiry · bathroom refit',ic:'jobs',t:'t-acc',amt:'',bdg:'<span class="bdg b-acc">New</span>'},
+  {n:'Sarah Pellow',d:'Quote sent · 2h ago',ic:'quote',t:'t-blu',amt:'£2,450',bdg:'<span class="bdg b-blu">Quoted</span>'},
+  {n:'Unknown caller',d:'Missed call · 09:14',ic:'miss',t:'t-red',amt:'',bdg:'<span class="bdg b-red">Missed</span>'}
+];
+const upcoming=[
+  {n:'Kitchen units — Totnes',d:'Tomorrow · 08:00',ic:'jobs',t:'t-acc',amt:'£1,800',bdg:''},
+  {n:'Decking repair — Salcombe',d:'Thu · 10:30',ic:'jobs',t:'t-acc',amt:'£640',bdg:''}
+];
+const jobs=[
+  {n:'Bathroom refit',d:'Dave Jones · Exeter',ic:'jobs',t:'t-acc',amt:'',bdg:'<span class="bdg b-acc">New</span>'},
+  {n:'Loft conversion quote',d:'M. Carter · Newton Abbot',ic:'quote',t:'t-blu',amt:'£14,200',bdg:'<span class="bdg b-blu">Quoted</span>'},
+  {n:'Garden office build',d:'R. Singh · Dartmouth',ic:'jobs',t:'t-acc',amt:'',bdg:'<span class="bdg b-acc">New</span>'},
+  {n:'Skirting & architrave',d:'Booked · won',ic:'check',t:'t-grn',amt:'£980',bdg:'<span class="bdg b-grn">Booked</span>'},
+  {n:'Missed — fence panels',d:'Today · 09:14',ic:'miss',t:'t-red',amt:'',bdg:'<span class="bdg b-red">Missed</span>'}
+];
+const invoices=[
+  {n:'Sarah Pellow',d:'Invoice #0042 · due 7 days',ic:'invoice',t:'t-blu',amt:'£2,450',bdg:'<span class="bdg b-blu">Sent</span>'},
+  {n:'Tom Reed',d:'Invoice #0041 · paid',ic:'check',t:'t-grn',amt:'£3,120',bdg:'<span class="bdg b-grn">Paid</span>'},
+  {n:'Greenway Cafe',d:'Invoice #0040 · 12 days overdue',ic:'clock',t:'t-red',amt:'£760',bdg:'<span class="bdg b-red">Overdue</span>'}
+];
+function row(x){return `<div class="li">
+  <div class="li-ico ${x.t}">${svg(I[x.ic])}</div>
+  <div class="li-body"><div class="li-name">${x.n}</div><div class="li-detail">${x.d}</div></div>
+  <div class="li-right">${x.amt?`<div class="li-amt mono">${x.amt}</div>`:''}${x.bdg}</div>
+</div>`;}
+const fill=(id,arr)=>document.getElementById(id).innerHTML=arr.map(row).join('');
 
-LOGO RULE - THIS IS CRITICAL: Logos and images are 100% supported and already working in VanOffice. The logo is uploaded via Profile > Business logo in the dashboard and automatically appears on every quote PDF. If someone mentions a logo, hammer, trowel, or any image - tell them it already works, just upload it in Profile > Business logo. NEVER say logos are unsupported. NEVER suggest emojis instead of logos. NEVER say to contact support.
+/* ─── PIN keypad ─── */
+const keys=['1','2','3','4','5','6','7','8','9','','0','del'];
+keypad.innerHTML=keys.map(k=>{
+  if(k==='')return '<button class="key ghost"></button>';
+  if(k==='del')return '<button class="key fn" onclick="pin(\'del\')">⌫</button>';
+  return `<button class="key" onclick="pin('${k}')">${k}</button>`;
+}).join('');
+let buf='';
+function pin(k){
+  haptic();
+  if(k==='del'){buf=buf.slice(0,-1);}else if(buf.length<4){buf+=k;}
+  for(let i=0;i<4;i++)document.getElementById('pd'+i).classList.toggle('fill',i<buf.length);
+  if(buf.length===4)setTimeout(launch,180);
+}
+function haptic(){if(navigator.vibrate)navigator.vibrate(7);}
 
-COLOUR RULE: Update accent for brand/gold colour, dark for background/header colour.
+/* ─── Flow ─── */
+function toPin(){
+  loginPhone.classList.add('out');
+  setTimeout(()=>{loginPhone.classList.add('hide'); loginPin.classList.remove('hide','out');
+    requestAnimationFrame(()=>loginPin.classList.remove('out'));},340);
+}
+function logout(){location.reload();}
 
-STYLE RULE: For premium/George style use dark="#1a1a1a" accent="#c9a227". For navy use dark="#1e3a5f" accent="#ffffff". For green use dark="#2d6a4f" accent="#f0c040".`;
+let revealed=false;
+function launch(){
+  loginPin.classList.add('out');
+  setTimeout(()=>{
+    loginPin.classList.add('hide');
+    app.style.display='flex';
+    fill('recentList',recent); fill('upcomingList',upcoming);
+    fill('jobsList',jobs); fill('invList',invoices);
+    nav.classList.add('slideup');
+    const r=document.getElementById('homeReveal');
+    r.classList.add('reveal'); requestAnimationFrame(()=>r.classList.add('go'));
+    countUp(document.getElementById('heroAmount'),6330);
+    revealed=true;
+  },340);
+}
 
-function initDesigner(){
-  const profile = window._vanofficeProfile;
-  if(profile){
-    if(designerTemplate.bizName === 'Your Business'){
-      designerTemplate.bizName = profile.business_name || designerTemplate.bizName;
-      designerTemplate.trade = profile.trade || designerTemplate.trade;
-      designerTemplate.phone = profile.phone || '';
-    }
-    if(profile.logo) window._profileLogo = profile.logo;
+/* count-up for hero figure */
+function countUp(el,target){
+  const dur=900, t0=performance.now();
+  function step(now){
+    const p=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-p,3);
+    el.textContent=Math.round(target*e).toLocaleString('en-GB');
+    if(p<1)requestAnimationFrame(step);
   }
+  requestAnimationFrame(step);
 }
 
-
-
-function addDesignerMsg(role, text){
-  const msgs = document.getElementById('designerMsgs');
-  const el = document.createElement('div');
-  const isUser = role === 'user';
-  el.style.cssText = `padding:10px 12px;border-radius:${isUser?'12px 4px 12px 12px':'4px 12px 12px 12px'};font-size:.75rem;line-height:1.5;max-width:90%;${isUser?'background:rgba(91,108,255,0.15);color:#a0aaff;align-self:flex-end':'background:var(--s2);color:var(--t2)'}`;
-  el.textContent = text;
-  msgs.appendChild(el);
-  msgs.scrollTop = msgs.scrollHeight;
-  return el;
+/* ─── Navigation: directional slide, no re-stagger ─── */
+let curIdx=0;
+const order={home:0,jobs:1,quote:2,invoices:3,style:4,profile:5};
+function go(name,idx){
+  haptic();
+  const next=document.getElementById('s-'+name);
+  const cur=document.querySelector('.scr.on');
+  if(!next||next===cur){return;}
+  const dir=(idx??order[name]) >= curIdx ? 'in-r':'in-l';
+  curIdx=idx??order[name];
+  cur.classList.remove('on','in-r','in-l');
+  next.classList.add('on'); void next.offsetWidth; next.classList.add(dir);
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
+  const nb=document.getElementById('n-'+name); if(nb)nb.classList.add('on');
+  content.scrollTop=0;
 }
 
-async function sendDesignerMsg(){
-  const inp = document.getElementById('designerInp');
-  const text = inp.value.trim();
-  if(!text) return;
-  inp.value = '';
-  addDesignerMsg('user', text);
-  designerHistory.push({role:'user', content:`Current template: ${JSON.stringify(designerTemplate)}\nStyle: ${designerStyle}\nRequest: ${text}`});
-  const loadEl = addDesignerMsg('ai', 'Updating your template...');
-  try{
-    const res = await fetch('/api/design-template', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({system:DESIGNER_SYSTEM, messages:designerHistory})
-    });
-    clearTimeout(timeout);
-    const data = await res.json();
-    const reply = data.content?.[0]?.text || '';
-    designerHistory.push({role:'assistant', content:reply});
-    const m = reply.match(/TMPL_JSON:\s*(\{[\s\S]+?\})\s*(?:\n|$)/m);
-    if(m){
-      try{
-        const changes = JSON.parse(m[1]);
-        if(changes.scopeItems) designerTemplate.scopeItems = changes.scopeItems;
-        if(changes.inclusionItems) designerTemplate.inclusionItems = changes.inclusionItems;
-        Object.assign(designerTemplate, changes);
-        if(changes.accent) pickDesignStyle(designerStyle);
-      }catch(e){}
-    }
-    loadEl.textContent = reply.replace(/TMPL_JSON:[\s\S]+$/m,'').trim();
-  }catch(e){
-    loadEl.textContent = 'Connection error. Try again.';
-  }
-}
-
-async function saveDesignTemplate(){
-  const btn = document.getElementById('saveDesignBtn');
-  const msg = document.getElementById('saveDesignMsg');
-  btn.textContent = 'Saving...'; btn.disabled = true;
-  try{
-    const res = await fetch('/api/save-design-template?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({style:designerStyle, template:designerTemplate})
-    });
-    const data = await res.json();
-    if(data.ok){
-      msg.textContent = '✓ Template saved — all new quotes will use this style';
-      setTimeout(()=>msg.textContent='',4000);
-    }else{
-      msg.textContent = 'Error: '+(data.error||'Could not save');
-    }
-  }catch(e){
-    msg.textContent = 'Connection error.';
-  }finally{
-    btn.textContent = 'Save template'; btn.disabled = false;
-  }
-}
-
-let generatedQuoteHTML = '';
-
-async function generateAndPreview(){
-  const btn = document.getElementById('genPreviewBtn');
-  const msg = document.getElementById('saveDesignMsg');
-  btn.textContent = '⏳ Loading preview...';
-  btn.disabled = true;
-  msg.textContent = '';
-
-  try{
-    const res = await fetch('/api/preview-quote?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin), {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        style: designerTemplate,
-        designStyle: designerStyle
-      })
-    });
-    const data = await res.json();
-    if(data.html){
-      generatedQuoteHTML = data.html;
-      openPreview();
-      const inner = document.getElementById('previewInner');
-      inner.innerHTML = '';
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'width:100%;overflow:hidden';
-      const iframe = document.createElement('iframe');
-      const vw = inner.offsetWidth || 350;
-      const scale = vw / 794;
-      iframe.style.cssText = 'width:794px;height:1123px;border:none;transform-origin:top left;transform:scale('+scale+');display:block';
-      wrapper.style.height = Math.round(1123 * scale) + 'px';
-      iframe.srcdoc = data.html;
-      wrapper.appendChild(iframe);
-      inner.appendChild(wrapper);
-      msg.textContent = '✓ Looking good! Tap Save to apply this style.';
-    } else {
-      msg.textContent = data.error || 'Error loading preview';
-    }
-  } catch(e){
-    msg.textContent = 'Error: ' + e.message;
-  } finally {
-    btn.textContent = '👁 Preview my quote';
-    btn.disabled = false;
-  }
-}
-
-async function saveDesignStyle(){
-  const btn = document.getElementById('saveStyleBtn');
-  const msg = document.getElementById('saveDesignMsg');
-  btn.textContent = 'Saving...';
-  btn.disabled = true;
-  try{
-    await fetch('/api/save-design-template?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin), {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({style: designerStyle, template: designerTemplate})
-    });
-    haptic('medium');
-    msg.textContent = '✓ Style saved — all future quotes will use this.';
-    const styleNames = {gold:'Premium Gold',navy:'Navy Pro',slate:'Slate Clean',green:'Forest Green',mono:'Mono Minimal'};
-    const styleColors = {gold:'#1a1a1a',navy:'#0f2b5b',slate:'#3d3d3d',green:'#1e4d2b',mono:'#f5f5f5'};
-    const nameEl = document.getElementById('profileStyleName');
-    const swatchEl = document.getElementById('profileStyleSwatch');
-    if(nameEl) nameEl.textContent = styleNames[designerStyle] || 'Premium Gold';
-    if(swatchEl) swatchEl.style.background = styleColors[designerStyle] || '#1a1a1a';
-    setTimeout(()=>{ msg.textContent=''; }, 3000);
-  } catch(e){
-    msg.textContent = 'Error saving. Try again.';
-  }
-  btn.textContent = '✓ Save style';
-  btn.disabled = false;
-}
-
-function showDesignPreview(){
-  if(generatedQuoteHTML){
-    openPreview();
-    const inner = document.getElementById('previewInner');
-    inner.innerHTML = '';
-    const wrapper2 = document.createElement('div');
-    wrapper2.style.cssText = 'width:100%;overflow:hidden';
-    const iframe = document.createElement('iframe');
-    const vw2 = inner.offsetWidth || 350;
-    const scale2 = vw2 / 794;
-    iframe.style.cssText = 'width:794px;height:1123px;border:none;transform-origin:top left;transform:scale('+scale2+');display:block';
-    wrapper2.style.height = Math.round(1123 * scale2) + 'px';
-    iframe.srcdoc = generatedQuoteHTML;
-    wrapper2.appendChild(iframe);
-    inner.appendChild(wrapper2);
-  }
-}
-
-function clearPdfUpload(){
-  document.getElementById('pdfFileInput').value = '';
-  document.getElementById('pdfUploadArea').style.display = 'block';
-  document.getElementById('pdfUploadedBar').style.display = 'none';
-  document.getElementById('pdfUploadMsg').textContent = '';
-  designerTemplate = {
-    bizName: window._vanofficeProfile ? (window._vanofficeProfile.business_name || 'Your Business') : 'Your Business',
-    trade: window._vanofficeProfile ? (window._vanofficeProfile.trade || 'Your Trade') : 'Your Trade',
-    phone: window._vanofficeProfile ? (window._vanofficeProfile.phone || '') : '',
-    email: '', location: '',
-    accent: '#c9a84c', dark: '#1a1a1a',
-    intro: 'Thank you for the opportunity to provide this quotation. Please find below the scope of works and cost breakdown for your consideration.',
-    scopeItems: ['Supply and install as per agreed specification','All work completed to industry standards','Site clean-down on completion'],
-    inclusionItems: ['All labour','All materials','Site clean-down'],
-    note: '', commitment: 'We take pride in delivering quality workmanship. Your satisfaction is our priority.',
-    leadTime: 'To be arranged at a convenient time.',
-    paymentTerms: '50% deposit required. Balance on completion.',
-    showNote: false, showCommitment: true, showLeadTime: true, showVat: false
-  };
-  pickDesignStyle('gold');
-}
-
-function openPreview(){
-  const modal = document.getElementById('previewModal');
-  modal.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-}
-
-function closePreview(){
-  const modal = document.getElementById('previewModal');
-  modal.style.display = 'none';
-  document.body.style.overflow = '';
-}
-
-function renderGeorgePreview(){
-  const t = designerTemplate;
-  const acc = t.accent || '#c9a227';
-  const dark = t.dark || '#1a1a1a';
-  return `<div style="font-family:Inter,sans-serif;font-size:12px;line-height:1.5">
-    <div style="background:${dark};display:grid;grid-template-columns:1fr 1fr;min-height:120px">
-      <div style="padding:20px 24px;border-right:2px solid ${acc}">
-        ${window._profileLogo?`<img src="${window._profileLogo}" style="width:56px;height:56px;object-fit:contain;margin-bottom:8px;display:block">`:''}
-        <div style="font-size:18px;font-weight:900;color:${acc}">${t.bizName||'Your Business'}</div>
-        <div style="font-size:9px;color:${acc};letter-spacing:0.12em;text-transform:uppercase;margin-top:3px;opacity:.85">${t.trade||''}</div>
-        <div style="width:50px;height:1.5px;background:${acc};margin-top:10px"></div>
-      </div>
-      <div style="padding:20px 24px">
-        <div style="font-size:26px;font-weight:900;color:${acc};letter-spacing:0.06em;margin-bottom:12px">QUOTATION</div>
-        ${t.phone?`<div style="font-size:11px;color:#ccc;margin-bottom:5px">📞 ${t.phone}</div>`:''}
-        ${t.email?`<div style="font-size:11px;color:#ccc;margin-bottom:5px">✉ ${t.email}</div>`:''}
-        ${t.location?`<div style="font-size:11px;color:#ccc">📍 ${t.location}</div>`:''}
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 200px">
-      <div style="padding:20px 24px;border-right:1px solid #e8dfc8">
-        <div style="font-size:11px;margin-bottom:4px"><span style="color:${acc};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">DATE: </span>${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
-        <div style="font-size:11px;margin-bottom:14px"><span style="color:${acc};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">CLIENT: </span>Client Name</div>
-        <div style="font-size:11px;color:#444;line-height:1.7;margin-bottom:16px">${t.intro||''}</div>
-        <div style="font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:0.04em;color:#1a1a1a;margin-bottom:12px">📋 SCOPE OF WORKS</div>
-        ${(t.scopeItems||[]).map(i=>`<div style="display:flex;gap:8px;margin-bottom:8px;font-size:11px;color:#333;line-height:1.5"><span style="color:${acc};flex-shrink:0">✓</span>${i}</div>`).join('')}
-        ${t.showNote&&t.note?`<div style="border:1.5px solid #d4b860;border-radius:6px;padding:10px 12px;margin-top:14px;background:#fffef5"><div style="font-size:9px;font-weight:800;color:${acc};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">⚠ PLEASE NOTE</div><div style="font-size:10px;color:#555;line-height:1.6">${t.note}</div></div>`:''}
-      </div>
-      <div style="padding:16px;background:#f9f7f0">
-        <div style="text-align:center;padding-bottom:16px;margin-bottom:16px;border-bottom:1.5px solid #d4b860">
-          <div style="width:48px;height:48px;border-radius:50%;border:2.5px solid ${acc};display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:20px;font-weight:900;color:${acc}">£</div>
-          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:${acc};margin-bottom:4px">TOTAL PRICE</div>
-          <div style="font-size:28px;font-weight:900;color:#1a1a1a;letter-spacing:-0.02em">£1,900.00</div>
-          ${t.showVat?`<div style="font-size:11px;font-weight:600;color:${acc};margin-top:4px">+ VAT</div>`:''}
-        </div>
-        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:${acc};margin-bottom:10px;text-align:center">INCLUSIONS</div>
-        ${(t.inclusionItems||[]).map(i=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11px;color:#333"><span style="color:${acc}">✓</span>${i}</div>`).join('')}
-      </div>
-    </div>
-    ${(t.showCommitment||t.showLeadTime)?`<div style="background:${dark};display:grid;grid-template-columns:1fr 1fr;padding:14px 20px;gap:16px">
-      ${t.showCommitment?`<div style="display:flex;gap:10px"><div style="width:28px;height:28px;border-radius:50%;border:1.5px solid ${acc};display:flex;align-items:center;justify-content:center;color:${acc};font-size:12px;flex-shrink:0">✓</div><div><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:${acc};margin-bottom:3px">OUR COMMITMENT</div><div style="font-size:9px;color:#aaa;line-height:1.55">${t.commitment||''}</div></div></div>`:''}
-      ${t.showLeadTime?`<div style="display:flex;gap:10px"><div style="width:28px;height:28px;border-radius:50%;border:1.5px solid ${acc};display:flex;align-items:center;justify-content:center;color:${acc};font-size:12px;flex-shrink:0">📅</div><div><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:${acc};margin-bottom:3px">LEAD TIME</div><div style="font-size:9px;color:#aaa;line-height:1.55">${t.leadTime||''}</div></div></div>`:''}
-    </div>`:''}
-    <div style="background:${dark};border-top:1px solid #b8960c;display:flex;justify-content:space-between;align-items:center;padding:12px 24px">
-      <div><div style="font-size:13px;font-weight:900;color:${acc};text-transform:uppercase;letter-spacing:0.08em">THANK YOU</div><div style="font-size:9px;color:#555;margin-top:1px">We look forward to working with you.</div></div>
-      <div style="text-align:right"><div style="font-size:12px;font-weight:700;color:${acc};font-style:italic">${t.bizName||''}</div></div>
-    </div>
-  </div>`;
-}
-
-function renderModernPreview(){
-  const t = designerTemplate;
-  const acc = t.accent || '#1e3a5f';
-  return `<div style="font-family:Inter,sans-serif;font-size:12px">
-    <div style="padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:4px solid ${acc}">
-      <div style="display:flex;align-items:center;gap:12px">${window._profileLogo?`<img src="${window._profileLogo}" style="width:44px;height:44px;object-fit:contain">`:''}  <div><div style="font-size:18px;font-weight:900;color:#111;letter-spacing:-0.02em">${t.bizName||'Your Business'}</div><div style="font-size:10px;color:#888;margin-top:2px">${t.trade||''}</div></div></div>
-      <div style="font-size:24px;font-weight:900;color:${acc}">QUOTATION</div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 180px">
-      <div style="padding:16px 24px">
-        <div style="display:flex;gap:20px;margin-bottom:14px">
-          <div><div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Date</div><div style="font-size:11px;font-weight:600">${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div></div>
-          <div><div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Client</div><div style="font-size:11px;font-weight:600">Client Name</div></div>
-        </div>
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${acc};margin-bottom:8px">Scope of works</div>
-        ${(t.scopeItems||[]).map(i=>`<div style="display:flex;gap:8px;margin-bottom:5px;font-size:11px;color:#333;line-height:1.5"><div style="width:5px;height:5px;border-radius:50%;background:${acc};flex-shrink:0;margin-top:4px"></div>${i}</div>`).join('')}
-      </div>
-      <div style="padding:14px 16px;background:#f8f8f8">
-        <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.07em">Total price</div>
-        <div style="font-size:28px;font-weight:900;color:${acc};letter-spacing:-0.02em;margin:4px 0">£1,900</div>
-        ${t.showVat?`<div style="font-size:9px;color:#888;margin-bottom:12px">+ VAT</div>`:'<div style="margin-bottom:12px"></div>'}
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:${acc};margin-bottom:7px">Included</div>
-        ${(t.inclusionItems||[]).map(i=>`<div style="display:flex;gap:6px;margin-bottom:5px;font-size:10px;color:#333"><span style="color:${acc}">✓</span>${i}</div>`).join('')}
-      </div>
-    </div>
-    ${(t.showCommitment||t.showLeadTime)?`<div style="background:${acc};padding:12px 24px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      ${t.showCommitment?`<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.7);margin-bottom:3px">Our commitment</div><div style="font-size:9px;color:rgba(255,255,255,0.9);line-height:1.55">${t.commitment||''}</div></div>`:''}
-      ${t.showLeadTime?`<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.7);margin-bottom:3px">Lead time</div><div style="font-size:9px;color:rgba(255,255,255,0.9);line-height:1.55">${t.leadTime||''}</div></div>`:''}
-    </div>`:''}
-  </div>`;
-}
-
-function renderMinimalPreview(){
-  const t = designerTemplate;
-  return `<div style="font-family:Inter,sans-serif;font-size:12px;padding:24px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:1px solid #e8e8e8;margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:10px">${window._profileLogo?`<img src="${window._profileLogo}" style="width:36px;height:36px;object-fit:contain">`:''}  <div><div style="font-size:16px;font-weight:700;color:#111">${t.bizName||'Your Business'}</div><div style="font-size:10px;color:#888;margin-top:2px">${t.trade||''}</div></div></div>
-      <div style="text-align:right"><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:#888">Quotation</div><div style="font-size:12px;font-weight:600;color:#111;margin-top:1px">QU-001</div></div>
-    </div>
-    <div style="display:flex;gap:20px;margin-bottom:16px">
-      <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.06em;color:#888;margin-bottom:2px">Date</div><div style="font-size:11px;font-weight:500">${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div></div>
-      <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.06em;color:#888;margin-bottom:2px">Client</div><div style="font-size:11px;font-weight:500">Client Name</div></div>
-    </div>
-    <div style="margin-bottom:14px"><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.09em;color:#888;margin-bottom:7px">Scope of works</div>${(t.scopeItems||[]).map(i=>`<div style="display:flex;gap:9px;margin-bottom:4px;font-size:10px;line-height:1.5;color:#333"><span style="color:#bbb;flex-shrink:0">—</span>${i}</div>`).join('')}</div>
-    <div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:14px;color:#111;border-top:1px solid #e8e8e8">Total<span>£1,900.00${t.showVat?' + VAT':''}</span></div>
-    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e8e8e8;font-size:9px;color:#888;line-height:1.7">${t.paymentTerms||''}</div>
-  </div>`;
-}
-
-async function analyseTemplatePDF(input){
-  if(!input.files||!input.files[0]) return;
-  const file = input.files[0];
-  if(file.size > 5000000){
-    document.getElementById('pdfUploadMsg').textContent = 'File too large — max 5MB';
-    return;
-  }
-
-  const fileType = file.type;
-  console.log('File type detected:', fileType, 'File name:', file.name, 'File size:', file.size);
-  let mediaType = 'application/pdf';
-  if(fileType.includes('jpeg') || fileType.includes('jpg') || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) mediaType = 'image/jpeg';
-  else if(fileType.includes('png') || file.name.toLowerCase().endsWith('.png')) mediaType = 'image/png';
-  else if(fileType.includes('pdf') || file.name.toLowerCase().endsWith('.pdf')) mediaType = 'application/pdf';
-  else {
-    document.getElementById('pdfUploadMsg').textContent = 'Please upload a PDF, JPG or PNG (detected: ' + fileType + ')';
-    return;
-  }
-  console.log('Media type chosen:', mediaType);
-
-  document.getElementById('pdfUploadMsg').textContent = 'Analysing your template...';
-
-  const reader = new FileReader();
-  reader.onload = async function(e){
-    const base64 = e.target.result.split(',')[1];
-    const isImage = mediaType.includes('image');
-    try{
-      console.log('Sending to /api/design-template, mediaType:', mediaType, 'isImage:', isImage, 'base64 length:', base64?.length);
-      const res = await fetch('/api/design-template', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          system:`You are a quote template analyser for VanOffice, a UK trades app.
-The user has uploaded their existing quote PDF or image. Analyse it and extract their style preferences.
-Look for: business name, trade, phone, email, location, colours (dominant hex values), layout style,
-sections present (scope of works, inclusions, commitment, lead time, payment terms, please note),
-any intro text, typical scope items for their trade, inclusions listed.
-Reply with a short friendly message saying what you found, then on a new line:
-TMPL_JSON: followed by a JSON object with these fields (only include what you can confidently extract):
-bizName, trade, phone, email, location, accent (dominant brand colour as hex), dark (dark background colour as hex),
-intro, scopeItems (array), inclusionItems (array), note, commitment, leadTime, paymentTerms,
-showNote, showCommitment, showLeadTime, showVat (booleans).
-Also include a "detectedStyle" field: "gold" for dark/black with gold or yellow accents, "navy" for dark blue, "green" for green style, "slate" for charcoal/grey, "mono" for clean black and white.`,
-          messages:[{
-            role:'user',
-            content: isImage ? [
-              {type:'image', source:{type:'base64', media_type:mediaType, data:base64}},
-              {type:'text', text:'Please analyse this quote template image and extract the style, colours, and content structure so I can recreate it in VanOffice.'}
-            ] : [
-              {type:'document', source:{type:'base64', media_type:mediaType, data:base64}},
-              {type:'text', text:'Please analyse this quote template and extract the style, colours, and content structure so I can recreate it in VanOffice.'}
-            ]
-          }]
-        })
-      });
-      const data = await res.json();
-      console.log('Response from /api/design-template:', data);
-      if(data.error){
-        document.getElementById('pdfUploadMsg').textContent = data.error;
-        return;
-      }
-      const reply = data.content?.[0]?.text || '';
-
-      const m = reply.match(/TMPL_JSON:\s*(\{[\s\S]+?\})\s*(?:\n|$)/m);
-      if(m){
-        try{
-          const changes = JSON.parse(m[1]);
-          const detectedStyle = changes.detectedStyle || 'gold';
-          delete changes.detectedStyle;
-          if(changes.scopeItems) designerTemplate.scopeItems = changes.scopeItems;
-          if(changes.inclusionItems) designerTemplate.inclusionItems = changes.inclusionItems;
-          Object.assign(designerTemplate, changes);
-          pickDesignStyle(detectedStyle);
-        }catch(e){}
-      }
-
-      const display = reply.replace(/TMPL_JSON:[\s\S]+$/m,'').trim();
-      document.getElementById('pdfUploadArea').style.display = 'none';
-      document.getElementById('pdfUploadedBar').style.display = 'flex';
-      document.getElementById('pdfFileName').textContent = file.name || 'template.pdf';
-      document.getElementById('pdfUploadMsg').textContent = display ? display.slice(0,100) : '✓ Style matched! Hit Preview to see your quote.';
-    }catch(err){
-      console.error('PDF analysis error:', err);
-      document.getElementById('pdfUploadMsg').textContent = 'Error: ' + (err.message || 'Could not analyse file. Try a PDF or image.');
-    }
-  };
-  reader.readAsDataURL(file);
-}
-
-let generatedLogoUrl = '';
-
-async function generateLogo(){
-  const btn = document.getElementById('genLogoBtn');
-  const msg = document.getElementById('logoGenMsg');
-  const preview = document.getElementById('logoGenPreview');
-
-  const trade = designerTemplate.trade || 'tradesperson';
-  const bizName = designerTemplate.bizName || 'the business';
-  const accent = designerTemplate.accent || '#c9a227';
-
-  const prompt = document.getElementById('logoPromptInput')?.value?.trim() ||
-    `A professional logo for ${bizName}, a ${trade} business. Clean, modern, trade-appropriate icon. Single color: ${accent} on white background. No text, just the icon/symbol.`;
-
-  btn.textContent = '⏳ Generating...';
-  btn.disabled = true;
-  msg.textContent = 'Creating your logo...';
-  preview.style.display = 'none';
-
-  try{
-    const res = await fetch('/api/generate-logo', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        phone: userPhone,
-        pin: userPin,
-        prompt: prompt,
-        trade: trade,
-        biz_name: bizName
-      })
-    });
-    const data = await res.json();
-    if(data.url){
-      generatedLogoUrl = data.url;
-      document.getElementById('logoGenImg').src = data.url;
-      preview.style.display = 'block';
-      msg.textContent = 'Looking good? Save it to your profile or regenerate.';
-    } else {
-      msg.textContent = data.error || 'Error generating logo. Try again.';
-    }
-  } catch(e){
-    msg.textContent = 'Connection error. Try again.';
-  } finally {
-    btn.textContent = '🎨 Generate logo with AI';
-    btn.disabled = false;
-  }
-}
-
-async function saveLogo(){
-  if(!generatedLogoUrl) return;
-  const msg = document.getElementById('logoGenMsg');
-  msg.textContent = 'Saving...';
-  try{
-    const res = await fetch('/api/save-logo', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({phone: userPhone, pin: userPin, logo_url: generatedLogoUrl})
-    });
-    const data = await res.json();
-    if(data.ok){
-      window._profileLogo = generatedLogoUrl;
-      msg.textContent = '✓ Logo saved — it will appear on all your quotes';
-    } else {
-      msg.textContent = data.error || 'Error saving logo';
-    }
-  } catch(e){
-    msg.textContent = 'Connection error.';
-  }
-}
-
-function chM(d){
-  cm+=d;
-  if(cm>11){cm=0;cy++}
-  if(cm<0){cm=11;cy--}
-  renderCal();
-}
-
-function renderCal(){
-  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  document.getElementById('calMon').textContent=months[cm]+' '+cy;
-  const g=document.getElementById('calGrid');
-  g.innerHTML='';
-  const bookedDates=new Set();
-  allBookings.forEach(b=>{
-    if(!b.date)return;
-    const start=new Date(b.date);
-    const days=parseInt(b.duration_days)||1;
-    for(let i=0;i<days;i++){
-      const d=new Date(start);d.setDate(d.getDate()+i);
-      if(d.getMonth()===cm&&d.getFullYear()===cy)bookedDates.add(d.getDate());
-    }
-  });
-  const fd=new Date(cy,cm,1).getDay();
-  const off=fd===0?6:fd-1;
-  const dim=new Date(cy,cm+1,0).getDate();
-  const td=new Date();
-  for(let i=0;i<off;i++){const el=document.createElement('div');el.className='cd empty';g.appendChild(el)}
-  for(let d=1;d<=dim;d++){
-    const el=document.createElement('div');el.className='cd';el.textContent=d;
-    if(d===td.getDate()&&cm===td.getMonth()&&cy===td.getFullYear())el.classList.add('today');
-    else if(bookedDates.has(d))el.classList.add('hj');
-    g.appendChild(el);
-  }
-}
-
-let qsStyle = 'gold';
-let qsColour = '#c9a84c';
-
-function qsPickStyle(s){
-  qsStyle = s;
-  designerStyle = s;
-  ['gold','navy','slate','green','mono'].forEach(style=>{
-    const el = document.getElementById('qs-'+style);
-    const tick = document.getElementById('qs-'+style+'-tick');
-    if(el) el.style.border = style===s ? '1.5px solid var(--acc)' : '1px solid var(--br)';
-    if(tick) tick.style.visibility = style===s ? 'visible' : 'hidden';
-  });
-  const accents = {gold:'#c9a84c',navy:'#e8b84b',slate:'#3d3d3d',green:'#7ab648',mono:'#111'};
-  const darks = {gold:'#1a1a1a',navy:'#0f2b5b',slate:'#3d3d3d',green:'#1e4d2b',mono:'#ffffff'};
-  if(accents[s]){ qsColour = accents[s]; designerTemplate.accent = accents[s]; }
-  if(darks[s]) designerTemplate.dark = darks[s];
-}
-
-function qsPickColour(el, hex){
-  qsColour = hex;
-  designerTemplate.accent = hex;
-  document.querySelectorAll('#qsColours > div').forEach(d=>{
-    d.style.border = '2px solid transparent';
-    d.style.boxShadow = 'none';
-  });
-  if(el){
-    el.style.border = '2px solid #fff';
-    el.style.boxShadow = '0 0 0 2px ' + hex;
-  }
-}
-
-async function qsPreview(){
-  const btn = document.getElementById('qsPreviewBtn');
-  btn.textContent = '⏳ Loading...';
-  btn.disabled = true;
-  try{
-    const res = await fetch('/api/preview-quote?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({style: designerTemplate, designStyle: qsStyle})
-    });
-    const data = await res.json();
-    if(data.html){
-      generatedQuoteHTML = data.html;
-      openPreview();
-      const inner = document.getElementById('previewInner');
-      inner.innerHTML = '';
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'width:100%;overflow:hidden';
-      const iframe = document.createElement('iframe');
-      const vw = inner.offsetWidth || 350;
-      const scale = vw / 794;
-      iframe.style.cssText = 'width:794px;height:1123px;border:none;transform-origin:top left;transform:scale('+scale+');display:block';
-      wrapper.style.height = Math.round(1123 * scale) + 'px';
-      iframe.srcdoc = data.html;
-      wrapper.appendChild(iframe);
-      inner.appendChild(wrapper);
-    }
-  }catch(e){
-    document.getElementById('qsMsg').textContent = 'Preview failed. Try again.';
-  }
-  btn.textContent = '👁 Preview';
-  btn.disabled = false;
-}
-
-async function qsSaveAndContinue(){
-  const btn = document.getElementById('qsSaveBtn');
-  const msg = document.getElementById('qsMsg');
-  console.log('qsSaveAndContinue called, userPhone:', userPhone, 'userPin:', userPin, '_pendingAppData:', !!_pendingAppData);
-  btn.textContent = 'Saving...';
-  btn.disabled = true;
-  msg.textContent = '';
-  try{
-    if(!userPhone || !userPin){
-      msg.textContent = 'Session expired — please log in again. (phone:' + userPhone + ')';
-      btn.textContent = 'Save & go to dashboard →';
-      btn.disabled = false;
-      return;
-    }
-    const res = await fetch('/api/save-design-template?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({style: qsStyle, template: designerTemplate})
-    });
-    const data = await res.json();
-    if(data.error){
-      msg.textContent = 'Error: ' + data.error;
-      btn.textContent = 'Save & go to dashboard →';
-      btn.disabled = false;
-      return;
-    }
-    closePreview();
-    if(_pendingAppData){
-      _pendingAppData.template = {design_style: qsStyle};
-      _launchApp(_pendingAppData);
-    } else {
-      go('home');
-      document.getElementById('screenQuoteSetup').classList.add('hidden');
-    }
-  }catch(e){
-    console.error('qsSaveAndContinue error:', e);
-    msg.textContent = 'Connection error. Try again.';
-    btn.textContent = 'Save & go to dashboard →';
-    btn.disabled = false;
-  }
-}
-
-let qgHistory = [];
-let qgQuoteData = null;
-let qgBreakdownVisible = false;
-let qgPhotoBase64 = null;
-let qgPhotoType = 'image/jpeg';
-let qgRecognition = null;
-let qgListening = false;
-let qgVoiceEnabled = false;
-
-function qgToggleVoiceMode(){
-  qgVoiceEnabled = !qgVoiceEnabled;
-  const btn = document.getElementById('qgVoiceToggle');
-  if(btn){
-    btn.textContent = qgVoiceEnabled ? '🔊 Voice on' : '🔇 Voice off';
-    btn.style.color = qgVoiceEnabled ? 'var(--grn)' : 'var(--t3)';
-    btn.style.borderColor = qgVoiceEnabled ? 'var(--grn)' : 'var(--br)';
-  }
-  if(qgVoiceEnabled) qgSpeak('Voice mode on. Describe the job.');
-  else window.speechSynthesis && window.speechSynthesis.cancel();
-}
-
-if(window.speechSynthesis){
-  window.speechSynthesis.onvoiceschanged = function(){ window.speechSynthesis.getVoices(); };
-}
-
-function qgHandlePhoto(input){
-  if(!input.files||!input.files[0]) return;
-  const file = input.files[0];
-  qgPhotoType = file.type || 'image/jpeg';
-  const reader = new FileReader();
-  reader.onload = function(e){
-    const result = e.target.result;
-    qgPhotoBase64 = result.split(',')[1];
-    document.getElementById('qgPhotoImg').src = result;
-    document.getElementById('qgPhotoPreview').style.display = 'block';
-    document.getElementById('qgPhotoLabel').textContent = file.name + ' — tap send to analyse';
-    document.getElementById('qgInput').placeholder = 'Add a note or just tap send...';
-    document.getElementById('qgInput').focus();
-  };
-  reader.readAsDataURL(file);
-}
-
-function qgClearPhoto(){
-  qgPhotoBase64 = null;
-  document.getElementById('qgPhotoPreview').style.display = 'none';
-  document.getElementById('qgPhotoInput').value = '';
-  document.getElementById('qgInput').placeholder = 'Describe the job or just tap the mic...';
-}
-
-function qgToggleVoice(){
-  if(qgListening){ qgStopVoice(); return; }
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SpeechRecognition){
-    alert('Voice input is not supported in this browser. Try Chrome or Safari.');
-    return;
-  }
-  qgRecognition = new SpeechRecognition();
-  qgRecognition.continuous = false;
-  qgRecognition.interimResults = true;
-  qgRecognition.lang = 'en-GB';
-
-  qgRecognition.onstart = function(){
-    qgListening = true;
-    document.getElementById('qgVoiceBar').style.display = 'flex';
-    document.getElementById('qgMicBtn').style.background = 'var(--red-d)';
-    document.getElementById('qgMicBtn').style.borderColor = 'var(--red)';
-  };
-
-  qgRecognition.onresult = function(e){
-    const transcript = Array.from(e.results).map(r=>r[0].transcript).join('');
-    document.getElementById('qgInput').value = transcript;
-  };
-
-  qgRecognition.onend = function(){
-    qgStopVoice();
-    const val = document.getElementById('qgInput').value.trim();
-    if(val) setTimeout(()=>qgSend(), 300);
-  };
-
-  qgRecognition.onerror = function(e){
-    qgStopVoice();
-    if(e.error !== 'no-speech') qgAddMsg('ai', 'Could not hear anything. Try again or type your message.');
-  };
-
-  qgRecognition.start();
-}
-
-function qgStopVoice(){
-  qgListening = false;
-  if(qgRecognition){ try{ qgRecognition.stop(); }catch(e){} }
-  document.getElementById('qgVoiceBar').style.display = 'none';
-  document.getElementById('qgMicBtn').style.background = 'var(--s2)';
-  document.getElementById('qgMicBtn').style.borderColor = 'var(--br)';
-}
-
-function qgSpeak(text){
-  if(!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const clean = text.replace(/[£€$]/g, ' pounds ').replace(/[*_#]/g,'').substring(0,300);
-  const utt = new SpeechSynthesisUtterance(clean);
-  utt.lang = 'en-GB';
-  utt.rate = 1.05;
-  utt.pitch = 1;
-  const voices = window.speechSynthesis.getVoices();
-  const gbVoice = voices.find(v=>v.lang==='en-GB') || voices.find(v=>v.lang.startsWith('en'));
-  if(gbVoice) utt.voice = gbVoice;
-  window.speechSynthesis.speak(utt);
-}
-
-function qgReset(){
-  qgHistory = [];
-  qgQuoteData = null;
-  qgBreakdownVisible = false;
-  qgPhotoBase64 = null;
-  window._qgPrefilledClient = null;
-  qgStopVoice();
-  window.speechSynthesis && window.speechSynthesis.cancel();
-  document.getElementById('qgPhotoPreview').style.display = 'none';
-  document.getElementById('qgPhotoInput').value = '';
-  document.getElementById('qgChatArea').innerHTML = `
-    <div style="display:flex;gap:8px;align-items:flex-start">
-      <div style="width:28px;height:28px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#fff;flex-shrink:0">AI</div>
-      <div style="background:var(--s2);border-radius:4px 12px 12px 12px;padding:9px 12px;font-size:.78rem;color:var(--t2);line-height:1.6;max-width:90%" class="bubble-in">Hi! Two ways I can help:
-
-📐 Describe the job — I'll ask a couple of questions and work out the price for you.
-
-🔢 Or if you know your numbers already, just say something like: 'materials £340, 2 days labour, skimming lounge and hallway' — and I'll build the quote straight away.</div>
-    </div>`;
-  document.getElementById('qgQuoteWrap').style.display = 'none';
-  document.getElementById('qgDocWrap').style.display = 'none';
-  document.getElementById('qgBreakdown').style.display = 'none';
-  document.getElementById('qgInput').value = '';
-  document.getElementById('qgInput').focus();
-}
-
-function qgAddMsg(role, text){
-  const area = document.getElementById('qgChatArea');
-  const d = document.createElement('div');
-  d.style.cssText = 'display:flex;gap:8px;align-items:flex-start';
-  const isAi = role === 'ai';
-  const initials = window._vanofficeProfile ? (window._vanofficeProfile.business_name||'AI').substring(0,2).toUpperCase() : 'AI';
-  const avatar = isAi
-    ? `<div style="width:28px;height:28px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#fff;flex-shrink:0">${initials}</div>`
-    : `<div style="width:28px;height:28px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:var(--t2);flex-shrink:0">You</div>`;
-  const bubble = isAi
-    ? `<div style="background:var(--s2);border-radius:4px 12px 12px 12px;padding:9px 12px;font-size:.78rem;color:var(--t2);line-height:1.6;max-width:90%" class="bubble-in">${text}</div>`
-    : `<div style="background:var(--acc-d);border-radius:12px 4px 12px 12px;padding:9px 12px;font-size:.78rem;color:var(--acc2);line-height:1.6;max-width:90%;align-self:flex-end;margin-left:auto">${text}</div>`;
-  if(isAi){ d.innerHTML = avatar + bubble; }
-  else { d.style.justifyContent = 'flex-end'; d.innerHTML = bubble + avatar; }
-  area.appendChild(d);
-  area.scrollTop = area.scrollHeight;
-}
-
-function qgShowPriceSummary(q){
-  qgQuoteData = q;
-  const labourCost = q.labourCost || 0;
-  const matsCost = q.materialsCost || 0;
-  document.getElementById('qgLabourLine').textContent = q.labourDays
-    ? `${q.labourDays} day${q.labourDays!==1?'s':''} — £${labourCost.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}`
-    : `£${labourCost.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-  document.getElementById('qgMatsLine').textContent = `£${matsCost.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-  document.getElementById('qgTotalInput').value = q.totalPrice || 0;
-
-  if(q.materials && q.materials.length > 0){
-    const items = document.getElementById('qgBreakdownItems');
-    items.innerHTML = q.materials.map(m => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--br);font-size:.78rem">
-        <div style="color:var(--t2)">${m.item} <span style="color:var(--t4);font-size:.7rem">${m.qty||''}</span></div>
-        <div style="font-weight:600;color:var(--t1)">£${Number(m.total||0).toFixed(2)}</div>
-      </div>`).join('') +
-      `<div style="display:flex;justify-content:space-between;padding:8px 0;font-size:.78rem">
-        <div style="color:var(--t3)">Markup (${window._vanofficeProfile?window._vanofficeProfile.materials_markup||20:20}%)</div>
-        <div style="color:var(--t3)">£${Number(q.markupAmount||0).toFixed(2)}</div>
-      </div>`;
-  } else {
-    document.getElementById('qgBreakdownBtn').style.display = 'none';
-  }
-
-  document.getElementById('qgQuoteWrap').style.display='block';haptic('medium');
-  document.getElementById('qgQuoteWrap').scrollIntoView({behavior:'smooth'});
-}
-
-function qgToggleBreakdown(){
-  qgBreakdownVisible = !qgBreakdownVisible;
-  document.getElementById('qgBreakdown').style.display = qgBreakdownVisible ? 'block' : 'none';
-  document.getElementById('qgBreakdownBtn').textContent = qgBreakdownVisible ? '▲ Hide breakdown' : '▼ Show materials breakdown';
-}
-
-async function qgGenerateQuote(){
-  if(!qgQuoteData) return;
-  const btn = document.getElementById('qgGenBtn');
-  btn.textContent = '⏳ Generating...';
-  btn.disabled = true;
-  qgQuoteData.totalPrice = Number(document.getElementById('qgTotalInput').value) || qgQuoteData.totalPrice;
-  try{
-    const res = await fetch('/api/preview-quote?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        style: designerTemplate,
-        designStyle: designerStyle,
-        quoteData: qgQuoteData
-      })
-    });
-    const data = await res.json();
-    if(data.html){
-      document.getElementById('qgDocWrap').style.display='block';document.getElementById('qgQuoteDoc').classList.add('doc-reveal');haptic('medium');
-      const doc = document.getElementById('qgQuoteDoc');
-      doc.innerHTML = '';
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'width:100%;overflow:hidden';
-      const iframe = document.createElement('iframe');
-      const vw = doc.offsetWidth || 350;
-      const scale = vw / 794;
-      iframe.style.cssText = `width:794px;height:1123px;border:none;transform-origin:top left;transform:scale(${scale});display:block`;
-      wrapper.style.height = Math.round(1123 * scale) + 'px';
-      iframe.srcdoc = data.html;
-      wrapper.appendChild(iframe);
-      doc.appendChild(wrapper);
-      doc.scrollIntoView({behavior:'smooth'});
-    }
-  }catch(e){ qgAddMsg('ai','Error generating document. Try again.'); }
-  btn.textContent = 'Generate quote document →';
-  btn.disabled = false;
-}
-
-async function qgSaveQuote(){
-  if(!qgQuoteData) return;
-  try{
-    const total = document.getElementById('qgTotalInput').value || qgQuoteData.totalPrice;
-    await fetch('/api/create-quote?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        client_name: qgQuoteData.clientName || 'Customer',
-        job_description: qgQuoteData.scopeItems?.join(', ') || '',
-        total: total,
-        line_items: qgQuoteData.scopeItems?.map(s=>({description:s, amount:''})) || []
-      })
-    });
-    qgAddMsg('ai','✓ Quote saved! You can find it in the Quotes tab.');
-  }catch(e){ qgAddMsg('ai','Error saving quote. Try again.'); }
-}
-
-async function qgSend(){
-  const input = document.getElementById('qgInput');
-  const val = input.value.trim();
-  if(!val) return;
-  const btn = document.getElementById('qgBtn');
-  btn.disabled = true;
-  input.disabled = true;
-  qgAddMsg('user', val);
-  input.value = '';
-
-  // If client was prefilled from a job, inject name into first message context
-  const msgWithContext = (window._qgPrefilledClient && qgHistory.length === 0)
-    ? `Client name: ${window._qgPrefilledClient}. ${val}`
-    : val;
-  qgHistory.push({role:'user', content: msgWithContext});
-
-  const typingEl = document.createElement('div');
-  typingEl.id = 'qgTyping';
-  typingEl.style.cssText = 'display:flex;gap:8px;align-items:flex-start';
-  const initials = window._vanofficeProfile ? (window._vanofficeProfile.business_name||'AI').substring(0,2).toUpperCase() : 'AI';
-  typingEl.innerHTML = `<div style="width:28px;height:28px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#fff;flex-shrink:0">${initials}</div><div style="background:var(--s2);border-radius:4px 12px 12px 12px;padding:9px 14px;font-size:.75rem;color:var(--t3)"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>`;
-  document.getElementById('qgChatArea').appendChild(typingEl);
-  document.getElementById('qgChatArea').scrollTop = 9999;
-
-  const photoToSend = qgPhotoBase64;
-  const photoType = qgPhotoType;
-  qgClearPhoto();
-
-  try{
-    const body = {message: msgWithContext, history: qgHistory.slice(0,-1)};
-    if(photoToSend){ body.image = photoToSend; body.imageType = photoType; }
-
-    const res = await fetch('/api/generate-quote-ai?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin), {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(body)
-    });
-    const q = await res.json();
-    const typing = document.getElementById('qgTyping');
-    if(typing) typing.remove();
-
-    if(q.error){
-      qgAddMsg('ai', 'Sorry, something went wrong. Please try again.');
-    } else if(q.type === 'question'){
-      qgAddMsg('ai', q.message);
-      qgHistory.push({role:'assistant', content: q.message});
-      if(qgVoiceEnabled || qgListening) qgSpeak(q.message);
-    } else if(q.type === 'quote'){
-      const summary = q.summary || 'Quote ready! Check the price below.';
-      qgAddMsg('ai', summary);
-      qgHistory.push({role:'assistant', content: summary});
-      if(qgVoiceEnabled || qgListening) qgSpeak(summary);
-      qgShowPriceSummary(q);
-    }
-  }catch(e){
-    const typing = document.getElementById('qgTyping');
-    if(typing) typing.remove();
-    qgAddMsg('ai','Something went wrong — please try again.');
-  }
-
-  btn.disabled = false;
-  input.disabled = false;
-  input.focus();
-}
-
-
+/* ─── Boot → login ─── */
+window.addEventListener('load',()=>{
+  setTimeout(()=>{
+    boot.classList.add('gone');
+    loginPhone.classList.remove('hide');
+    requestAnimationFrame(()=>loginPhone.classList.remove('out'));
+  },1500);
+});
 </script>
 </body>
 </html>
