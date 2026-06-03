@@ -1420,10 +1420,11 @@ def api_stats():
         profile = result.data[0]
         if str(profile.get("pin", "")) != str(pin):
             return jsonify({"error": "Invalid PIN"}), 401
-        new_enq = supabase.table("enquiries").select("*").eq("status", "new").execute().data
-        missed = supabase.table("enquiries").select("*").eq("status", "missed call").execute().data
-        quoted = supabase.table("enquiries").select("*").eq("status", "quoted").execute().data
-        recent = supabase.table("enquiries").select("*").order("created_at", desc=True).limit(20).execute().data
+        own_sender = profile.get("sender", "")
+        new_enq = supabase.table("enquiries").select("*").eq("sender", own_sender).eq("status", "new").execute().data
+        missed = supabase.table("enquiries").select("*").eq("sender", own_sender).eq("status", "missed call").execute().data
+        quoted = supabase.table("enquiries").select("*").eq("sender", own_sender).eq("status", "quoted").execute().data
+        recent = supabase.table("enquiries").select("*").eq("sender", own_sender).order("created_at", desc=True).limit(20).execute().data
         bookings = supabase.table("bookings").select("*").eq("sender", profile.get("sender", "")).order("date").execute().data
         template_result = supabase.table("quote_templates").select("*").eq("sender", profile.get("sender", "")).execute()
         template = template_result.data[0] if template_result.data else None
@@ -2298,4 +2299,4 @@ Flooring: laminate £15-30/m², underlay £3-5/m², adhesive £20, threshold str
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=os.environ.get("FLASK_DEBUG") == "1")
