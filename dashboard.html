@@ -656,7 +656,10 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
           </div>
         </div>
 
-        <button onclick="generateAndPreview()" style="width:100%;padding:14px;background:var(--acc);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.88rem;font-weight:700;color:#fff;cursor:pointer;margin-bottom:6px" id="genPreviewBtn">👁 Preview quote</button>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <button onclick="generateAndPreview()" style="flex:1;padding:14px;background:var(--s2);border:1.5px solid var(--br);border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:var(--t1);cursor:pointer" id="genPreviewBtn">👁 Preview</button>
+          <button onclick="saveDesignStyle()" style="flex:1;padding:14px;background:var(--acc);border:none;border-radius:12px;font-family:Inter,sans-serif;font-size:.85rem;font-weight:700;color:#fff;cursor:pointer" id="saveStyleBtn">✓ Save style</button>
+        </div>
         <div id="saveDesignMsg" style="text-align:center;font-size:.72rem;color:var(--grn);margin-top:4px;min-height:18px"></div>
 
       </div>
@@ -1764,18 +1767,7 @@ async function generateAndPreview(){
       iframe.srcdoc = data.html;
       wrapper.appendChild(iframe);
       inner.appendChild(wrapper);
-      msg.textContent = '✓ Style saved! All future quotes will use this template.';
-      await fetch('/api/save-design-template?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin), {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({style: designerStyle, template: designerTemplate})
-      });
-      const styleNames = {gold:'Premium Gold',navy:'Navy Pro',slate:'Slate Clean',green:'Forest Green',mono:'Mono Minimal'};
-      const styleColors = {gold:'#1a1a1a',navy:'#0f2b5b',slate:'#3d3d3d',green:'#1e4d2b',mono:'#f5f5f5'};
-      const nameEl = document.getElementById('profileStyleName');
-      const swatchEl = document.getElementById('profileStyleSwatch');
-      if(nameEl) nameEl.textContent = styleNames[designerStyle] || 'Premium Gold';
-      if(swatchEl) swatchEl.style.background = styleColors[designerStyle] || '#1a1a1a';
+      msg.textContent = '✓ Looking good! Tap Save to apply this style.';
     } else {
       msg.textContent = data.error || 'Error loading preview';
     }
@@ -1785,6 +1777,33 @@ async function generateAndPreview(){
     btn.textContent = '👁 Preview my quote';
     btn.disabled = false;
   }
+}
+
+async function saveDesignStyle(){
+  const btn = document.getElementById('saveStyleBtn');
+  const msg = document.getElementById('saveDesignMsg');
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+  try{
+    await fetch('/api/save-design-template?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({style: designerStyle, template: designerTemplate})
+    });
+    haptic('medium');
+    msg.textContent = '✓ Style saved — all future quotes will use this.';
+    const styleNames = {gold:'Premium Gold',navy:'Navy Pro',slate:'Slate Clean',green:'Forest Green',mono:'Mono Minimal'};
+    const styleColors = {gold:'#1a1a1a',navy:'#0f2b5b',slate:'#3d3d3d',green:'#1e4d2b',mono:'#f5f5f5'};
+    const nameEl = document.getElementById('profileStyleName');
+    const swatchEl = document.getElementById('profileStyleSwatch');
+    if(nameEl) nameEl.textContent = styleNames[designerStyle] || 'Premium Gold';
+    if(swatchEl) swatchEl.style.background = styleColors[designerStyle] || '#1a1a1a';
+    setTimeout(()=>{ msg.textContent=''; }, 3000);
+  } catch(e){
+    msg.textContent = 'Error saving. Try again.';
+  }
+  btn.textContent = '✓ Save style';
+  btn.disabled = false;
 }
 
 function showDesignPreview(){
