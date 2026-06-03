@@ -484,6 +484,11 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
           <div style="font-size:.65rem;color:var(--t3);margin-top:4px;padding:0 2px" id="qgPhotoLabel">Photo attached</div>
         </div>
 
+        <div id="qgRateBar" style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--s2);border-radius:10px;margin-bottom:8px">
+          <div style="font-size:.7rem;color:var(--t3)">Using: <span id="qgRateLabel" style="color:var(--t2);font-weight:600">£250/day · 20% markup</span></div>
+          <button onclick="go('profile')" style="background:none;border:none;color:var(--acc2);font-size:.68rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;padding:0">Edit ›</button>
+        </div>
+
         <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
           <input id="qgInput" placeholder="Describe the job or just tap the mic..." style="flex:1;padding:11px 12px;background:var(--s2);border:1px solid var(--br);border-radius:12px;font-family:Inter,sans-serif;font-size:.82rem;color:var(--t1);outline:none" onkeypress="if(event.key==='Enter')qgSend()">
           <button id="qgMicBtn" onclick="qgToggleVoice()" title="Voice input" style="width:42px;height:42px;background:var(--s2);border:1px solid var(--br);border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;flex-shrink:0">🎤</button>
@@ -1000,7 +1005,18 @@ function _launchApp(data){
   renderInvoices(allInvoices,'all');
   allQuotes=data.quotes||[];
   renderQuotesList(allQuotes);
-  if(data.profile){renderProfile(data.profile);window._vanofficeProfile=data.profile;}
+  if(data.profile){
+    renderProfile(data.profile);
+    window._vanofficeProfile=data.profile;
+    const dr = data.profile.day_rate || '250';
+    const mk = data.profile.materials_markup || '20';
+    const rateEl = document.getElementById('qgRateLabel');
+    if(rateEl) rateEl.textContent = '£'+dr+'/day · '+mk+'% markup';
+    if(parseInt(dr)===0){
+      if(rateEl) rateEl.style.color='var(--amb)';
+      if(rateEl) rateEl.textContent = '⚠️ Day rate not set — tap Edit';
+    }
+  }
   if(data.template)loadTemplate(data.template);
   const n=data.profile&&data.profile.owner_name?data.profile.owner_name[0].toUpperCase():'H';
   document.getElementById('avInit').textContent=n;
