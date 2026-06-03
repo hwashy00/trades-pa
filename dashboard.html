@@ -470,7 +470,11 @@ body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;-webkit
         <div id="qgChatArea" style="background:var(--s1);border-radius:14px;padding:12px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto">
           <div style="display:flex;gap:8px;align-items:flex-start">
             <div style="width:28px;height:28px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#fff;flex-shrink:0">AI</div>
-            <div style="background:var(--s2);border-radius:4px 12px 12px 12px;padding:9px 12px;font-size:.78rem;color:var(--t2);line-height:1.6;max-width:90%" class="bubble-in">Hi! Describe the job and I'll work out a price. Include room size, what needs doing, and any special details.</div>
+            <div style="background:var(--s2);border-radius:4px 12px 12px 12px;padding:9px 12px;font-size:.78rem;color:var(--t2);line-height:1.6;max-width:90%" class="bubble-in">Hi! Two ways I can help:
+
+📐 Describe the job — I'll ask a couple of questions and work out the price for you.
+
+🔢 Or if you know your numbers already, just say something like: 'materials £340, 2 days labour, skimming lounge and hallway' — and I'll build the quote straight away.</div>
           </div>
         </div>
 
@@ -2379,7 +2383,11 @@ function qgReset(){
   document.getElementById('qgChatArea').innerHTML = `
     <div style="display:flex;gap:8px;align-items:flex-start">
       <div style="width:28px;height:28px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#fff;flex-shrink:0">AI</div>
-      <div style="background:var(--s2);border-radius:4px 12px 12px 12px;padding:9px 12px;font-size:.78rem;color:var(--t2);line-height:1.6;max-width:90%" class="bubble-in">Hi! Describe the job and I'll work out a price. Include room size, what needs doing, and any special details.</div>
+      <div style="background:var(--s2);border-radius:4px 12px 12px 12px;padding:9px 12px;font-size:.78rem;color:var(--t2);line-height:1.6;max-width:90%" class="bubble-in">Hi! Two ways I can help:
+
+📐 Describe the job — I'll ask a couple of questions and work out the price for you.
+
+🔢 Or if you know your numbers already, just say something like: 'materials £340, 2 days labour, skimming lounge and hallway' — and I'll build the quote straight away.</div>
     </div>`;
   document.getElementById('qgQuoteWrap').style.display = 'none';
   document.getElementById('qgDocWrap').style.display = 'none';
