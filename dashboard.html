@@ -2857,7 +2857,7 @@ async function qgSend(){
 
 
 /* ════════ HANDS-FREE VOICE LOOP ════════ */
-let hfState='idle', hfRecog=null, hfRecogActive=false, hfFinal='', hfSttOK=true, hfWaveTimer=null, hfOpened=false, hfAudio=null;
+let hfState='idle', hfRecog=null, hfRecogActive=false, hfFinal='', hfSttOK=true, hfWaveTimer=null, hfOpened=false, hfAudio=null, hfLastInterim='', hfSilence=null;
 const HF_LABELS={idle:['Tap to talk','Have a proper conversation \u2014 hands free.'],
   listening:['Listening\u2026','Speak now \u2014 I\'ll reply out loud.'],
   thinking:['Thinking\u2026','Working it out.'],
@@ -2923,21 +2923,23 @@ function hfInitRecog(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){hfSttOK=false;return null;}
   const r=new SR(); r.lang='en-GB'; r.continuous=false; r.interimResults=true; r.maxAlternatives=1;
-  r.onresult=e=>{let interim='',fin='';for(let i=e.resultIndex;i<e.results.length;i++){const tx=e.results[i][0].transcript;if(e.results[i].isFinal)fin+=tx;else interim+=tx;}if(interim)hfBub('me',interim,true);if(fin)hfFinal+=fin;};
-  r.onend=()=>{hfRecogActive=false;if(hfState!=='listening')return;if(hfFinal.trim()){hfTurn(hfFinal.trim());hfFinal='';}else{hfListen();}};
+  r.onresult=e=>{let interim='',fin='';for(let i=e.resultIndex;i<e.results.length;i++){const tx=e.results[i][0].transcript;if(e.results[i].isFinal)fin+=tx;else interim+=tx;}if(interim){hfBub('me',interim,true);hfLastInterim=interim;}if(fin)hfFinal+=fin;clearTimeout(hfSilence);hfSilence=setTimeout(()=>{if(hfState==='listening'&&hfRecogActive){try{hfRecog.stop();}catch(e){}}},1500);};
+  r.onend=()=>{hfRecogActive=false;clearTimeout(hfSilence);if(hfState!=='listening')return;const said=(hfFinal.trim()||hfLastInterim.trim());if(said){hfFinal='';hfLastInterim='';hfTurn(said);}else{hfListen();}};
   r.onerror=ev=>{hfRecogActive=false;if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){hfSttOK=false;hfBanner('Mic blocked or unsupported here. Use the keyboard \u2014 I\'ll still talk back. (Android Chrome does full hands-free; iPhone needs a tap per turn.)');hfToggleTyped(true);hfSet('idle');}};
   return r;
 }
-function hfListen(){ if(!hfSttOK){hfSet('idle');return;} hfSet('listening'); hfWaveOn(); hfFinal=''; try{hfRecog.start();hfRecogActive=true;}catch(e){} }
+function hfListen(){ if(!hfSttOK){hfSet('idle');return;} hfSet('listening'); hfWaveOn(); hfFinal=''; hfLastInterim=''; clearTimeout(hfSilence); try{hfRecog.start();hfRecogActive=true;}catch(e){} }
 function hfStopListen(){ hfWaveOff(); if(hfRecog&&hfRecogActive){try{hfRecog.stop();}catch(e){}} }
 
 async function hfTurn(text){
   hfStopListen(); hfBub('me',text); qgHistory.push({role:'user',content:text}); hfSet('thinking');
   let q=null;
   try{
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),25000);
     const res=await fetch('/api/generate-quote-ai?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:text,history:qgHistory.slice(0,-1)})});
+      body:JSON.stringify({message:text,history:qgHistory.slice(0,-1)}),signal:ctrl.signal});
+    clearTimeout(to);
     q=await res.json();
   }catch(e){ q={error:true}; }
   let say='';
