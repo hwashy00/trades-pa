@@ -1401,7 +1401,11 @@ def health():
 @app.route("/dashboard")
 def dashboard():
     with open("dashboard.html", "r") as f:
-        return f.read()
+        html = f.read()
+    resp = Response(html, mimetype="text/html")
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
 
 
 @app.route("/api/stats")
