@@ -2918,18 +2918,87 @@ async function hfSpeak(text){
     }
   });
 }
-/* —— VOICE IN —— */
-function hfInitRecog(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){hfSttOK=false;return null;}
-  const r=new SR(); r.lang='en-GB'; r.continuous=false; r.interimResults=true; r.maxAlternatives=1;
-  r.onresult=e=>{let interim='',fin='';for(let i=e.resultIndex;i<e.results.length;i++){const tx=e.results[i][0].transcript;if(e.results[i].isFinal)fin+=tx;else interim+=tx;}if(interim){hfBub('me',interim,true);hfLastInterim=interim;}if(fin)hfFinal+=fin;clearTimeout(hfSilence);hfSilence=setTimeout(()=>{if(hfState==='listening'&&hfRecogActive){try{hfRecog.stop();}catch(e){}}},2800);};
-  r.onend=()=>{hfRecogActive=false;clearTimeout(hfSilence);if(hfState!=='listening')return;const said=(hfFinal.trim()||hfLastInterim.trim());if(said){hfFinal='';hfLastInterim='';hfTurn(said);}else{hfListen();}};
-  r.onerror=ev=>{hfRecogActive=false;if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){hfSttOK=false;hfBanner('Mic blocked or unsupported here. Use the keyboard \u2014 I\'ll still talk back. (Android Chrome does full hands-free; iPhone needs a tap per turn.)');hfToggleTyped(true);hfSet('idle');}};
-  return r;
+/* —— VOICE IN —— record audio + server-side Whisper STT (works on iPhone) —— */
+let hfStream=null, hfRec=null, hfChunks=[], hfMime='', hfAudioCtx=null, hfVadRAF=null, hfHeardSpeech=false, hfSilenceStart=0, hfRecStart=0;
+
+async function hfListen(){
+  if(hfState==='idle' && !document.getElementById('hfOverlay').classList.contains('open')) return;
+  hfSet('listening');
+  hfChunks=[]; hfHeardSpeech=false; hfSilenceStart=0;
+  try{
+    if(!hfStream || !hfStream.active){ hfStream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+  }catch(e){
+    hfBanner('Microphone blocked. Allow mic access for this site, then reopen Hands-free — or type below.');
+    hfToggleTyped(true); hfSet('idle'); return;
+  }
+  hfMime = (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm')) ? 'audio/webm'
+         : (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/mp4')) ? 'audio/mp4' : '';
+  try{ hfRec = hfMime ? new MediaRecorder(hfStream,{mimeType:hfMime}) : new MediaRecorder(hfStream); }
+  catch(e){ try{ hfRec = new MediaRecorder(hfStream); }catch(e2){ hfBanner('Recording not supported on this browser — type below.'); hfToggleTyped(true); hfSet('idle'); return; } }
+  if(!hfMime && hfRec.mimeType) hfMime = hfRec.mimeType;
+  hfRec.ondataavailable = ev=>{ if(ev.data && ev.data.size>0) hfChunks.push(ev.data); };
+  hfRec.onstop = hfProcessRecording;
+  hfRecStart = Date.now();
+  try{ hfRec.start(); }catch(e){ hfSet('idle'); return; }
+  hfStartVAD();
 }
-function hfListen(){ if(!hfSttOK){hfSet('idle');return;} hfSet('listening'); hfWaveOn(); hfFinal=''; hfLastInterim=''; clearTimeout(hfSilence); try{hfRecog.start();hfRecogActive=true;}catch(e){} }
-function hfStopListen(){ hfWaveOff(); if(hfRecog&&hfRecogActive){try{hfRecog.stop();}catch(e){}} }
+
+function hfStartVAD(){
+  try{
+    if(!hfAudioCtx) hfAudioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if(hfAudioCtx.state==='suspended') hfAudioCtx.resume();
+    const src = hfAudioCtx.createMediaStreamSource(hfStream);
+    const an = hfAudioCtx.createAnalyser(); an.fftSize = 512;
+    src.connect(an);
+    const buf = new Uint8Array(an.fftSize);
+    const bars = document.querySelectorAll('#hfWave i');
+    function tick(){
+      if(!hfRec || hfRec.state!=='recording'){ return; }
+      an.getByteTimeDomainData(buf);
+      let sum=0; for(let i=0;i<buf.length;i++){ const v=(buf[i]-128)/128; sum+=v*v; }
+      const rms = Math.sqrt(sum/buf.length);
+      bars.forEach((b,i)=>{ b.style.height = Math.max(6, Math.min(34, 6 + rms*200*(0.6+Math.sin(Date.now()/110+i)*0.4)))+'px'; });
+      const now = Date.now();
+      if(rms > 0.04){ hfHeardSpeech=true; hfSilenceStart=0; }
+      else if(hfHeardSpeech){
+        if(!hfSilenceStart) hfSilenceStart = now;
+        else if(now - hfSilenceStart > 1600){ hfStopRecording(); return; }
+      }
+      if(now - hfRecStart > 15000){ hfStopRecording(); return; }
+      hfVadRAF = requestAnimationFrame(tick);
+    }
+    hfVadRAF = requestAnimationFrame(tick);
+  }catch(e){
+    setTimeout(()=>{ hfHeardSpeech=true; hfStopRecording(); }, 6000);
+  }
+}
+
+function hfStopRecording(){
+  if(hfVadRAF) cancelAnimationFrame(hfVadRAF);
+  if(hfRec && hfRec.state==='recording'){ try{ hfRec.stop(); }catch(e){} }
+}
+
+async function hfProcessRecording(){
+  if(!hfChunks.length || !hfHeardSpeech){ if(hfState==='listening') hfListen(); return; }
+  hfSet('thinking');
+  const blob = new Blob(hfChunks, {type: hfMime || 'audio/webm'});
+  const ext = (hfMime.indexOf('mp4')>=0 || hfMime.indexOf('mpeg')>=0) ? 'mp4' : 'webm';
+  const fd = new FormData(); fd.append('audio', blob, 'speech.'+ext);
+  let text='';
+  try{
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),20000);
+    const r = await fetch('/api/stt?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST',body:fd,signal:ctrl.signal});
+    clearTimeout(to);
+    if(r.ok){ const j=await r.json(); text=(j.text||'').trim(); }
+  }catch(e){}
+  if(!text){ if(hfState!=='idle') hfListen(); return; }
+  hfTurn(text);
+}
+
+function hfStopListen(){
+  if(hfVadRAF) cancelAnimationFrame(hfVadRAF);
+  if(hfRec && hfRec.state==='recording'){ try{ hfRec.stop(); }catch(e){} }
+}
 
 async function hfTurn(text){
   hfStopListen(); hfBub('me',text); qgHistory.push({role:'user',content:text}); hfSet('thinking');
@@ -2943,20 +3012,22 @@ async function hfTurn(text){
     q=await res.json();
   }catch(e){ q={error:true}; }
   let say='';
-  if(!q||q.error){ say="Sorry, I didn't catch that \u2014 say it again?"; }
+  if(!q||q.error){ say="Sorry, I didn't catch that — say it again?"; }
   else if(q.type==='question'){ say=q.message; qgHistory.push({role:'assistant',content:q.message}); }
   else if(q.type==='quote'){ say=(q.summary||'Quote ready.')+' I\'ve put the full quote on your screen.'; qgHistory.push({role:'assistant',content:q.summary||'Quote ready.'}); try{qgShowPriceSummary(q);}catch(e){} }
   else { say=q.message||'Okay.'; }
   hfBub('ai',say); hfSet('speaking'); await hfSpeak(say);
-  if(hfState==='speaking') hfListen();   // loop hands-free
+  if(hfState==='speaking') hfListen();
 }
 
-function hfOpen(){
+async function hfOpen(){
   document.getElementById('hfOverlay').classList.add('open');
   hfOpened=true;
   if(window.speechSynthesis) window.speechSynthesis.resume();
-  if(!hfRecog) hfRecog=hfInitRecog();
-  const greet="Alright \u2014 what can I sort for you?";
+  try{ if(!hfAudioCtx) hfAudioCtx = new (window.AudioContext||window.webkitAudioContext)(); hfAudioCtx.resume(); }catch(e){}
+  try{ if(!hfStream || !hfStream.active) hfStream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ hfBanner('Allow microphone access to talk — or type below.'); hfToggleTyped(true); }
+  const greet="Alright — what can I sort for you?";
   hfBub('ai',greet); qgHistory.push({role:'assistant',content:greet});
   hfSet('speaking'); hfSpeak(greet).then(()=>{ if(hfState==='speaking') hfListen(); });
 }
@@ -2972,11 +3043,12 @@ function hfEnd(){
   hfStopListen();
   if(hfAudio){hfAudio.pause();hfAudio=null;}
   if(window.speechSynthesis)window.speechSynthesis.cancel();
+  if(hfStream){ try{ hfStream.getTracks().forEach(t=>t.stop()); }catch(e){} hfStream=null; }
   hfSet('idle'); document.getElementById('hfOverlay').classList.remove('open');
   document.getElementById('hfScroll').innerHTML='';
 }
 function hfToggleTyped(force){const tp=document.getElementById('hfTyped');const show=force===true?true:!tp.classList.contains('show');tp.classList.toggle('show',show);if(show)setTimeout(()=>document.getElementById('hfInput').focus(),100);}
-function hfSendTyped(){const v=document.getElementById('hfInput').value.trim();if(!v)return;document.getElementById('hfInput').value='';if(!hfRecog)hfRecog=hfInitRecog();hfTurn(v);}
+function hfSendTyped(){const v=document.getElementById('hfInput').value.trim();if(!v)return;document.getElementById('hfInput').value='';hfTurn(v);}
 
 </script>
 </body>
