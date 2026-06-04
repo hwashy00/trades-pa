@@ -2982,6 +2982,7 @@ async function hfProcessRecording(){
   const dur=Date.now()-hfRecStart;
   if(!hfChunks.length || dur<400){ if(hfState==='listening') hfListen(); return; }
   hfSet('thinking');
+  hfReleaseMic();
   const blob = new Blob(hfChunks, {type: hfMime || 'audio/webm'});
   const ext = (hfMime.indexOf('mp4')>=0 || hfMime.indexOf('mpeg')>=0) ? 'mp4' : 'webm';
   const fd = new FormData(); fd.append('audio', blob, 'speech.'+ext);
@@ -2999,6 +3000,12 @@ async function hfProcessRecording(){
 function hfStopListen(){
   if(hfVadRAF) cancelAnimationFrame(hfVadRAF);
   if(hfRec && hfRec.state==='recording'){ try{ hfRec.stop(); }catch(e){} }
+}
+function hfReleaseMic(){
+  // iOS: holding the mic open silences playback. Release it so TTS can be heard.
+  if(hfVadRAF) cancelAnimationFrame(hfVadRAF);
+  if(hfStream){ try{ hfStream.getTracks().forEach(t=>t.stop()); }catch(e){} hfStream=null; }
+  if(hfAudioCtx && hfAudioCtx.state==='running'){ try{ hfAudioCtx.suspend(); }catch(e){} }
 }
 
 async function hfTurn(text){
