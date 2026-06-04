@@ -3373,15 +3373,15 @@ function renderSetupWizard(profile){
 
   var sub=document.createElement('div');
   sub.style.cssText='font-size:.78rem;color:var(--t3);line-height:1.5';
-  sub.textContent='Your bot needs a number so customers can reach you. Takes 10 minutes.';
+  sub.textContent='Your bot needs a number so customers can text you. A brand new number is the easiest option — no existing accounts affected.';
   card.appendChild(sub);
 
   var steps=document.createElement('div');
   steps.className='setup-steps';
   [
-    ['1','Choose number','Your existing business mobile, or we allocate you one'],
-    ['2','We configure','We register it with WhatsApp Business API'],
-    ['3','Go live','You get a text when your bot is active']
+    ['1','Get a number','A new dedicated number is simplest. Or a number not already on WhatsApp.'],
+    ['2','We configure','We register it with WhatsApp Business API and set up your bot.'],
+    ['3','Go live','You get a text when your bot is active — usually within a few hours.']
   ].forEach(function(s){
     var st=document.createElement('div'); st.className='setup-step';
     var n=document.createElement('div'); n.className='setup-step-n'; n.textContent=s[0];
@@ -3399,12 +3399,17 @@ function renderSetupWizard(profile){
   } else {
     var lbl=document.createElement('div');
     lbl.className='lbl'; lbl.style.marginTop='14px';
-    lbl.textContent='What number do you want to use?';
+    lbl.textContent='Want to use a specific number?';
     card.appendChild(lbl);
+
+    var note=document.createElement('div');
+    note.style.cssText='font-size:.72rem;color:var(--t3);margin-bottom:8px;line-height:1.5';
+    note.textContent='Enter a number below, or leave blank and we\'ll allocate you one. Important: if you use your own number, it must not already be active on WhatsApp — if it is, you\'d need to delete that account first.';
+    card.appendChild(note);
 
     var inp=document.createElement('input');
     inp.className='inp'; inp.id='setupNumInput'; inp.type='tel';
-    inp.placeholder='+44 7700 000000 (leave blank for a new number)';
+    inp.placeholder='+44 7700 000000 — or leave blank for a new number';
     card.appendChild(inp);
 
     var err=document.createElement('div');
