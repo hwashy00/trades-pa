@@ -3122,52 +3122,117 @@ function hfSendTyped(){const v=document.getElementById('hfInput').value.trim();i
 
 /* ── INBOX ── */
 let inboxCurrentClient=null,inboxCurrentName='Customer';
-function timeAgo(iso){if(!iso)return'';try{const d=new Date(iso),n=new Date(),s=Math.floor((n-d)/1e3);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});}catch(e){return'';}}
+function timeAgo(iso){
+  if(!iso)return '';
+  try{
+    var d=new Date(iso),n=new Date(),s=Math.floor((n-d)/1e3);
+    if(s<60)return 'just now';
+    if(s<3600)return Math.floor(s/60)+'m ago';
+    if(s<86400)return Math.floor(s/3600)+'h ago';
+    return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  }catch(e){return '';}
+}
+function renderConvRow(c){
+  var init=(c.client_name||'?').charAt(0).toUpperCase();
+  var pre=c.direction==='outbound'?'\u2192 ':'';
+  var row=document.createElement('div');
+  row.className='iconv';
+  row.dataset.num=c.client_number;
+  row.dataset.name=encodeURIComponent(c.client_name||c.client_number);
+  row.innerHTML=
+    '<div class="iconv-av">'+init+'</div>'+
+    '<div class="iconv-body">'+
+      '<div class="iconv-name">'+(c.client_name||c.client_number)+'</div>'+
+      '<div class="iconv-last">'+pre+c.last_message+'</div>'+
+    '</div>'+
+    '<div class="iconv-meta"><div class="iconv-time">'+timeAgo(c.created_at)+'</div></div>';
+  row.addEventListener('click',function(){openThread(this.dataset.num,this.dataset.name);});
+  return row;
+}
 function loadInbox(){
-  fetch('/api/conversations?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin))
-  .then(r=>r.json()).then(d=>{
-    const list=document.getElementById('inboxList'),empty=document.getElementById('inboxEmpty'),convs=d.conversations||[];
-    if(!convs.length){list.innerHTML='';empty.style.display='block';return;}
+  var url='/api/conversations?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin);
+  fetch(url).then(function(r){return r.json();}).then(function(d){
+    var list=document.getElementById('inboxList');
+    var empty=document.getElementById('inboxEmpty');
+    var convs=d.conversations||[];
+    list.innerHTML='';
+    if(!convs.length){empty.style.display='block';return;}
     empty.style.display='none';
-    list.innerHTML=convs.map(c=>{
-      const init=(c.client_name||'?').charAt(0).toUpperCase();
-      const prefix=c.direction==='outbound'?'→ ':'';
-      return '<div class="iconv" data-num="'+c.client_number+'" data-name="'+encodeURIComponent(c.client_name||c.client_number)+'">'+
-        '<div class="iconv-av">'+init+'</div>'+
-        '<div class="iconv-body"><div class="iconv-name">'+(c.client_name||c.client_number)+'</div>'+
-        '<div class="iconv-last">'+prefix+c.last_message+'</div></div>'+
-        '<div class="iconv-meta"><div class="iconv-time">'+timeAgo(c.created_at)+'</div></div></div>';
-    }).join('');
-    list.querySelectorAll('.iconv').forEach(function(el){
-      el.addEventListener('click',function(){openThread(this.dataset.num,this.dataset.name);});
-    });
-  }).catch(e=>console.warn('inbox',e));
+    convs.forEach(function(c){list.appendChild(renderConvRow(c));});
+  }).catch(function(e){console.warn('inbox',e);});
+}
+function renderMsgBubble(msg){
+  var out=msg.direction==='outbound';
+  var wrap=document.createElement('div');
+  var bubble=document.createElement('div');
+  bubble.className='tmsg '+(out?'out':'in');
+  bubble.textContent=msg.message;
+  var ts=document.createElement('div');
+  ts.className='tmsg-time';
+  ts.style.textAlign=out?'right':'left';
+  ts.textContent=timeAgo(msg.created_at);
+  wrap.appendChild(bubble);
+  wrap.appendChild(ts);
+  return wrap;
 }
 function openThread(num,nameEnc){
-  inboxCurrentClient=num; inboxCurrentName=decodeURIComponent(nameEnc);
+  inboxCurrentClient=num;
+  inboxCurrentName=decodeURIComponent(nameEnc);
   document.getElementById('threadName').textContent=inboxCurrentName;
   document.getElementById('threadNum').textContent=num;
   document.getElementById('inboxListView').style.display='none';
   document.getElementById('inboxThreadView').style.display='block';
-  fetch('/api/conversation/'+encodeURIComponent(num)+'?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin))
-  .then(r=>r.json()).then(d=>{
-    const msgs=d.messages||[],el=document.getElementById('threadMsgs');
-    el.innerHTML=msgs.map(m=>'<div><div class="tmsg '+(m.direction==='outbound'?'out':'in')+'">'+m.message+'</div>'+
-      '<div class="tmsg-time" style="text-align:'+(m.direction==='outbound'?'right':'left')+'">'+timeAgo(m.created_at)+'</div></div>').join('');
+  var url='/api/conversation/'+encodeURIComponent(num)+
+          '?phone='+encodeURIComponent(userPhone)+
+          '&pin='+encodeURIComponent(userPin);
+  fetch(url).then(function(r){return r.json();}).then(function(d){
+    var el=document.getElementById('threadMsgs');
+    el.innerHTML='';
+    (d.messages||[]).forEach(function(m){el.appendChild(renderMsgBubble(m));});
     el.scrollTop=el.scrollHeight;
-  }).catch(e=>console.warn('thread',e));
+  }).catch(function(e){console.warn('thread',e);});
   document.getElementById('replyTa').value='';
 }
-function backToInbox(){document.getElementById('inboxThreadView').style.display='none';document.getElementById('inboxListView').style.display='block';}
+function backToInbox(){
+  document.getElementById('inboxThreadView').style.display='none';
+  document.getElementById('inboxListView').style.display='block';
+}
 async function sendReply(){
-  const ta=document.getElementById('replyTa'),msg=ta.value.trim();
-  if(!msg||!inboxCurrentClient)return;
-  ta.value='';ta.style.height='';
-  const el=document.getElementById('threadMsgs'),div=document.createElement('div');
-  div.innerHTML='<div class="tmsg out">'+msg+'</div><div class="tmsg-time" style="text-align:right">just now</div>';
-  el.appendChild(div);el.scrollTop=el.scrollHeight;
-  try{await fetch('/api/reply-client?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_number:inboxCurrentClient,message:msg})});}
-  catch(e){console.warn('reply',e);}
+  var ta=document.getElementById('replyTa');
+  var msg=ta.value.trim();
+  if(!msg) return;
+  if(!inboxCurrentClient){
+    var el=document.getElementById('threadMsgs');
+    var warn=document.createElement('div');
+    warn.innerHTML='<div class="tmsg in" style="color:var(--red)">No client — go back and re-open the conversation.</div>';
+    el.appendChild(warn);
+    return;
+  }
+  var btn=document.querySelector('.reply-send');
+  if(btn) btn.style.opacity='0.5';
+  ta.value=''; ta.style.height='';
+  var el=document.getElementById('threadMsgs');
+  var wrap=document.createElement('div');
+  var bubble=document.createElement('div');
+  bubble.className='tmsg out';
+  bubble.textContent=msg;
+  var ts=document.createElement('div');
+  ts.className='tmsg-time';
+  ts.style.textAlign='right';
+  ts.textContent='Sending\u2026';
+  wrap.appendChild(bubble); wrap.appendChild(ts);
+  el.appendChild(wrap); el.scrollTop=el.scrollHeight;
+  try{
+    var url='/api/reply-client?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin);
+    var res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_number:inboxCurrentClient,message:msg})});
+    var d=await res.json();
+    ts.textContent=d.ok?'Sent \u2713':'Error: '+(d.error||'failed');
+    if(!d.ok) bubble.style.opacity='0.5';
+  }catch(e){
+    ts.textContent='Failed \u2014 check your connection';
+    bubble.style.opacity='0.5';
+  }
+  if(btn) btn.style.opacity='1';
 }
 
 </script>
