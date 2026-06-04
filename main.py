@@ -2379,6 +2379,64 @@ def reply_client():
         print("reply error:",e); return jsonify({"error":str(e)}),500
 
 
+@app.route("/api/check-phone", methods=["GET"])
+def check_phone():
+    try:
+        phone = format_phone(request.args.get("phone","").strip())
+        if not phone:
+            return jsonify({"exists": False})
+        result = supabase.table("profiles").select("phone").eq("phone", phone).execute()
+        return jsonify({"exists": bool(result.data)})
+    except Exception as e:
+        return jsonify({"exists": False, "error": str(e)})
+
+
+@app.route("/api/register", methods=["POST"])
+def register():
+    try:
+        data = request.json or {}
+        phone = format_phone((data.get("phone") or "").strip())
+        pin = str(data.get("pin","")).strip()
+        if not phone or not pin or len(pin) < 4:
+            return jsonify({"error": "Phone and 4-digit PIN required"}), 400
+        existing = supabase.table("profiles").select("phone").eq("phone", phone).execute()
+        if existing.data:
+            return jsonify({"error": "An account already exists for this number"}), 409
+        profile = {
+            "phone": phone, "pin": pin, "sender": phone,
+            "owner_name": (data.get("owner_name") or "").strip(),
+            "business_name": (data.get("business_name") or "").strip(),
+            "trade": (data.get("trade") or "").strip(),
+            "location": (data.get("location") or "").strip(),
+            "day_rate": str(data.get("day_rate") or "300"),
+            "half_day_rate": str(data.get("half_day_rate") or "175"),
+            "hourly_rate": str(data.get("hourly_rate") or "45"),
+            "materials_markup": "20", "payment_terms": "30",
+            "vat_registered": "no", "twilio_number": "", "logo": ""
+        }
+        result = supabase.table("profiles").insert(profile).execute()
+        if not result.data:
+            return jsonify({"error": "Registration failed — please try again"}), 500
+        # notify admin
+        try:
+            admin_phone = os.environ.get("ADMIN_PHONE","")
+            twilio_num = os.environ.get("TWILIO_NUMBER","")
+            if admin_phone and twilio_num:
+                from twilio.rest import Client as TwilioClient
+                tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"),
+                                  os.environ.get("TWILIO_AUTH_TOKEN"))
+                biz = profile["business_name"] or profile["owner_name"]
+                tc.messages.create(
+                    body=f"New VanOffice signup: {biz} ({profile['trade']}, {profile['location']}). Phone: {phone}. Register their WhatsApp sender in Twilio to activate.",
+                    from_="whatsapp:"+twilio_num, to="whatsapp:"+admin_phone)
+        except Exception as ne:
+            print("Admin notify error:", ne)
+        return jsonify({"ok": True})
+    except Exception as e:
+        print("Register error:", e)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/send-quote-voice", methods=["POST"])
 def send_quote_voice():
     try:
