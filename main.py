@@ -2310,9 +2310,9 @@ def conversations():
         if not result.data or str(result.data[0].get("pin","")) != str(pin):
             return jsonify({"error":"Unauthorised"}),401
         profile = result.data[0]
-        sp = profile.get("sender","")
-        # get all messages for this tradesperson
-        msgs = supabase.table("client_chats").select("*").eq("sender_profile",sp).order("created_at",desc=True).limit(500).execute().data
+        twilio_num = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER","")
+        # get all messages for this tradesperson's Twilio number
+        msgs = supabase.table("client_chats").select("*").eq("twilio_number",twilio_num).order("created_at",desc=True).limit(500).execute().data
         # group by client_number, keep latest message per thread
         threads = {}
         for msg in msgs:
@@ -2344,8 +2344,9 @@ def conversation_thread(client_number):
         result = supabase.table("profiles").select("*").eq("phone",phone).execute()
         if not result.data or str(result.data[0].get("pin","")) != str(pin):
             return jsonify({"error":"Unauthorised"}),401
-        sp = result.data[0].get("sender","")
-        msgs = supabase.table("client_chats").select("*").eq("sender_profile",sp).eq("client_number",client_number).order("created_at").execute().data
+        prof = result.data[0]
+        twilio_num = prof.get("twilio_number") or os.environ.get("TWILIO_NUMBER","")
+        msgs = supabase.table("client_chats").select("*").eq("twilio_number",twilio_num).eq("client_number",client_number).order("created_at").execute().data
         return jsonify({"messages":msgs})
     except Exception as e:
         print("thread error:",e); return jsonify({"error":str(e)}),500
