@@ -2302,6 +2302,46 @@ Flooring: laminate £15-30/m², underlay £3-5/m², adhesive £20, threshold str
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/stt", methods=["POST"])
+def stt():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        if not phone or not pin:
+            return jsonify({"error": "Auth required"}), 401
+        result = supabase.table("profiles").select("pin").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+
+        if "audio" not in request.files:
+            return jsonify({"error": "No audio"}), 400
+        audio = request.files["audio"]
+        audio_bytes = audio.read()
+        if not audio_bytes:
+            return jsonify({"error": "Empty audio"}), 400
+
+        api_key = os.environ.get("OPENAI_API_KEY", "")
+        if not api_key:
+            return jsonify({"error": "OpenAI not configured"}), 503
+
+        import requests as http_requests
+        filename = audio.filename or "speech.webm"
+        r = http_requests.post(
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers={"Authorization": "Bearer " + api_key},
+            files={"file": (filename, audio_bytes, audio.mimetype or "audio/webm")},
+            data={"model": "whisper-1", "language": "en"},
+            timeout=30
+        )
+        if r.status_code != 200:
+            print("STT error:", r.status_code, r.text[:300])
+            return jsonify({"error": "STT failed"}), 502
+        return jsonify({"text": r.json().get("text", "")})
+    except Exception as e:
+        print("STT error:", e)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/tts", methods=["POST"])
 def tts():
     try:
