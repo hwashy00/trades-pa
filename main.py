@@ -2391,6 +2391,45 @@ def check_phone():
         return jsonify({"exists": False, "error": str(e)})
 
 
+@app.route("/api/request-setup", methods=["POST"])
+def request_setup():
+    try:
+        phone = format_phone(request.args.get("phone","").strip())
+        pin = request.args.get("pin","").strip()
+        result = supabase.table("profiles").select("*").eq("phone",phone).execute()
+        if not result.data or str(result.data[0].get("pin","")) != str(pin):
+            return jsonify({"error":"Unauthorised"}),401
+        profile = result.data[0]
+        data = request.json or {}
+        requested = (data.get("requested_number") or "").strip()
+        want_new = data.get("want_new", False)
+        # store pending state in twilio_number field
+        pending_val = "pending:new" if (want_new or not requested) else "pending:"+requested
+        supabase.table("profiles").update({"twilio_number": pending_val}).eq("phone",phone).execute()
+        # notify Harry
+        try:
+            admin_phone = os.environ.get("ADMIN_PHONE","")
+            twilio_num  = os.environ.get("TWILIO_NUMBER","")
+            if admin_phone and twilio_num:
+                from twilio.rest import Client as TwilioClient
+                tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"),
+                                  os.environ.get("TWILIO_AUTH_TOKEN"))
+                biz  = profile.get("business_name") or profile.get("owner_name","?")
+                trade = profile.get("trade","")
+                loc   = profile.get("location","")
+                num_line = ("Wants their existing number: "+requested) if requested else "Wants a new number allocated"
+                body_msg = ("WhatsApp setup request:\n" + biz + " (" + trade + ", " + loc + ")\n"
+                               + num_line + "\nPhone: " + phone
+                               + "\n\nRegister in Twilio then update their twilio_number in Supabase.")
+                tc.messages.create(body=body_msg, from_="whatsapp:"+twilio_num, to="whatsapp:"+admin_phone)
+        except Exception as ne:
+            print("Setup notify error:", ne)
+        return jsonify({"ok":True})
+    except Exception as e:
+        print("request_setup error:",e)
+        return jsonify({"error":str(e)}),500
+
+
 @app.route("/api/register", methods=["POST"])
 def register():
     try:
