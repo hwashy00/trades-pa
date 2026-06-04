@@ -1424,11 +1424,10 @@ def api_stats():
         profile = result.data[0]
         if str(profile.get("pin", "")) != str(pin):
             return jsonify({"error": "Invalid PIN"}), 401
-        own_sender = profile.get("sender", "")
-        new_enq = supabase.table("enquiries").select("*").eq("sender", own_sender).eq("status", "new").execute().data
-        missed = supabase.table("enquiries").select("*").eq("sender", own_sender).eq("status", "missed call").execute().data
-        quoted = supabase.table("enquiries").select("*").eq("sender", own_sender).eq("status", "quoted").execute().data
-        recent = supabase.table("enquiries").select("*").eq("sender", own_sender).order("created_at", desc=True).limit(20).execute().data
+        new_enq = supabase.table("enquiries").select("*").eq("status", "new").execute().data
+        missed = supabase.table("enquiries").select("*").eq("status", "missed call").execute().data
+        quoted = supabase.table("enquiries").select("*").eq("status", "quoted").execute().data
+        recent = supabase.table("enquiries").select("*").order("created_at", desc=True).limit(20).execute().data
         bookings = supabase.table("bookings").select("*").eq("sender", profile.get("sender", "")).order("date").execute().data
         template_result = supabase.table("quote_templates").select("*").eq("sender", profile.get("sender", "")).execute()
         template = template_result.data[0] if template_result.data else None
@@ -2299,6 +2298,87 @@ Flooring: laminate £15-30/m², underlay £3-5/m², adhesive £20, threshold str
 
     except Exception as e:
         print("Generate quote AI error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/send-quote-voice", methods=["POST"])
+def send_quote_voice():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+        data = request.json
+        client_name = data.get("client_name", "Customer")
+        job_desc = data.get("job_description", "")
+        total = str(data.get("total", "0"))
+        scope_items = data.get("scope_items", [])
+
+        # save quote to DB
+        quote_count = supabase.table("quotes").select("id").eq("sender", sender).execute()
+        quote_num = "QU-" + str(len(quote_count.data) + 1).zfill(3)
+        quote = {
+            "sender": sender, "client_name": client_name,
+            "client_address": data.get("client_address", ""),
+            "job_description": job_desc, "total": total, "subtotal": total,
+            "vat": "0", "status": "sent",
+            "line_items": [{"description": s, "amount": ""} for s in scope_items],
+            "quote_number": quote_num, "quote_text": "", "client_number": ""
+        }
+
+        # look up client WhatsApp number from enquiries by name
+        client_number = ""
+        try:
+            first_word = client_name.split()[0] if client_name.split() else client_name
+            enq = supabase.table("enquiries").select("sender").ilike("client_name", f"%{first_word}%").order("created_at", desc=True).limit(1).execute()
+            if enq.data:
+                client_number = enq.data[0].get("sender", "")
+        except Exception as e:
+            print("Client lookup error:", e)
+
+        quote["client_number"] = client_number
+        if not client_number:
+            quote["status"] = "draft"
+        res = supabase.table("quotes").insert(quote).execute()
+        saved = res.data[0] if res.data else quote
+        quote_id = saved.get("id", "")
+
+        # send via WhatsApp if we found the client number
+        sent = False
+        if client_number and quote_id:
+            try:
+                account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+                auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+                twilio_number = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER", "")
+                base_url = data.get("base_url", "").rstrip("/")
+                pdf_url = f"{base_url}/generate-pdf/{quote_id}"
+                biz = profile.get("business_name", "your tradesperson")
+                msg = (f"Hi! Here's your quote from {biz}.\n\n"
+                       f"📋 {quote_num}\n{job_desc}\n\n"
+                       f"*Total: £{total}*\n\n"
+                       f"📄 View & download your quote:\n{pdf_url}")
+                from twilio.rest import Client as TwilioClient
+                tc = TwilioClient(account_sid, auth_token)
+                tc.messages.create(body=msg, from_=f"whatsapp:{twilio_number}", to=f"whatsapp:{client_number}")
+                # mark enquiry as quoted
+                try:
+                    supabase.table("enquiries").update({"status": "quoted"}).ilike("client_name", f"%{first_word}%").execute()
+                except Exception:
+                    pass
+                sent = True
+            except Exception as e:
+                print("WhatsApp send error:", e)
+
+        return jsonify({
+            "ok": True, "sent": sent,
+            "quote_number": quote_num, "client_number": client_number,
+            "message": f"Sent to {client_name} on WhatsApp" if sent else f"Saved as {quote_num} — couldn't find {client_name}'s number"
+        })
+    except Exception as e:
+        print("send_quote_voice error:", e)
         return jsonify({"error": str(e)}), 500
 
 
