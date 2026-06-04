@@ -398,7 +398,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     <input type="tel" class="inp" id="phoneInput" placeholder="+44 7700 000000">
     <button class="btn-cta" onclick="submitPhone()">Continue</button>
     <div class="err-msg" id="phoneErr"></div>
-    <div class="login-alt">No account? <span onclick="doDemo()">Try demo</span></div>
+    <div class="login-alt">New here? <span onclick="showSignupScreen()">Create account</span> &nbsp;&#183;&nbsp; <span onclick="doDemo()">Try demo</span></div>
   </div>
   <div class="login-foot">VanOffice · Built for UK tradespeople<br>Encrypted · Private · Yours</div>
 </div>
@@ -432,6 +432,45 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     <div style="text-align:center;margin-top:24px">
       <span style="font-size:.75rem;color:var(--t3);cursor:pointer" onclick="showForgotPin()">Forgot PIN?</span>
     </div>
+  </div>
+</div>
+
+
+<div id="screenSignup" class="login-screen hidden">
+  <div>
+    <button class="back-btn" onclick="backToPhone()">&#8592; Back</button>
+    <div class="logo">Van<b>Office</b></div>
+    <div class="logo-sub">Create your account</div>
+  </div>
+  <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 0;min-height:0">
+    <div>
+      <div class="lbl">Your name</div>
+      <input class="inp" id="su-name" placeholder="Harry Walsh" type="text">
+    </div>
+    <div>
+      <div class="lbl">Business name</div>
+      <input class="inp" id="su-biz" placeholder="Walsh Carpentry" type="text">
+    </div>
+    <div>
+      <div class="lbl">Trade</div>
+      <input class="inp" id="su-trade" placeholder="Carpenter, Electrician..." type="text">
+    </div>
+    <div>
+      <div class="lbl">Area</div>
+      <input class="inp" id="su-area" placeholder="Devon, South West..." type="text">
+    </div>
+    <div>
+      <div class="lbl">Day rate (&#163;)</div>
+      <input class="inp" id="su-rate" placeholder="300" type="number" inputmode="numeric" value="300">
+    </div>
+    <div>
+      <div class="lbl">Choose a 4-digit PIN</div>
+      <input class="inp" id="su-pin" placeholder="&#8226;&#8226;&#8226;&#8226;" type="password" maxlength="4" inputmode="numeric">
+    </div>
+  </div>
+  <div>
+    <div class="err-msg" id="suErr" style="margin-bottom:8px"></div>
+    <button class="btn-cta" id="suBtn" onclick="submitSignup()">Create account</button>
   </div>
 </div>
 
@@ -1106,12 +1145,28 @@ let allEnquiries=[],allBookings=[];
 let userPhone='',userPin='',userSender='',pinBuffer='';
 let selectedColour='#1a1a2e';
 
-function submitPhone(){
+async function submitPhone(){
   const phone=document.getElementById('phoneInput').value.trim();
   if(!phone){document.getElementById('phoneErr').textContent='Please enter your phone number';return}
-  userPhone=phone;
-  document.getElementById('forgotPhone').value=phone;
-  showPinScreen();
+  const btn=document.querySelector('#screenPhone .btn-cta');
+  if(btn){btn.textContent='Checking...';btn.disabled=true;}
+  try{
+    const r=await fetch('/api/check-phone?phone='+encodeURIComponent(phone));
+    const d=await r.json();
+    userPhone=phone;
+    document.getElementById('forgotPhone').value=phone;
+    if(d.exists){
+      showPinScreen();
+    } else {
+      showSignupScreen();
+    }
+  }catch(e){
+    userPhone=phone;
+    document.getElementById('forgotPhone').value=phone;
+    showPinScreen();
+  }finally{
+    if(btn){btn.textContent='Continue';btn.disabled=false;}
+  }
 }
 
 function showPinScreen(){
@@ -1142,6 +1197,56 @@ function pinDel(){pinBuffer=pinBuffer.slice(0,-1);updatePinDots()}
 
 function updatePinDots(){
   for(let i=0;i<4;i++)document.getElementById('d'+i).classList.toggle('filled',i<pinBuffer.length);
+}
+
+function showSignupScreen(){
+  ['screenPhone','screenPin','screenForgot','screenReset'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.classList.add('hidden');
+  });
+  var s=document.getElementById('screenSignup');
+  s.classList.remove('hidden');
+  s.style.opacity='0';s.style.transform='translateY(14px)';
+  requestAnimationFrame(function(){
+    s.style.transition='opacity .25s,transform .3s';
+    s.style.opacity='1';s.style.transform='translateY(0)';
+  });
+  var n=document.getElementById('su-name');if(n)setTimeout(function(){n.focus();},300);
+}
+function backToPhone(){
+  document.getElementById('screenSignup').classList.add('hidden');
+  document.getElementById('screenPhone').classList.remove('hidden');
+}
+async function submitSignup(){
+  var name=document.getElementById('su-name').value.trim();
+  var biz=document.getElementById('su-biz').value.trim();
+  var trade=document.getElementById('su-trade').value.trim();
+  var area=document.getElementById('su-area').value.trim();
+  var rate=document.getElementById('su-rate').value.trim()||'300';
+  var pin=document.getElementById('su-pin').value.trim();
+  var err=document.getElementById('suErr');
+  err.textContent='';
+  if(!name){err.textContent='Please enter your name';return;}
+  if(!biz){err.textContent='Please enter your business name';return;}
+  if(!trade){err.textContent='Please enter your trade';return;}
+  if(!pin||pin.length<4||!/^\d{4}$/.test(pin)){err.textContent='PIN must be exactly 4 digits';return;}
+  var btn=document.getElementById('suBtn');
+  btn.textContent='Creating account...';btn.disabled=true;
+  try{
+    var res=await fetch('/api/register',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({phone:userPhone,pin:pin,owner_name:name,business_name:biz,
+        trade:trade,location:area,day_rate:rate})
+    });
+    var d=await res.json();
+    if(!res.ok||d.error){err.textContent=d.error||'Registration failed';btn.textContent='Create account';btn.disabled=false;return;}
+    userPin=pin;
+    var stats=await fetch('/api/stats?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin));
+    var data=await stats.json();
+    showApp(data);
+  }catch(e){
+    err.textContent='Connection error. Please try again.';
+    btn.textContent='Create account';btn.disabled=false;
+  }
 }
 
 async function submitPin(){
