@@ -3022,7 +3022,21 @@ async function hfTurn(text){
   let say='';
   if(!q||q.error){ say="Sorry, I didn't catch that — say it again?"; }
   else if(q.type==='question'){ say=q.message; qgHistory.push({role:'assistant',content:q.message}); }
-  else if(q.type==='quote'){ say=(q.summary||'Quote ready.')+' I\'ve put the full quote on your screen.'; qgHistory.push({role:'assistant',content:q.summary||'Quote ready.'}); try{qgShowPriceSummary(q);}catch(e){} }
+  else if(q.type==='quote'){
+    let sendRes=null;
+    try{
+      const sr=await fetch('/api/send-quote-voice?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({client_name:q.clientName||'Customer',job_description:(q.scopeItems||[]).join(', '),total:q.totalPrice||0,scope_items:q.scopeItems||[],client_address:q.clientAddress||'',base_url:window.location.origin})
+      });
+      if(sr.ok) sendRes=await sr.json();
+    }catch(e){}
+    say = sendRes&&sendRes.sent
+      ? 'Done — quote '+sendRes.quote_number+' sent to '+(q.clientName||'your client')+' on WhatsApp.'
+      : (q.summary||'Quote ready.')+' Saved as '+(sendRes&&sendRes.quote_number||'a draft')+'. I couldn\'t find '+(q.clientName||'their')+'\'s number — send it from the Quotes tab.';
+    qgHistory.push({role:'assistant',content:say});
+    try{qgShowPriceSummary(q);}catch(e){}
+  }
   else { say=q.message||'Okay.'; }
   hfBub('ai',say); hfSet('speaking'); await hfSpeak(say);
   if(hfState==='speaking') hfListen();
