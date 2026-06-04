@@ -2301,6 +2301,83 @@ Flooring: laminate £15-30/m², underlay £3-5/m², adhesive £20, threshold str
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/conversations", methods=["GET"])
+def conversations():
+    try:
+        phone = format_phone(request.args.get("phone","").strip())
+        pin = request.args.get("pin","").strip()
+        result = supabase.table("profiles").select("*").eq("phone",phone).execute()
+        if not result.data or str(result.data[0].get("pin","")) != str(pin):
+            return jsonify({"error":"Unauthorised"}),401
+        profile = result.data[0]
+        sp = profile.get("sender","")
+        # get all messages for this tradesperson
+        msgs = supabase.table("client_chats").select("*").eq("sender_profile",sp).order("created_at",desc=True).limit(500).execute().data
+        # group by client_number, keep latest message per thread
+        threads = {}
+        for msg in msgs:
+            cn = msg.get("client_number","")
+            if cn and cn not in threads:
+                threads[cn] = msg
+        # look up client names from enquiries
+        convs = []
+        for cn, last in threads.items():
+            name = cn
+            try:
+                enq = supabase.table("enquiries").select("client_name").eq("sender",cn).order("created_at",desc=True).limit(1).execute()
+                if enq.data and enq.data[0].get("client_name"):
+                    name = enq.data[0]["client_name"]
+            except Exception:
+                pass
+            convs.append({"client_number":cn,"client_name":name,"last_message":last.get("message",""),"direction":last.get("direction",""),"created_at":last.get("created_at","")})
+        convs.sort(key=lambda x:x.get("created_at",""),reverse=True)
+        return jsonify({"conversations":convs})
+    except Exception as e:
+        print("conversations error:",e); return jsonify({"error":str(e)}),500
+
+
+@app.route("/api/conversation/<client_number>", methods=["GET"])
+def conversation_thread(client_number):
+    try:
+        phone = format_phone(request.args.get("phone","").strip())
+        pin = request.args.get("pin","").strip()
+        result = supabase.table("profiles").select("*").eq("phone",phone).execute()
+        if not result.data or str(result.data[0].get("pin","")) != str(pin):
+            return jsonify({"error":"Unauthorised"}),401
+        sp = result.data[0].get("sender","")
+        msgs = supabase.table("client_chats").select("*").eq("sender_profile",sp).eq("client_number",client_number).order("created_at").execute().data
+        return jsonify({"messages":msgs})
+    except Exception as e:
+        print("thread error:",e); return jsonify({"error":str(e)}),500
+
+
+@app.route("/api/reply-client", methods=["POST"])
+def reply_client():
+    try:
+        phone = format_phone(request.args.get("phone","").strip())
+        pin = request.args.get("pin","").strip()
+        result = supabase.table("profiles").select("*").eq("phone",phone).execute()
+        if not result.data or str(result.data[0].get("pin","")) != str(pin):
+            return jsonify({"error":"Unauthorised"}),401
+        profile = result.data[0]
+        sp = profile.get("sender","")
+        data = request.json
+        client_number = data.get("client_number","")
+        message = (data.get("message") or "").strip()
+        if not client_number or not message:
+            return jsonify({"error":"Missing fields"}),400
+        twilio_number = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER","")
+        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+        from twilio.rest import Client as TwilioClient
+        tc = TwilioClient(account_sid,auth_token)
+        tc.messages.create(body=message,from_="whatsapp:"+twilio_number,to="whatsapp:"+client_number)
+        supabase.table("client_chats").insert({"twilio_number":twilio_number,"client_number":client_number,"message":message,"direction":"outbound","sender_profile":sp}).execute()
+        return jsonify({"ok":True})
+    except Exception as e:
+        print("reply error:",e); return jsonify({"error":str(e)}),500
+
+
 @app.route("/api/send-quote-voice", methods=["POST"])
 def send_quote_voice():
     try:
