@@ -2906,11 +2906,11 @@ async function hfSpeak(text){
       if(!r.ok) throw new Error('tts '+r.status);
       const blob=await r.blob();
       const url=URL.createObjectURL(blob);
-      const audio=new Audio(url);
-      hfAudio=audio;
-      audio.onended=()=>{hfAudio=null;URL.revokeObjectURL(url);res();};
-      audio.onerror=()=>{hfAudio=null;URL.revokeObjectURL(url);res();};
-      await audio.play();
+      if(!hfPlayer){ hfPlayer=new Audio(); hfPlayer.setAttribute('playsinline',''); }
+      hfPlayer.src=url; hfAudio=hfPlayer;
+      hfPlayer.onended=()=>{URL.revokeObjectURL(url);res();};
+      hfPlayer.onerror=()=>{URL.revokeObjectURL(url);res();};
+      await hfPlayer.play();
     }catch(e){
       console.warn('ElevenLabs TTS failed, using browser voice:',e.message);
       await hfBrowserSpeak(text);
@@ -2919,7 +2919,7 @@ async function hfSpeak(text){
   });
 }
 /* —— VOICE IN —— record audio + server-side Whisper STT (works on iPhone) —— */
-let hfStream=null, hfRec=null, hfChunks=[], hfMime='', hfAudioCtx=null, hfVadRAF=null, hfHeardSpeech=false, hfSilenceStart=0, hfRecStart=0;
+let hfStream=null, hfRec=null, hfChunks=[], hfMime='', hfAudioCtx=null, hfVadRAF=null, hfHeardSpeech=false, hfSilenceStart=0, hfRecStart=0, hfPlayer=null;
 
 async function hfListen(){
   if(hfState==='idle' && !document.getElementById('hfOverlay').classList.contains('open')) return;
@@ -3033,6 +3033,7 @@ async function hfOpen(){
   hfOpened=true;
   if(window.speechSynthesis) window.speechSynthesis.resume();
   try{ if(!hfAudioCtx) hfAudioCtx = new (window.AudioContext||window.webkitAudioContext)(); hfAudioCtx.resume(); }catch(e){}
+  try{ if(!hfPlayer){ hfPlayer=new Audio(); hfPlayer.setAttribute('playsinline',''); } hfPlayer.src='data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//OEZAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCAgICAgICAgICAgICAgICAgP////////////////////////8AAAA5TEFNRTMuMTAwAa0AAAAAAAAAABSAJAJAQgAAgAAAAnGMHkkIAAAAAAAAAAAAAAAAAAAA//OEZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=='; hfPlayer.play().then(()=>{hfPlayer.pause();hfPlayer.currentTime=0;}).catch(()=>{}); }catch(e){}
   try{ if(!hfStream || !hfStream.active) hfStream = await navigator.mediaDevices.getUserMedia({audio:true}); }
   catch(e){ hfBanner('Allow microphone access to talk — or type below.'); hfToggleTyped(true); }
   const greet="Alright — what can I sort for you?";
