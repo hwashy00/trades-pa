@@ -632,6 +632,10 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       </div>
       <div class="asst-chat" id="asstChat"></div>
       <div class="asst-bar">
+        <label class="asst-mic" title="Photo to quote" style="cursor:pointer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.4"/><path d="M8 7l1.5-3h5L16 7"/></svg>
+          <input type="file" accept="image/*" capture="environment" onchange="asstHandlePhoto(this)" style="display:none">
+        </label>
         <button class="asst-mic" onclick="hfOpen()" title="Hands-free voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg></button>
         <textarea class="asst-ta" id="asstInput" rows="1" placeholder="Tell me what you need..." oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'" onkeydown="asstHandleEnter(event)"></textarea>
         <button class="asst-send" onclick="asstSend()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 12l16-8-6 16-3-7-7-1z" stroke-linejoin="round"/></svg></button>
@@ -3648,6 +3652,49 @@ function refreshQuotes(){
     if(d.invoices){allInvoices=d.invoices;}
     if(d.bookings){allBookings=d.bookings;}
   }).catch(function(){});
+}
+
+/* ── ASSISTANT PHOTO-TO-QUOTE ── */
+function asstAddPhotoBubble(src, note){
+  var chat=document.getElementById('asstChat');
+  var b=document.createElement('div');
+  b.className='asst-msg me'; b.style.padding='6px';
+  var img=document.createElement('img');
+  img.src=src; img.style.cssText='width:170px;max-width:62vw;border-radius:11px;display:block';
+  b.appendChild(img);
+  if(note){var n=document.createElement('div');n.textContent=note;n.style.cssText='margin-top:6px;padding:0 4px 2px';b.appendChild(n);}
+  chat.appendChild(b); chat.scrollTop=chat.scrollHeight;
+}
+function asstHandlePhoto(input){
+  if(!input.files||!input.files[0])return;
+  var file=input.files[0];
+  var type=file.type||'image/jpeg';
+  var reader=new FileReader();
+  reader.onload=async function(e){
+    var result=e.target.result;
+    var b64=result.split(',')[1];
+    var ta=document.getElementById('asstInput');
+    var note=ta?ta.value.trim():'';
+    if(ta){ta.value='';ta.style.height='';}
+    var sugg=document.querySelector('.asst-sugg'); if(sugg)sugg.remove();
+    asstAddPhotoBubble(result, note);
+    asstHistory.push({role:'user',content:(note||'[sent a photo of the job]')});
+    asstTyping(true);
+    try{
+      var r=await fetch('/api/assistant?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({message:note,image:b64,imageType:type,history:asstHistory.slice(0,-1)})
+      });
+      var d=await r.json();
+      asstTyping(false);
+      var reply=d.reply||d.error||'Sorry, I had trouble reading that photo. Try again or describe the job.';
+      asstAddBubble('ai',reply);
+      asstHistory.push({role:'assistant',content:reply});
+      if(d.actions&&d.actions.length){asstRefreshStats();refreshQuotes();}
+    }catch(err){asstTyping(false);asstAddBubble('ai','Connection problem — try again in a moment.');}
+  };
+  reader.readAsDataURL(file);
+  input.value='';
 }
 
 </script>
