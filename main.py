@@ -2321,11 +2321,22 @@ def _assistant_create_quote(profile, sender, job_description, client_name="Custo
                 supabase.table("enquiries").update({"status": "quoted"}).ilike("client_name", "%" + fw + "%").execute()
             except Exception:
                 pass
-        mat_lines = ", ".join((x.get("item", "") for x in q["materials"][:6])) or "materials"
-        base = ("Quote " + num + " for " + client_name + ". Labour " + str(q["labour_days"])
-                + " day(s) at " + str(int(q["labour_cost"])) + " pounds, materials "
-                + str(int(q["materials_cost"])) + " pounds (" + mat_lines + "), total "
-                + str(int(q["total"])) + " pounds.")
+        def _money(v):
+            try: return str(int(round(float(v))))
+            except: return ""
+        mat_breakdown = ""
+        for x in q["materials"]:
+            item = x.get("item", "")
+            if not item: continue
+            qty = str(x.get("qty", "") or "").strip()
+            tot = _money(x.get("total", ""))
+            mat_breakdown += "\n  - " + ((qty + "x ") if qty and qty not in ("1","") else "") + item + ((" - " + tot + " pounds") if tot else "")
+        if not mat_breakdown:
+            mat_breakdown = "\n  - Materials estimated within the job"
+        base = ("Quote " + num + " for " + client_name + ", total " + str(int(q["total"])) + " pounds."
+                + "\n\nMaterials breakdown:" + mat_breakdown
+                + "\nMaterials subtotal: " + str(int(q["materials_cost"])) + " pounds"
+                + "\nLabour: " + str(q["labour_days"]) + " day(s) - " + str(int(q["labour_cost"])) + " pounds")
         if sent:
             return base + " Saved and sent to " + client_name + " on WhatsApp. View it in the Quotes tab."
         elif client_number:
@@ -2460,7 +2471,8 @@ def assistant():
             "CRITICAL: To DO anything — create a quote or invoice, book a job, mark something paid — you MUST call the matching tool. "
             "NEVER say you have created, saved, sent or booked something unless you have actually called the tool and seen its result. "
             "Do not claim a quote or invoice is saved to any tab unless the tool confirmed it. "
-            "When the user clearly asks for an action and you have enough detail, call the tool straight away rather than just describing what you will do."
+            "When the user clearly asks for an action and you have enough detail, call the tool straight away rather than just describing what you will do. "
+            "When a quote is created, relay the full materials and labour breakdown that the tool returns to the user - keep the itemised list, do not shorten it."
         )
 
         messages = []
