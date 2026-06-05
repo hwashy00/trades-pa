@@ -441,6 +441,27 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .asst-photo-stage img{width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0}
 .asst-photo-stage span{flex:1;font-size:.76rem;color:var(--t2);line-height:1.3}
 .asst-photo-stage button{background:none;border:none;color:var(--t3);font-size:.95rem;cursor:pointer;padding:4px 6px;flex-shrink:0}
+
+.asst-msg.asst-in{animation:asstIn .3s cubic-bezier(.2,.7,.3,1)}
+@keyframes asstIn{from{opacity:0;transform:translateY(9px) scale(.98)}to{opacity:1;transform:none}}
+.asst-sugg{animation:asstIn .35s cubic-bezier(.2,.7,.3,1)}
+.asst-stat{transition:transform .12s var(--press),background .15s}
+.asst-stat:active{transform:scale(.96)}
+
+.pulse{margin-top:11px}
+.pulse-bar{display:flex;height:6px;border-radius:6px;overflow:hidden;background:var(--s2);border:1px solid var(--br)}
+.pulse-seg{height:100%;transition:width .8s cubic-bezier(.2,.7,.3,1)}
+.pulse-seg.pulse-q{background:var(--t3)}
+.pulse-seg.pulse-o{background:var(--amb)}
+.pulse-seg.pulse-p{background:var(--acc)}
+.pulse-row{display:flex;margin-top:8px}
+.pulse-cell{flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:1px}
+.pulse-dot{width:7px;height:7px;border-radius:50%;margin-bottom:3px}
+.pulse-dot.pulse-q{background:var(--t3)}
+.pulse-dot.pulse-o{background:var(--amb)}
+.pulse-dot.pulse-p{background:var(--acc)}
+.pulse-v{font-family:'Spline Sans Mono',monospace;font-weight:600;font-size:.92rem;color:var(--t1)}
+.pulse-l{font-size:.58rem;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
 </style>
 </head>
 <body>
@@ -633,6 +654,14 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
           <div class="asst-stat" onclick="go('jobs')"><span class="asst-stat-v" id="statEnq">—</span><span class="asst-stat-l">enquiries</span></div>
           <div class="asst-stat" onclick="go('calendar')"><span class="asst-stat-v" id="statBooked" style="color:var(--acc2)">—</span><span class="asst-stat-l">booked</span></div>
           <div class="asst-stat" onclick="go('invoices')"><span class="asst-stat-v" id="heroAmount" style="font-size:.95rem">—</span><span class="asst-stat-l">overview</span></div>
+        </div>
+        <div class="pulse" id="asstPulse">
+          <div class="pulse-bar"><span class="pulse-seg pulse-q" id="pulseBarQ"></span><span class="pulse-seg pulse-o" id="pulseBarO"></span><span class="pulse-seg pulse-p" id="pulseBarP"></span></div>
+          <div class="pulse-row">
+            <div class="pulse-cell"><span class="pulse-dot pulse-q"></span><span class="pulse-v" id="pulseQ">£0</span><span class="pulse-l">quoted</span></div>
+            <div class="pulse-cell"><span class="pulse-dot pulse-o"></span><span class="pulse-v" id="pulseO">£0</span><span class="pulse-l">owed</span></div>
+            <div class="pulse-cell"><span class="pulse-dot pulse-p"></span><span class="pulse-v" id="pulseP">£0</span><span class="pulse-l">paid</span></div>
+          </div>
         </div>
       </div>
       <div class="asst-chat" id="asstChat"></div>
@@ -1405,6 +1434,7 @@ function _launchApp(data){
   allInvoices=data.invoices||[];
   renderInvoices(allInvoices,'all');
   allQuotes=data.quotes||[];
+  setTimeout(function(){try{renderPulse();}catch(e){}},200);
   renderQuotesList(allQuotes);
   if(data.profile){
     renderProfile(data.profile);
@@ -1477,9 +1507,22 @@ function doDemo(){
   });
 }
 
+function animateCount(el,target){
+  if(!el)return;
+  target=parseInt(target)||0;
+  var start=parseInt((el.textContent||'').replace(/[^0-9]/g,''))||0;
+  if(start===target){el.textContent=target;return;}
+  var dur=650,t0=performance.now();
+  function tick(t){
+    var p=Math.min(1,(t-t0)/dur);
+    el.textContent=Math.round(start+(target-start)*(1-Math.pow(1-p,3)));
+    if(p<1)requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
 function updateStats(data){
-  document.getElementById('statEnq').textContent=data.enquiries||0;
-  document.getElementById('statBooked').textContent=(data.bookings||[]).length;
+  animateCount(document.getElementById('statEnq'),data.enquiries||0);
+  animateCount(document.getElementById('statBooked'),(data.bookings||[]).length);
   document.getElementById('statMissed').textContent=data.missed||0;
   document.getElementById('heroAmount').textContent=(data.enquiries||0)+' active';
   document.getElementById('heroNew').textContent=(data.enquiries||0)+' enquiries';
@@ -3579,29 +3622,60 @@ function asstInit(profile){
   var chat=document.getElementById('asstChat');
   if(chat && !chat.dataset.init){
     chat.dataset.init='1';
-    asstAddBubble('ai','Hi — I can sort your admin while you work. Try one of these, or just tell me what you need.');
-    var sugg=document.createElement('div'); sugg.className='asst-sugg';
-    [['What\u2019s on this week?','What have I got on this week?'],
-     ['Any new enquiries?','Any new enquiries?'],
-     ['Create an invoice','I want to create an invoice'],
-     ['Business summary','Give me a summary of where things are at']
-    ].forEach(function(s){
-      var b=document.createElement('button');
-      b.textContent=s[0];
-      b.onclick=function(){asstSend(s[1]);};
-      sugg.appendChild(b);
-    });
-    chat.appendChild(sugg);
+    var fallbackChips=['What\u2019s on this week?','Any new enquiries?','Create an invoice','Business summary'];
+    asstTyping(true);
+    fetch('/api/briefing?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin))
+      .then(function(r){return r.json();})
+      .then(function(d){
+        asstTyping(false);
+        var text=(d&&d.text)?d.text:'Hi — I can sort your admin while you work. Just tell me what you need.';
+        asstAddBubble('ai',text,true);
+        var chips=(d&&d.chips&&d.chips.length)?d.chips:fallbackChips;
+        var delay=Math.min(text.length*16,2000);
+        setTimeout(function(){asstShowSuggestions(chips);},delay);
+      })
+      .catch(function(){
+        asstTyping(false);
+        asstAddBubble('ai','Hi — I can sort your admin while you work. Just tell me what you need.');
+        asstShowSuggestions(fallbackChips);
+      });
   }
 }
-function asstAddBubble(role,text){
+function asstShowSuggestions(list){
+  var chat=document.getElementById('asstChat');
+  if(!chat)return;
+  var sugg=document.createElement('div'); sugg.className='asst-sugg';
+  list.forEach(function(label){
+    var b=document.createElement('button');
+    b.textContent=label;
+    b.onclick=function(){haptic('light');asstSend(label);};
+    sugg.appendChild(b);
+  });
+  chat.appendChild(sugg);
+  chat.scrollTop=chat.scrollHeight;
+}
+function asstAddBubble(role,text,stream){
   var chat=document.getElementById('asstChat');
   var b=document.createElement('div');
-  b.className='asst-msg '+(role==='me'?'me':'ai');
-  b.textContent=text;
+  b.className='asst-msg '+(role==='me'?'me':'ai')+' asst-in';
   chat.appendChild(b);
+  if(role!=='me' && stream && text){
+    asstTypewriter(b,text,chat);
+  } else {
+    b.textContent=text;
+  }
   chat.scrollTop=chat.scrollHeight;
   return b;
+}
+function asstTypewriter(el,text,chat){
+  el.textContent='';
+  var i=0, step=Math.max(1,Math.round(text.length/110));
+  var timer=setInterval(function(){
+    i+=step;
+    el.textContent=text.slice(0,i);
+    if(chat)chat.scrollTop=chat.scrollHeight;
+    if(i>=text.length){clearInterval(timer);el.textContent=text;}
+  },16);
 }
 function asstTyping(on){
   var chat=document.getElementById('asstChat');
@@ -3614,6 +3688,7 @@ function asstTyping(on){
   } else if(ex){ ex.remove(); }
 }
 async function asstSend(preset){
+  try{haptic('light');}catch(e){}
   var ta=document.getElementById('asstInput');
   var msg=preset||(ta?ta.value.trim():'');
   var photo=asstPendingPhoto;
@@ -3647,7 +3722,7 @@ async function asstSend(preset){
     var d=await r.json();
     asstTyping(false);
     var reply=d.reply||d.error||'Sorry, something went wrong.';
-    asstAddBubble('ai',reply);
+    asstAddBubble('ai',reply,true);
     if(inQuote){
       asstQuoteHistory.push({role:'assistant',content:reply});
       asstHistory.push({role:'user',content:(msg||'[sent a photo of the job]')});
@@ -3683,6 +3758,7 @@ function refreshQuotes(){
   .then(function(r){return r.json();}).then(function(d){
     if(d.quotes){allQuotes=d.quotes;renderQuotesList(allQuotes);}
     if(d.invoices){allInvoices=d.invoices;}
+    try{renderPulse();}catch(e){}
     if(d.bookings){allBookings=d.bookings;}
   }).catch(function(){});
 }
@@ -3722,6 +3798,36 @@ function asstClearPhoto(){
   asstPendingPhoto=null;
   var st=document.getElementById('asstPhotoStage'); if(st)st.style.display='none';
   var ta=document.getElementById('asstInput'); if(ta)ta.placeholder='Tell me what you need...';
+}
+
+function _money(n){return '£'+(Math.round(n)).toLocaleString('en-GB');}
+function animateMoney(el,target){
+  if(!el)return;
+  target=Math.round(target)||0;
+  var start=parseInt((el.textContent||'').replace(/[^0-9]/g,''))||0;
+  if(start===target){el.textContent=_money(target);return;}
+  var dur=750,t0=performance.now();
+  function tick(t){
+    var p=Math.min(1,(t-t0)/dur);
+    el.textContent=_money(start+(target-start)*(1-Math.pow(1-p,3)));
+    if(p<1)requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+function renderPulse(){
+  function val(v){var n=parseFloat(String(v||'0').replace(/[^0-9.]/g,''));return isNaN(n)?0:n;}
+  var quoted=(allQuotes||[]).filter(function(q){return (q.status||'')!=='accepted';}).reduce(function(a,q){return a+val(q.total);},0);
+  var owed=(allInvoices||[]).filter(function(i){return (i.status||'')!=='paid';}).reduce(function(a,i){return a+val(i.total);},0);
+  var paid=(allInvoices||[]).filter(function(i){return (i.status||'')==='paid';}).reduce(function(a,i){return a+val(i.total);},0);
+  animateMoney(document.getElementById('pulseQ'),quoted);
+  animateMoney(document.getElementById('pulseO'),owed);
+  animateMoney(document.getElementById('pulseP'),paid);
+  var tot=quoted+owed+paid;
+  function pct(x){return tot>0?Math.max(x>0?6:0,Math.round(x/tot*100))+'%':'0%';}
+  var bq=document.getElementById('pulseBarQ'),bo=document.getElementById('pulseBarO'),bp=document.getElementById('pulseBarP');
+  if(bq)bq.style.width=pct(quoted);
+  if(bo)bo.style.width=pct(owed);
+  if(bp)bp.style.width=pct(paid);
 }
 
 </script>
