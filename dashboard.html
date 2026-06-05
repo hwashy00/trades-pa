@@ -644,7 +644,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div class="asst-bar">
         <label class="asst-mic" title="Photo to quote" style="cursor:pointer">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.4"/><path d="M8 7l1.5-3h5L16 7"/></svg>
-          <input type="file" accept="image/*" capture="environment" onchange="asstHandlePhoto(this)" style="display:none">
+          <input type="file" accept="image/*" onchange="asstHandlePhoto(this)" style="display:none">
         </label>
         <button class="asst-mic" onclick="hfOpen()" title="Hands-free voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg></button>
         <textarea class="asst-ta" id="asstInput" rows="1" placeholder="Tell me what you need..." oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'" onkeydown="asstHandleEnter(event)"></textarea>
