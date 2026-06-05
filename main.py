@@ -2217,63 +2217,39 @@ ASSISTANT_TOOLS = [
 
 
 def _build_detailed_quote(profile, job_description, client_name="Customer", materials_cost=None, labour_days=None):
-    day_rate = float(str(profile.get("day_rate") or "250").replace("\u00a3","").replace(",","").strip() or 250)
-    if day_rate == 0: day_rate = 250
-    markup = float(str(profile.get("materials_markup") or 20).replace("%","").strip() or 20)
-    trade = profile.get("trade", "tradesperson")
-    given = ""
-    if materials_cost: given += " The user gave a materials cost of " + str(materials_cost) + " pounds (do not add markup to this)."
-    if labour_days: given += " The user said " + str(labour_days) + " labour days."
-    sys = ("You are an expert UK " + trade + " writing the scope of works for a professional customer quote. "
-           "You output ONLY valid JSON, no preamble, no markdown, no code fences.")
-    user = ("Job: " + job_description + given +
-            " Day rate " + str(int(day_rate)) + " pounds. Materials markup " + str(int(markup)) + " percent. "
-            "Write a proper professional quote. Give 4 to 6 detailed scope-of-works items, each a full sentence "
-            "describing the work as it would appear on a customer quotation (e.g. 'Supply and erect a timber stud "
-            "partition wall including noggins and insulation'). Estimate materials and labour realistically. "
-            'Respond with ONLY this JSON: '
-            '{"scopeItems":["...","...","...","..."],'
-            '"materials":[{"item":"name","qty":"1","unitCost":0,"total":0}],'
-            '"labourDays":1,"leadTimeDays":"3-5","note":""}')
-    scope = []; mats = []; ld = labour_days or 1; note = ""; lead = "3-5"
-    try:
-        resp = client.messages.create(model="claude-sonnet-4-5", max_tokens=1100,
-                                      system=sys, messages=[{"role":"user","content":user}])
-        raw = ""
-        for b in resp.content:
-            if b.type == "text": raw += b.text
-        import re as _re
-        raw = raw.strip()
-        if raw.startswith("```"):
-            raw = _re.sub(r"^```[a-zA-Z]*", "", raw).rsplit("```", 1)[0]
-        mt = _re.search(r"\{[\s\S]*\}", raw)
-        parsed = json.loads(mt.group(0)) if mt else {}
-        scope = parsed.get("scopeItems", []) or []
-        mats = parsed.get("materials", []) or []
-        ld = labour_days if labour_days else parsed.get("labourDays", 1)
-        note = parsed.get("note", "") or ""
-        lead = parsed.get("leadTimeDays", "3-5") or "3-5"
-    except Exception as e:
-        print("Quote build parse error:", e)
-    # sensible fallbacks so a quote is never bare
-    if not scope:
+    day_rate = float(str(profile.get("day_rate") or "250").replace("\u00a3","").replace(",","").strip() or 250) or 250
+    # build a message for the SAME engine the AI Quote tab uses, pushing it to generate immediately
+    msg = job_description
+    if materials_cost: msg += ". Materials " + str(materials_cost) + " pounds."
+    if labour_days: msg += ". " + str(labour_days) + " days labour."
+    msg += " Generate the quote now with sensible professional assumptions. Do not ask any questions."
+    qd = _quote_gen_core(profile, msg)
+    if qd.get("type") == "quote":
+        scope = qd.get("scopeItems", []) or []
+        total = float(qd.get("totalPrice", 0) or 0)
+        labour_cost = float(qd.get("labourCost", 0) or 0)
+        ld = float(qd.get("labourDays", 0) or (labour_days or 1))
+        materials = qd.get("materials", []) or []
+        mats_final = float(qd.get("materialsCost", 0) or 0)
+        markup_amt = float(qd.get("markupAmount", 0) or 0)
+        note = qd.get("note", "") or ""
+        lead = qd.get("leadTimeDays", "3-5")
+    else:
+        # model asked a question instead of quoting — build a sound fallback so nothing is bare
+        ld = float(labour_days or 1)
+        labour_cost = ld * day_rate
+        mats_final = float(materials_cost) if materials_cost else labour_cost * 0.4
+        markup_amt = 0
+        total = round((labour_cost + mats_final) / 5.0) * 5
         scope = ["Supply all labour and materials for: " + job_description,
                  "All work carried out to current UK building standards",
-                 "Site protection during works and full clean-down on completion"]
-    try: ld = float(ld)
-    except: ld = 1
-    if ld <= 0: ld = 1
-    labour_cost = ld * day_rate
-    if materials_cost:
-        raw_mats = float(materials_cost); markup_amt = 0; mats_final = raw_mats
-    else:
-        raw_mats = sum(float(x.get("total", 0) or 0) for x in mats)
-        if raw_mats <= 0: raw_mats = labour_cost * 0.4  # rough materials estimate if model gave none
-        markup_amt = raw_mats * markup / 100.0
-        mats_final = raw_mats + markup_amt
-    total = round((labour_cost + mats_final) / 5.0) * 5
-    if total <= 0: total = round(day_rate / 5.0) * 5
-    return {"client_name": client_name, "scope": scope, "materials": mats,
+                 "Full site clean-down on completion"]
+        materials = []; note = ""; lead = "3-5"
+    if not scope:
+        scope = ["Supply all labour and materials for: " + job_description]
+    if total <= 0:
+        total = round((labour_cost + mats_final) / 5.0) * 5 or round(day_rate / 5.0) * 5
+    return {"client_name": client_name, "scope": scope, "materials": materials,
             "labour_days": ld, "labour_cost": labour_cost, "materials_cost": mats_final,
             "markup_amount": markup_amt, "total": total, "note": note, "lead_time": lead}
 
@@ -2486,21 +2462,10 @@ def assistant():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/generate-quote-ai", methods=["POST"])
-def generate_quote_ai():
+def _quote_gen_core(profile, message, history=None, image_data=None, image_type="image/jpeg"):
+    sender = profile.get("sender", "")
+    history = history or []
     try:
-        phone = format_phone(request.args.get("phone", "").strip())
-        pin = request.args.get("pin", "").strip()
-        if not phone or not pin:
-            return jsonify({"error": "Auth required"}), 401
-
-        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
-        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
-            return jsonify({"error": "Unauthorised"}), 401
-
-        profile = result.data[0]
-        sender = profile.get("sender", "")
-
         template_result = supabase.table("quote_templates").select("*").eq("sender", sender).execute()
         template = template_result.data[0] if template_result.data else {}
 
@@ -2534,14 +2499,6 @@ def generate_quote_ai():
             day_rate_warning = False
         markup = float(str(profile.get("materials_markup") or 20).replace("%","") or 20)
 
-        data = request.json
-        history = data.get("history", [])
-        message = data.get("message", "")
-        image_data = data.get("image", None)
-        image_type = data.get("imageType", "image/jpeg")
-
-        if not message and not image_data:
-            return jsonify({"error": "No message provided"}), 400
 
         system = f"""You are a professional quoting assistant for {biz_name}, a {trade} business in the UK.
 
@@ -2647,10 +2604,34 @@ Flooring: laminate £15-30/m², underlay £3-5/m², adhesive £20, threshold str
                 "showVat": show_vat,
                 "logoUrl": logo_url
             }
-            return jsonify(quote_data)
+            return quote_data
         else:
-            return jsonify({"type": "question", "message": reply})
+            return {"type": "question", "message": reply}
+    except Exception as e:
+        print("Quote core error: " + str(e))
+        return {"type": "question", "message": "Sorry, I had trouble building that quote. Give me a bit more detail and I will try again."}
 
+
+@app.route("/api/generate-quote-ai", methods=["POST"])
+def generate_quote_ai():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        if not phone or not pin:
+            return jsonify({"error": "Auth required"}), 401
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        data = request.json
+        history = data.get("history", [])
+        message = data.get("message", "")
+        image_data = data.get("image", None)
+        image_type = data.get("imageType", "image/jpeg")
+        if not message and not image_data:
+            return jsonify({"error": "No message provided"}), 400
+        out = _quote_gen_core(profile, message, history, image_data, image_type)
+        return jsonify(out)
     except Exception as e:
         print("Generate quote AI error: " + str(e))
         return jsonify({"error": str(e)}), 500
