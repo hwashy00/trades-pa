@@ -1550,11 +1550,20 @@ function renderQuotes(items){
 
 function renderQuotesList(quotes){
   const el=document.getElementById('quotesList');
-  if(!quotes||!quotes.length){el.innerHTML='<div class="empty-state">No quotes yet.<br>Generate quotes via WhatsApp or tap + Quote on a job.</div>';return}
+  if(!quotes||!quotes.length){el.innerHTML='<div class="empty-state">No quotes yet.<br>Ask the assistant to quote someone, or tap + New AI Quote.</div>';return}
   el.innerHTML=quotes.map(q=>{
     const total=q.total?'£'+q.total:'';
-    return`<div class="li"><div class="li-ico" style="background:var(--amb-d);color:var(--amb)">${ICO.quote}</div><div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.quote_number||''} · ${q.job_description||''}</div></div><div class="li-right"><div class="li-amt">${total}</div><span class="bdg b-amb">Sent</span></div></div>`;
+    const st=(q.status||'draft').toLowerCase();
+    const badge = (st==='sent')?'<span class="bdg b-grn">Sent</span>'
+                : (st==='accepted')?'<span class="bdg b-grn">Accepted</span>'
+                : '<span class="bdg b-amb">Draft</span>';
+    return`<div class="li" onclick="viewQuotePdf('${q.id}')" style="cursor:pointer"><div class="li-ico" style="background:var(--amb-d);color:var(--amb)">${ICO.quote}</div><div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.quote_number||''} · ${q.job_description||''}</div></div><div class="li-right"><div class="li-amt">${total}</div>${badge}</div></div>`;
   }).join('');
+}
+function viewQuotePdf(id){
+  if(!id||id==='undefined')return;
+  haptic('light');
+  window.open('/generate-pdf/'+id,'_blank');
 }
 
 function renderBookings(bookings){
