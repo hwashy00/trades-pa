@@ -406,6 +406,36 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .admin-act:active{transform:scale(.94)}
 .activate-form{margin-top:12px;padding-top:12px;border-top:1px solid var(--br2);display:none}
 .activate-form.open{display:block}
+
+#s-home.on{display:flex;flex-direction:column;height:calc(100vh - 96px);height:calc(100dvh - 96px)}
+.asst-head{padding:2px 20px 12px;flex-shrink:0}
+.asst-greet{font-family:Archivo,sans-serif;font-weight:800;font-size:1.45rem;letter-spacing:-.03em;margin-bottom:12px}
+.asst-chips-row{display:flex;gap:8px}
+.asst-stat{flex:1;background:var(--s1);border:1px solid var(--br);border-radius:13px;padding:9px 8px;text-align:center;cursor:pointer;transition:background .15s}
+.asst-stat:active{background:var(--s2)}
+.asst-stat-v{display:block;font-family:'Spline Sans Mono',monospace;font-weight:600;font-size:1.15rem;line-height:1.2}
+.asst-stat-l{font-size:.6rem;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
+.asst-chat{flex:1;min-height:0;overflow-y:auto;padding:10px 16px 14px;display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch}
+.asst-chat::-webkit-scrollbar{display:none}
+.asst-msg{max-width:86%;padding:11px 14px;font-size:.86rem;line-height:1.55;border-radius:16px;white-space:pre-wrap}
+.asst-msg.ai{background:var(--s2);border:1px solid var(--br2);border-bottom-left-radius:5px;align-self:flex-start;color:var(--t1)}
+.asst-msg.me{background:var(--acc-d);border-bottom-right-radius:5px;align-self:flex-end;color:var(--acc2);font-weight:500}
+.asst-sugg{display:flex;flex-wrap:wrap;gap:7px;align-self:flex-start;max-width:96%}
+.asst-sugg button{background:var(--s2);border:1px solid var(--br);border-radius:20px;padding:8px 13px;font-size:.76rem;color:var(--t2);font-family:'Hanken Grotesk',sans-serif;cursor:pointer;transition:transform .12s,background .15s}
+.asst-sugg button:active{transform:scale(.96);background:var(--s3)}
+.asst-bar{flex-shrink:0;display:flex;gap:8px;align-items:flex-end;padding:10px 14px 24px;border-top:1px solid var(--br);background:var(--s1)}
+.asst-mic{width:44px;height:44px;border-radius:13px;background:var(--s2);border:1px solid var(--br);color:var(--acc2);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform .12s}
+.asst-mic:active{transform:scale(.94)}
+.asst-ta{flex:1;padding:12px 14px;background:var(--s2);border:1px solid var(--br);border-radius:14px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.9rem;outline:none;resize:none;min-height:44px;max-height:120px;overflow-y:auto}
+.asst-ta:focus{border-color:var(--acc)}
+.asst-send{width:44px;height:44px;border-radius:13px;background:var(--acc);border:none;color:#1a1206;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform .12s}
+.asst-send:active{transform:scale(.94)}
+.asst-mic svg,.asst-send svg{width:19px;height:19px}
+.asst-typing{align-self:flex-start;display:flex;gap:4px;padding:13px 15px;background:var(--s2);border:1px solid var(--br2);border-radius:16px;border-bottom-left-radius:5px}
+.asst-typing span{width:7px;height:7px;border-radius:50%;background:var(--t3);animation:asstdot 1.2s infinite}
+.asst-typing span:nth-child(2){animation-delay:.2s}
+.asst-typing span:nth-child(3){animation-delay:.4s}
+@keyframes asstdot{0%,60%,100%{opacity:.3}30%{opacity:1}}
 </style>
 </head>
 <body>
@@ -592,32 +622,23 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
           <div class="av" id="avInit">H</div>
         </div>
       </div>
-      <div class="hero">
-        <div class="hero-label">Overview</div>
-        <div class="hero-amount" id="heroAmount">—</div>
-        <div class="hero-pills">
-          <div class="hpill hpill-grn"><div class="hpill-dot"></div><span id="heroNew">0 enquiries</span></div>
-          <div class="hpill hpill-red"><div class="hpill-dot"></div><span id="heroMissed">0 missed</span></div>
+      <div class="asst-head">
+        <div class="asst-greet" id="asstGreet">Hello</div>
+        <div class="asst-chips-row">
+          <div class="asst-stat" onclick="go('jobs')"><span class="asst-stat-v" id="statEnq">—</span><span class="asst-stat-l">enquiries</span></div>
+          <div class="asst-stat" onclick="go('calendar')"><span class="asst-stat-v" id="statBooked" style="color:var(--acc2)">—</span><span class="asst-stat-l">booked</span></div>
+          <div class="asst-stat" onclick="go('invoices')"><span class="asst-stat-v" id="heroAmount" style="font-size:.95rem">—</span><span class="asst-stat-l">overview</span></div>
         </div>
       </div>
-      <div class="qa-row">
-        <button class="qa" onclick="go('jobs')"><div class="qa-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:23px;height:23px;display:block"><path d="M14 7l3-3 3 3-3 3M14 7l-9 9v3h3l9-9M14 7l-3 3" stroke-linejoin="round" stroke-linecap="round"/></svg></div><div class="qa-lbl">Jobs</div></button>
-        <button class="qa" onclick="go('quotes')"><div class="qa-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:23px;height:23px;display:block"><path d="M12 3v18M5 8l7-5 7 5M5 8v9l7 4 7-4V8" stroke-linejoin="round"/></svg></div><div class="qa-lbl">Quotes</div></button>
-        <button class="qa" onclick="go('invoices')"><div class="qa-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:23px;height:23px;display:block"><path d="M5 3h9l5 5v13H5z" stroke-linejoin="round"/><path d="M14 3v5h5M8 13h8M8 17h5" stroke-linecap="round"/></svg></div><div class="qa-lbl">Invoices</div></button>
-        <button class="qa" onclick="go('calendar')"><div class="qa-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:23px;height:23px;display:block"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke-linecap="round"/></svg></div><div class="qa-lbl">Calendar</div></button>
+      <div class="asst-chat" id="asstChat"></div>
+      <div class="asst-bar">
+        <button class="asst-mic" onclick="hfOpen()" title="Hands-free voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg></button>
+        <textarea class="asst-ta" id="asstInput" rows="1" placeholder="Tell me what you need..." oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'" onkeydown="asstHandleEnter(event)"></textarea>
+        <button class="asst-send" onclick="asstSend()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 12l16-8-6 16-3-7-7-1z" stroke-linejoin="round"/></svg></button>
       </div>
-      <div class="stats">
-        <div class="stat"><div class="stat-v" id="statEnq">—</div><div class="stat-l">Enquiries</div></div>
-        <div class="stat"><div class="stat-v" id="statBooked" style="color:var(--acc2)">—</div><div class="stat-l">Booked</div></div>
-        <div class="stat"><div class="stat-v" id="statMissed" style="color:var(--amb)">—</div><div class="stat-l">Missed</div></div>
-      </div>
-      <div class="sec">
-        <div class="sec-head"><div class="sec-title">Recent activity</div><div class="sec-more" onclick="go('jobs')">See all</div></div>
-        <div class="list" id="recentList"><div class="loading">Loading...</div></div>
-      </div>
-      <div class="sec">
-        <div class="sec-head"><div class="sec-title">Upcoming jobs</div><div class="sec-more" onclick="go('calendar')">Calendar</div></div>
-        <div class="list" id="upcomingList"><div class="loading">Loading...</div></div>
+      <div style="display:none">
+        <span id="heroNew"></span><span id="heroMissed"></span><span id="statMissed"></span>
+        <div id="recentList"></div><div id="upcomingList"></div>
       </div>
     </div>
 
@@ -1370,6 +1391,7 @@ function _launchApp(data){
     renderProfile(data.profile);
     window._vanofficeProfile=data.profile;
     renderSetupWizard(data.profile);
+    asstInit(data.profile);
     const dr = data.profile.day_rate || '250';
     const mk = data.profile.materials_markup || '20';
     const rateEl = document.getElementById('qgRateLabel');
@@ -3191,35 +3213,21 @@ function hfReleaseMic(){
 }
 
 async function hfTurn(text){
-  hfStopListen(); hfBub('me',text); qgHistory.push({role:'user',content:text}); hfSet('thinking');
-  let q=null;
-  try{
-    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),25000);
-    const res=await fetch('/api/generate-quote-ai?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:text,history:qgHistory.slice(0,-1)}),signal:ctrl.signal});
-    clearTimeout(to);
-    q=await res.json();
-  }catch(e){ q={error:true}; }
+  hfStopListen(); hfBub('me',text); hfSet('thinking');
+  if(typeof asstHistory!=='undefined'){ asstHistory.push({role:'user',content:text}); if(typeof asstAddBubble==='function') asstAddBubble('me',text); }
   let say='';
-  if(!q||q.error){ say="Sorry, I didn't catch that — say it again?"; }
-  else if(q.type==='question'){ say=q.message; qgHistory.push({role:'assistant',content:q.message}); }
-  else if(q.type==='quote'){
-    let sendRes=null;
-    try{
-      const sr=await fetch('/api/send-quote-voice?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({client_name:q.clientName||'Customer',job_description:(q.scopeItems||[]).join(', '),total:q.totalPrice||0,scope_items:q.scopeItems||[],client_address:q.clientAddress||'',base_url:window.location.origin})
-      });
-      if(sr.ok) sendRes=await sr.json();
-    }catch(e){}
-    say = sendRes&&sendRes.sent
-      ? 'Done — quote '+sendRes.quote_number+' sent to '+(q.clientName||'your client')+' on WhatsApp.'
-      : (q.summary||'Quote ready.')+' Saved as '+(sendRes&&sendRes.quote_number||'a draft')+'. I couldn\'t find '+(q.clientName||'their')+'\'s number — send it from the Quotes tab.';
-    qgHistory.push({role:'assistant',content:say});
-    try{qgShowPriceSummary(q);}catch(e){}
-  }
-  else { say=q.message||'Okay.'; }
+  try{
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),30000);
+    const hist=(typeof asstHistory!=='undefined')?asstHistory.slice(0,-1):[];
+    const res=await fetch('/api/assistant?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:text,history:hist}),signal:ctrl.signal});
+    clearTimeout(to);
+    const d=await res.json();
+    say = d.reply || d.error || "Sorry, I didn't catch that — say it again?";
+    if(typeof asstHistory!=='undefined'){ asstHistory.push({role:'assistant',content:say}); if(typeof asstAddBubble==='function') asstAddBubble('ai',say); }
+    if(d.actions&&d.actions.length&&typeof asstRefreshStats==='function') asstRefreshStats();
+  }catch(e){ say="Sorry, I didn't catch that — say it again?"; }
   hfBub('ai',say); hfSet('speaking'); await hfSpeak(say);
   if(hfState==='speaking') hfListen();
 }
@@ -3528,6 +3536,94 @@ function loadAdminPanel(){
       list.appendChild(wrap);
     });
   }).catch(function(e){console.warn('admin',e);});
+}
+
+/* ── HOME ASSISTANT ── */
+var asstHistory=[];
+function asstInit(profile){
+  var greet=document.getElementById('asstGreet');
+  var h=new Date().getHours();
+  var part=h<12?'Morning':(h<18?'Afternoon':'Evening');
+  var nm=(profile&&(profile.owner_name||profile.business_name))||'';
+  var first=nm.split(' ')[0]||'';
+  greet.textContent=part+(first?(', '+first):'');
+  var chat=document.getElementById('asstChat');
+  if(chat && !chat.dataset.init){
+    chat.dataset.init='1';
+    asstAddBubble('ai','Hi — I can sort your admin while you work. Try one of these, or just tell me what you need.');
+    var sugg=document.createElement('div'); sugg.className='asst-sugg';
+    [['What\u2019s on this week?','What have I got on this week?'],
+     ['Any new enquiries?','Any new enquiries?'],
+     ['Create an invoice','I want to create an invoice'],
+     ['Business summary','Give me a summary of where things are at']
+    ].forEach(function(s){
+      var b=document.createElement('button');
+      b.textContent=s[0];
+      b.onclick=function(){asstSend(s[1]);};
+      sugg.appendChild(b);
+    });
+    chat.appendChild(sugg);
+  }
+}
+function asstAddBubble(role,text){
+  var chat=document.getElementById('asstChat');
+  var b=document.createElement('div');
+  b.className='asst-msg '+(role==='me'?'me':'ai');
+  b.textContent=text;
+  chat.appendChild(b);
+  chat.scrollTop=chat.scrollHeight;
+  return b;
+}
+function asstTyping(on){
+  var chat=document.getElementById('asstChat');
+  var ex=document.getElementById('asstTyping');
+  if(on){
+    if(ex)return;
+    var d=document.createElement('div'); d.className='asst-typing'; d.id='asstTyping';
+    d.innerHTML='<span></span><span></span><span></span>';
+    chat.appendChild(d); chat.scrollTop=chat.scrollHeight;
+  } else if(ex){ ex.remove(); }
+}
+async function asstSend(preset){
+  var ta=document.getElementById('asstInput');
+  var msg=preset||(ta?ta.value.trim():'');
+  if(!msg)return;
+  // clear any suggestion chips after first use
+  var sugg=document.querySelector('.asst-sugg'); if(sugg)sugg.remove();
+  if(ta && !preset){ta.value='';ta.style.height='';}
+  asstAddBubble('me',msg);
+  asstHistory.push({role:'user',content:msg});
+  asstTyping(true);
+  try{
+    var r=await fetch('/api/assistant?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:msg,history:asstHistory.slice(0,-1)})
+    });
+    var d=await r.json();
+    asstTyping(false);
+    var reply=d.reply||d.error||'Sorry, something went wrong.';
+    asstAddBubble('ai',reply);
+    asstHistory.push({role:'assistant',content:reply});
+    // if the assistant did something, refresh the stat chips
+    if(d.actions&&d.actions.length){asstRefreshStats();}
+  }catch(e){
+    asstTyping(false);
+    asstAddBubble('ai','Connection problem — try again in a moment.');
+  }
+}
+function asstRefreshStats(){
+  fetch('/api/stats?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin))
+  .then(function(r){return r.json();}).then(function(d){
+    try{
+      if(d.stats){
+        var se=document.getElementById('statEnq'); if(se)se.textContent=d.stats.enquiries!=null?d.stats.enquiries:se.textContent;
+        var sb=document.getElementById('statBooked'); if(sb)sb.textContent=d.stats.booked!=null?d.stats.booked:sb.textContent;
+      }
+    }catch(e){}
+  }).catch(function(){});
+}
+function asstHandleEnter(e){
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();asstSend();}
 }
 
 </script>
