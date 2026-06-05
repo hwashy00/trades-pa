@@ -9,6 +9,7 @@ import anthropic
 from supabase import create_client
 from apscheduler.schedulers.background import BackgroundScheduler
 from twilio.rest import Client as TwilioClient
+from vanoffice_intelligence import send_intelligent_briefing
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET", "vanoffice-secret-key-change-me")
@@ -340,7 +341,9 @@ def run_invoice_chase():
         print("run_invoice_chase error: " + str(e))
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(send_morning_summary, "cron", hour=8, minute=0)
+def _twilio_factory():
+    return TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
+scheduler.add_job(lambda: send_intelligent_briefing(supabase, client, _twilio_factory), "cron", hour=7, minute=0)
 scheduler.add_job(scan_all_emails, "interval", minutes=15)
 scheduler.add_job(run_invoice_chase, "cron", hour=9, minute=0)
 scheduler.start()
@@ -2230,6 +2233,18 @@ ASSISTANT_TOOLS = [
         "name": "get_summary",
         "description": "Get an overview of the business right now: unpaid invoices total, jobs coming up, new enquiries count.",
         "input_schema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "draft_client_message",
+        "description": "Draft (and, if the client's number is known, send) a short friendly WhatsApp message to a CLIENT on the tradesperson's behalf - e.g. to tell them when work can start, confirm a visit, or chase a decision. Use this when the user says things like 'tell her I can start Tuesday' or 'let him know I'll pop round Friday'. Always keep it warm, brief and professional in the tradesperson's voice.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "client_name": {"type": "string", "description": "The client's name"},
+                "message": {"type": "string", "description": "The exact message to send to the client, written in first person as the tradesperson"}
+            },
+            "required": ["client_name", "message"]
+        }
     }
 ]
 
@@ -2422,6 +2437,35 @@ def _assistant_execute_tool(name, ti, profile):
             supabase.table("invoices").update({"status": "paid"}).eq("id", inv["id"]).execute()
             return "Marked invoice " + inv.get("invoice_number", "") + " for " + inv.get("client_name", "") + " as paid."
 
+        if name == "draft_client_message":
+            client_name = ti.get("client_name", "").strip()
+            body_msg = ti.get("message", "").strip()
+            if not body_msg:
+                return "I need the message text to send."
+            # Find the client's number from a recent enquiry matching the name
+            client_number = ""
+            try:
+                fw = client_name.split()[0] if client_name.split() else client_name
+                if fw:
+                    enq = supabase.table("enquiries").select("sender").ilike("client_name", "%" + fw + "%").order("created_at", desc=True).limit(1).execute()
+                    if enq.data:
+                        client_number = enq.data[0].get("sender", "")
+            except Exception as le:
+                print("client lookup:", le)
+            if not client_number:
+                return ("DRAFTED (not sent - no number on file for " + (client_name or "this client") +
+                        "). Here is the message I would send: \"" + body_msg + "\". "
+                        "Ask the user for the client's number to send it.")
+            try:
+                def _wa(n): return n if str(n).startswith("whatsapp:") else "whatsapp:" + str(n)
+                twilio_num = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER", "")
+                tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
+                tc.messages.create(body=body_msg, from_=_wa(twilio_num), to=_wa(client_number))
+                return "SENT to " + (client_name or "client") + " on WhatsApp: \"" + body_msg + "\""
+            except Exception as se:
+                print("draft_client_message send error:", se)
+                return ("Couldn't send it (" + str(se) + "), but here's the message drafted for you to send manually: \"" + body_msg + "\"")
+
         if name == "get_summary":
             invoices = supabase.table("invoices").select("*").eq("sender", sender).execute().data or []
             unpaid = [i for i in invoices if i.get("status") != "paid"]
@@ -2435,6 +2479,66 @@ def _assistant_execute_tool(name, ti, profile):
     except Exception as e:
         print("Tool exec error (" + name + "):", e)
         return "That didn't work: " + str(e)
+
+
+@app.route("/api/briefing", methods=["GET"])
+def briefing():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+        owner = (profile.get("owner_name") or profile.get("business_name") or "").split(" ")[0]
+        now = datetime.datetime.now()
+        hour = now.hour
+        part = "Morning" if hour < 12 else ("Afternoon" if hour < 18 else "Evening")
+        today = now.strftime("%Y-%m-%d")
+        bookings = supabase.table("bookings").select("*").eq("sender", sender).execute().data or []
+        today_jobs = [b for b in bookings if str(b.get("date", "")).startswith(today)]
+        invoices = supabase.table("invoices").select("*").eq("sender", sender).execute().data or []
+        unpaid = [i for i in invoices if i.get("status") != "paid"]
+        def _num(v):
+            try: return float(str(v).replace("£", "").replace(",", "") or 0)
+            except: return 0.0
+        unpaid_total = sum(_num(i.get("total", 0)) for i in unpaid)
+        quotes = supabase.table("quotes").select("*").eq("sender", sender).execute().data or []
+        awaiting = [q for q in quotes if q.get("status") == "sent"]
+        new_enq = supabase.table("enquiries").select("*").eq("status", "new").execute().data or []
+
+        parts = [part + ((", " + owner) if owner else "") + "."]
+        if today_jobs:
+            first = sorted(today_jobs, key=lambda b: (b.get("time", "") or ""))[0]
+            t = first.get("time", ""); nm = first.get("client_name", "")
+            if len(today_jobs) == 1:
+                parts.append("You've got one job today" + ((" — " + nm) if nm else "") + ((" at " + t) if t else "") + ".")
+            else:
+                parts.append("You've got " + str(len(today_jobs)) + " jobs today, first" + ((" " + nm) if nm else "") + ((" at " + t) if t else "") + ".")
+        else:
+            parts.append("Nothing in the diary today.")
+        if awaiting:
+            if len(awaiting) == 1:
+                parts.append((awaiting[0].get("client_name", "A client") or "A client") + "'s quote hasn't had a reply yet.")
+            else:
+                parts.append(str(len(awaiting)) + " quotes are still awaiting a reply.")
+        if unpaid:
+            parts.append("£" + str(int(unpaid_total)) + " outstanding across " + str(len(unpaid)) + (" invoices" if len(unpaid) != 1 else " invoice") + ".")
+        if new_enq:
+            parts.append(str(len(new_enq)) + (" new enquiries" if len(new_enq) != 1 else " new enquiry") + " to look at.")
+        if not (today_jobs or awaiting or unpaid or new_enq):
+            parts.append("All clear right now — ask me to quote, invoice or check your diary whenever you need.")
+
+        chips = []
+        if new_enq: chips.append("Any new enquiries?")
+        if today_jobs: chips.append("What's on today?")
+        if unpaid: chips.append("Show my unpaid invoices")
+        chips.append("How's the business looking?")
+        return jsonify({"text": " ".join(parts), "chips": chips[:4]})
+    except Exception as e:
+        print("briefing error:", e)
+        return jsonify({"text": "", "chips": []})
 
 
 @app.route("/api/assistant", methods=["POST"])
@@ -2497,7 +2601,11 @@ def assistant():
             "Do not claim a quote or invoice is saved to any tab unless the tool confirmed it. "
             "When the user clearly asks for an action and you have enough detail, call the tool straight away rather than just describing what you will do. "
             "When a quote is created, relay the full materials and labour breakdown that the tool returns to the user - keep the itemised list, do not shorten it. "
-            "Before creating a quote, if the job involves a material choice that affects price (boxing-in, cladding, boards, timber, finishes) and the user has not said what they will use, ask them which materials first, then call the tool with the chosen material included in the job description."
+            "Before creating a quote, if the job involves a material choice that affects price (boxing-in, cladding, boards, timber, finishes) and the user has not said what they will use, ask them which materials first, then call the tool with the chosen material included in the job description. "
+            "MULTI-STEP REQUESTS: The user often asks for several things in one breath, e.g. 'just seen Mrs Patel about a fence, 6 panels, quote her about 900 and tell her I can start Tuesday'. "
+            "When that happens, carry out ALL the steps by calling the matching tools in sequence in the SAME turn: log/quote the job (create_quote), add any booking they mention (add_booking), and draft the client message (draft_client_message). "
+            "Do them all before you reply. Then give ONE short combined confirmation that lists what you did, like: 'Done — quoted Mrs Patel \u00a3900 for the fence, pencilled her in for Tuesday, and messaged her to confirm.' "
+            "If one detail is missing for ONE of the steps but the others are clear, do the steps you can and mention the one thing you still need. Never refuse the whole request because one part is fuzzy."
         )
 
         messages = []
