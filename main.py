@@ -2279,8 +2279,8 @@ def _assistant_execute_tool(name, ti, profile):
             client_name = q["client_name"]
             # find client WhatsApp number from enquiries
             client_number = ""
+            fw = client_name.split()[0] if client_name.split() else client_name
             try:
-                fw = client_name.split()[0] if client_name.split() else client_name
                 enq = supabase.table("enquiries").select("sender").ilike("client_name", "%" + fw + "%").order("created_at", desc=True).limit(1).execute()
                 if enq.data:
                     client_number = enq.data[0].get("sender", "")
@@ -2294,16 +2294,18 @@ def _assistant_execute_tool(name, ti, profile):
                                    "amount": str(mat.get("total", ""))})
             line_items.append({"description": "Labour (" + str(q["labour_days"]) + " day(s))",
                                "amount": str(int(q["labour_cost"]))})
+            # insert as draft first so we have an id for the PDF link
             ins = supabase.table("quotes").insert({
                 "sender": sender, "client_name": client_name,
                 "job_description": "; ".join(q["scope"]), "total": str(int(q["total"])),
                 "subtotal": str(int(q["total"])), "vat": "0", "line_items": line_items,
-                "status": "sent" if client_number else "draft", "quote_number": num,
-                "quote_text": "", "client_number": client_number
+                "status": "draft", "quote_number": num, "quote_text": "",
+                "client_number": client_number
             }).execute()
             quote_id = ins.data[0].get("id", "") if ins.data else ""
-            # send to client if we have their number
+            # only attempt send if we actually found a number
             sent = False
+            send_err = ""
             if client_number and quote_id:
                 try:
                     def wa(n): return n if n.startswith("whatsapp:") else "whatsapp:" + n
@@ -2320,22 +2322,28 @@ def _assistant_execute_tool(name, ti, profile):
                     from twilio.rest import Client as TwilioClient
                     tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
                     tc.messages.create(body=body_msg, from_=wa(twilio_num), to=wa(client_number))
-                    try:
-                        supabase.table("enquiries").update({"status": "quoted"}).ilike("client_name", "%" + fw + "%").execute()
-                    except Exception:
-                        pass
                     sent = True
                 except Exception as se:
+                    send_err = str(se)
                     print("Quote send error:", se)
+            # only now mark it sent, if the send truly succeeded
+            if sent:
+                try:
+                    supabase.table("quotes").update({"status": "sent"}).eq("id", quote_id).execute()
+                    supabase.table("enquiries").update({"status": "quoted"}).ilike("client_name", "%" + fw + "%").execute()
+                except Exception:
+                    pass
             mat_lines = ", ".join((x.get("item", "") for x in q["materials"][:6])) or "materials"
             base = ("Quote " + num + " for " + client_name + ". Labour " + str(q["labour_days"])
                     + " day(s) at " + str(int(q["labour_cost"])) + " pounds, materials "
                     + str(int(q["materials_cost"])) + " pounds (" + mat_lines + "), total "
                     + str(int(q["total"])) + " pounds.")
             if sent:
-                return base + " Sent to " + client_name + " on WhatsApp."
+                return base + " Saved and sent to " + client_name + " on WhatsApp. You can view the PDF in the Quotes tab."
+            elif client_number:
+                return base + " Saved to the Quotes tab as a draft. I tried to send it but it didn't go through, so send it manually from there."
             else:
-                return base + " Saved as a draft - I could not find " + client_name + "'s number, so send it from the Quotes tab."
+                return base + " Saved to the Quotes tab as a draft. I don't have " + client_name + "'s number, so it hasn't been sent - open it from the Quotes tab to send."
 
         if name == "get_schedule":
             bookings = supabase.table("bookings").select("*").eq("sender", sender).order("date").execute().data or []
