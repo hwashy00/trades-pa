@@ -1120,6 +1120,25 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div class="success-msg" id="saveMsg"></div>
 
       <div class="sg">
+        <div class="sg-lbl">This month\u2019s usage</div>
+        <div class="admin-card" style="padding:16px 18px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+            <div style="font-size:.8rem;color:var(--t2);font-weight:600">Credits used</div>
+            <div style="font-family:'Spline Sans Mono',monospace;font-weight:700;font-size:1rem;color:var(--t1)"><span id="usageCredits">\u2014</span> <span style="color:var(--t4);font-size:.75rem">/ <span id="usageAllowance">\u2014</span></span></div>
+          </div>
+          <div style="height:7px;border-radius:5px;background:var(--s3);overflow:hidden;margin-bottom:12px">
+            <div id="usageBar" style="height:100%;width:0%;background:var(--acc);border-radius:5px;transition:width .8s cubic-bezier(.2,.7,.3,1)"></div>
+          </div>
+          <div style="display:flex;gap:14px;font-size:.66rem;color:var(--t3)">
+            <span><span id="usageQuotes" style="color:var(--t1);font-weight:700">0</span> quotes</span>
+            <span><span id="usageVoice" style="color:var(--t1);font-weight:700">0</span> voice</span>
+            <span><span id="usageText" style="color:var(--t1);font-weight:700">0</span> chats</span>
+          </div>
+          <div style="font-size:.62rem;color:var(--t4);margin-top:10px;line-height:1.5">Voice &amp; hands-free use credits faster than typing \u2014 about 4\u00d7 \u2014 since they do more work behind the scenes.</div>
+        </div>
+      </div>
+
+      <div class="sg">
         <div class="sg-lbl">Account</div>
         <div class="sg-list">
           <div class="sg-row" style="cursor:pointer" onclick="showForgotPin()"><div class="sg-row-label">Change PIN</div><div style="color:var(--t4)">›</div></div>
@@ -1991,7 +2010,7 @@ function go(name){
   if(name==='invoices')renderInvoices(allInvoices,currentInvFilter);
   if(name==='calendar'){renderBookings(allBookings);renderCal()}
   if(name==='inbox'){ loadInbox(inboxConvs.length>0); }
-  if(name==='profile'){loadAdminPanel();hfInitVoiceSettings();}
+  if(name==='profile'){loadAdminPanel();hfInitVoiceSettings();loadUsage();}
 }
 
 function animateListItems(container){
@@ -3699,6 +3718,21 @@ function renderConvRow(c){
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 
+function loadUsage(){
+  fetch('/api/usage?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin))
+    .then(r=>r.json()).then(d=>{
+      if(d.error) return;
+      const used=Math.round(d.credits_used||0), allow=d.allowance||1000;
+      const ce=document.getElementById('usageCredits'); if(ce)ce.textContent=used;
+      const ae=document.getElementById('usageAllowance'); if(ae)ae.textContent=allow;
+      const bar=document.getElementById('usageBar');
+      if(bar){ const pct=Math.min(100,Math.round(used/allow*100)); bar.style.width=pct+'%';
+        bar.style.background = pct>90?'var(--red)':pct>75?'var(--amb)':'var(--acc)'; }
+      const q=document.getElementById('usageQuotes'); if(q)q.textContent=d.quote_actions||0;
+      const v=document.getElementById('usageVoice'); if(v)v.textContent=d.voice_actions||0;
+      const t=document.getElementById('usageText'); if(t)t.textContent=d.text_actions||0;
+    }).catch(e=>console.warn('usage',e));
+}
 function loadInbox(silent){
   const url='/api/conversations?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin);
   if(!silent){ showSkeleton('inboxList',5); }
