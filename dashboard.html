@@ -393,6 +393,18 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .setup-step-s{font-size:.6rem;color:var(--t3);margin-top:3px;line-height:1.3}
 .setup-pending{display:flex;align-items:flex-start;gap:10px;padding:14px;background:var(--grn-d);border-radius:14px;margin-top:12px}
 .setup-pending svg{width:20px;height:20px;color:var(--grn);flex-shrink:0;margin-top:1px}
+
+.admin-card{margin:0 16px 18px;padding:18px;background:var(--s1);border:1px solid var(--br);border-radius:18px;box-shadow:inset 0 1px 0 var(--toplight)}
+.admin-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--br2)}
+.admin-row:last-child{border-bottom:none}
+.admin-av{width:40px;height:40px;border-radius:12px;background:var(--acc-d);color:var(--acc2);display:flex;align-items:center;justify-content:center;font-family:Archivo,sans-serif;font-weight:700;font-size:.9rem;flex-shrink:0}
+.admin-body{flex:1;min-width:0}
+.admin-name{font-weight:600;font-size:.88rem;margin-bottom:2px}
+.admin-detail{font-size:.7rem;color:var(--t3)}
+.admin-act{padding:7px 14px;background:var(--acc);border:none;border-radius:9px;font-family:Archivo,sans-serif;font-weight:700;font-size:.72rem;color:#1a1206;cursor:pointer;transition:transform .12s var(--press);flex-shrink:0}
+.admin-act:active{transform:scale(.94)}
+.activate-form{margin-top:12px;padding-top:12px;border-top:1px solid var(--br2);display:none}
+.activate-form.open{display:block}
 </style>
 </head>
 <body>
@@ -958,7 +970,14 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
         <div class="sg-lbl">Account</div>
         <div class="sg-list">
           <div class="sg-row" style="cursor:pointer" onclick="showForgotPin()"><div class="sg-row-label">Change PIN</div><div style="color:var(--t4)">›</div></div>
-          <div class="sg-row sg-danger" onclick="doLogout()"><div class="sg-row-label">Sign out</div><div style="color:var(--t4)">›</div></div>
+          <div class="sg" id="adminSection" style="display:none">
+          <div class="sg-lbl">Pending activations</div>
+          <div class="admin-card">
+            <div id="pendingList"><div style="font-size:.8rem;color:var(--t3);text-align:center;padding:12px">Loading...</div></div>
+          </div>
+        </div>
+
+        <div class="sg-row sg-danger" onclick="doLogout()"><div class="sg-row-label">Sign out</div><div style="color:var(--t4)">›</div></div>
         </div>
       </div>
       <div style="text-align:center;padding:8px 0;font-size:.58rem;color:var(--t4)">VanOffice v0.1 · Built in Devon</div>
@@ -1774,6 +1793,7 @@ function go(name){
   if(name==='invoices')renderInvoices(allInvoices,currentInvFilter);
   if(name==='calendar'){renderBookings(allBookings);renderCal()}
   if(name==='inbox'){loadInbox();}
+  if(name==='profile'){loadAdminPanel();}
 }
 
 function animateListItems(container){
@@ -3453,7 +3473,60 @@ async function submitSetupRequest(){
   }
 }
 
+/* ── ADMIN: PENDING CLIENTS ── */
+function loadAdminPanel(){
+  fetch('/api/pending-clients?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin))
+  .then(function(r){return r.json();}).then(function(d){
+    var section=document.getElementById('adminSection');
+    var list=document.getElementById('pendingList');
+    if(!d.clients||!d.clients.length){section.style.display='none';return;}
+    section.style.display='block';
+    list.innerHTML='';
+    d.clients.forEach(function(c){
+      var wrap=document.createElement('div');
+      var row=document.createElement('div'); row.className='admin-row';
+      var init=(c.owner_name||c.business_name||'?').charAt(0).toUpperCase();
+      var av=document.createElement('div'); av.className='admin-av'; av.textContent=init;
+      var body=document.createElement('div'); body.className='admin-body';
+      var nm=document.createElement('div'); nm.className='admin-name';
+      nm.textContent=c.business_name||c.owner_name||c.phone;
+      var det=document.createElement('div'); det.className='admin-detail';
+      det.textContent=(c.trade||'')+((c.location)?' \u00b7 '+c.location:'')+((c.phone)?' \u00b7 '+c.phone:'');
+      var req=c.twilio_number||'';
+      var reqN=document.createElement('div'); reqN.className='admin-detail'; reqN.style.marginTop='2px';
+      reqN.textContent=req==='pending:new'||req==='pending:'?'Wants new number':'Wants: '+req.replace('pending:','');
+      body.appendChild(nm); body.appendChild(det); body.appendChild(reqN);
+      var btn=document.createElement('button'); btn.className='admin-act'; btn.textContent='Activate';
+      var form=document.createElement('div'); form.className='activate-form';
+      (function(cp,cf,bf){
+        bf.onclick=function(){cf.classList.toggle('open');};
+        var lbl=document.createElement('div'); lbl.className='lbl'; lbl.textContent='Their Twilio WhatsApp number';
+        var inp=document.createElement('input'); inp.className='inp'; inp.type='tel'; inp.placeholder='+447700000000';
+        var err=document.createElement('div'); err.style.cssText='color:var(--red);font-size:.74rem;min-height:14px;margin-top:4px';
+        var go=document.createElement('button'); go.className='btn-cta'; go.style.marginTop='10px'; go.textContent='Activate & notify';
+        go.onclick=async function(){
+          var num=inp.value.trim();
+          if(!num){err.textContent='Enter the Twilio number';return;}
+          err.textContent=''; go.textContent='Activating...'; go.disabled=true;
+          try{
+            var r=await fetch('/api/activate-client?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+              method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({client_phone:cp,twilio_number:num})
+            });
+            var d=await r.json();
+            if(d.ok){go.textContent='Done \u2713';setTimeout(function(){loadAdminPanel();},1200);}
+            else{err.textContent=d.error||'Failed';go.textContent='Activate & notify';go.disabled=false;}
+          }catch(e){err.textContent='Connection error';go.textContent='Activate & notify';go.disabled=false;}
+        };
+        cf.appendChild(lbl); cf.appendChild(inp); cf.appendChild(err); cf.appendChild(go);
+      })(c.phone,form,btn);
+      row.appendChild(av); row.appendChild(body); row.appendChild(btn);
+      wrap.appendChild(row); wrap.appendChild(form);
+      list.appendChild(wrap);
+    });
+  }).catch(function(e){console.warn('admin',e);});
+}
+
 </script>
 </body>
 </html>
-
