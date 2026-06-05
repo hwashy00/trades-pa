@@ -146,6 +146,28 @@ def send_to_client(profile, client_number, message, prefer=None):
 # Call track_usage(sender, action) wherever a metered action happens.
 # Wrapped so it can NEVER break a user action if metering fails.
 # ─────────────────────────────────────────────────────────────
+def notify_owner(profile, message):
+    """
+    Send a notification to the tradesperson's own mobile.
+    SMS-first so it works today without WhatsApp setup; never raises.
+    """
+    try:
+        owner_mobile = profile.get("phone", "")
+        biz_from = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER", "")
+        if not owner_mobile or not biz_from:
+            print("notify_owner: missing owner mobile or business number")
+            return False
+        tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
+        clean_from = str(biz_from).replace("whatsapp:", "")
+        clean_to = str(owner_mobile).replace("whatsapp:", "")
+        # Plain SMS — reliable, no Meta/WhatsApp setup needed.
+        tc.messages.create(body=message, from_=clean_from, to=clean_to)
+        return True
+    except Exception as e:
+        print("notify_owner error:", e)
+        return False
+
+
 CREDIT_WEIGHTS = {"text": 1, "sms": 1, "quote": 1, "voice": 4}
 
 def track_usage(sender, action):
@@ -1889,14 +1911,7 @@ def incoming_sms():
                 inv_num = most_recent.get("invoice_number", "")
                 total = most_recent.get("total", "")
                 supabase.table("invoices").update({"status": "paid"}).eq("id", inv_id).execute()
-                account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-                auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-                notify_client = TwilioClient(account_sid, auth_token)
-                notify_client.messages.create(
-                    from_="whatsapp:" + twilio_number,
-                    to="whatsapp:" + profile.get("phone", ""),
-                    body="💰 Invoice " + inv_num + " for £" + str(total) + " has been marked as paid — client replied via SMS."
-                )
+                notify_owner(profile, "Invoice " + inv_num + " for £" + str(total) + " marked as PAID - client confirmed via message.")
         
         # Check for new job extraction
         if "NEWJOB:" in reply:
@@ -1913,15 +1928,8 @@ def incoming_sms():
                     "status": "new"
                 }).execute()
 
-                # Notify tradesperson
-                account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-                auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-                twilio_client = TwilioClient(account_sid, auth_token)
-                twilio_client.messages.create(
-                    body="New enquiry from " + client_number + ":\n" + parts.get("name", "Unknown") + " - " + parts.get("job", "") + " - " + parts.get("location", "") + "\n\nHandled automatically by VanOffice.",
-                    from_="whatsapp:+14155238886",
-                    to="whatsapp:" + profile.get("phone", "")
-                )
+                # Notify tradesperson (SMS-first)
+                notify_owner(profile, "New enquiry: " + parts.get("name", "Unknown") + " - " + parts.get("job", "") + " - " + parts.get("location", "") + " (from " + client_number + "). Logged in VanOffice.")
             except Exception as e:
                 print("Job extraction error: " + str(e))
 
@@ -1951,17 +1959,9 @@ def incoming_sms():
                     "customer_msg": incoming_msg, "reason": reason,
                     "options": options, "status": "pending"
                 }).execute()
-                # nudge the owner on WhatsApp to come and choose
-                try:
-                    _nt = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
-                    who = cname or client_number
-                    _nt.messages.create(
-                        body="\u26A0 " + who + " needs you: " + reason + ".\nOpen VanOffice \u2192 Inbox to choose what to send.",
-                        from_="whatsapp:" + (twilio_number or os.environ.get("TWILIO_NUMBER","")),
-                        to="whatsapp:" + profile.get("phone", "")
-                    )
-                except Exception as ne:
-                    print("needyou notify error:", ne)
+                # nudge the owner (SMS-first, works today)
+                who = cname or client_number
+                notify_owner(profile, "\u26A0 " + who + " needs you: " + reason + ". Open VanOffice > Inbox to choose what to send.")
             except Exception as e:
                 print("NEEDYOU parse error:", e)
 
