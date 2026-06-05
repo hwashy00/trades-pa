@@ -1519,6 +1519,24 @@ def save_template():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/quote-view/<quote_id>")
+def quote_view(quote_id):
+    try:
+        quote_result = supabase.table("quotes").select("*").eq("id", quote_id).execute()
+        if not quote_result.data:
+            return "Quote not found", 404
+        quote = quote_result.data[0]
+        profile_result = supabase.table("profiles").select("*").eq("sender", quote["sender"]).execute()
+        profile = profile_result.data[0] if profile_result.data else {}
+        template_result = supabase.table("quote_templates").select("*").eq("sender", quote["sender"]).execute()
+        template = template_result.data[0] if template_result.data else None
+        html = build_quote_html(quote, profile, template, is_invoice=False)
+        return Response(html, mimetype="text/html")
+    except Exception as e:
+        print("Quote view error: " + str(e))
+        return "Error generating quote: " + str(e), 500
+
+
 @app.route("/generate-pdf/<quote_id>")
 def serve_pdf(quote_id):
     try:
@@ -2306,7 +2324,7 @@ def _assistant_execute_tool(name, ti, profile):
                         host = request.host_url.rstrip("/")
                     except Exception:
                         host = "https://trades-pa-trades-pa.up.railway.app"
-                    pdf_url = host + "/generate-pdf/" + str(quote_id)
+                    pdf_url = host + "/quote-view/" + str(quote_id)
                     biz = profile.get("business_name") or profile.get("owner_name") or "your tradesperson"
                     body_msg = ("Hi! Here is your quote from " + biz + ". " + num + " - "
                                 + "; ".join(q["scope"]) + ". Total " + str(int(q["total"]))
