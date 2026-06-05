@@ -17,8 +17,8 @@
   /* borders */
   --br:rgba(255,255,255,0.07);--br2:rgba(255,255,255,0.035);
   --toplight:rgba(255,255,255,0.05);
-  /* accent - hi-vis signal amber */
-  --acc:#ff9e1b;--acc2:#ffc266;--acc-deep:#c9760a;--acc-d:rgba(255,158,27,0.13);--acc-glow:rgba(255,158,27,0.30);
+  /* accent - deep emerald / teal (money + trust) */
+  --acc:#1fb888;--acc2:#56e0b0;--acc-deep:#0e7a5a;--acc-d:rgba(31,184,136,0.13);--acc-glow:rgba(31,184,136,0.30);
   /* status */
   --grn:#3ad29f;--grn-d:rgba(58,210,159,0.12);
   --red:#ff5a5f;--red-d:rgba(255,90,95,0.12);
@@ -55,7 +55,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .inp:focus{border-color:var(--acc);box-shadow:0 0 0 4px var(--acc-glow)}
 
 /* CTA button — Revolut-style pill with glow */
-.btn-cta{width:100%;padding:17px;background:var(--acc);border:none;border-radius:16px;font-family:'Hanken Grotesk',sans-serif;font-size:.95rem;font-family:'Archivo',sans-serif;font-weight:700;color:#1a1206;cursor:pointer;margin-top:4px;transition:transform .1s var(--spring),box-shadow .18s,background .15s;box-shadow:0 4px 24px var(--acc-glow);will-change:transform}
+.btn-cta{width:100%;padding:17px;background:var(--acc);border:none;border-radius:16px;font-family:'Hanken Grotesk',sans-serif;font-size:.95rem;font-family:'Archivo',sans-serif;font-weight:700;color:#04231a;cursor:pointer;margin-top:4px;transition:transform .1s var(--spring),box-shadow .18s,background .15s;box-shadow:0 4px 24px var(--acc-glow);will-change:transform}
 .btn-cta:active{transform:scale(.955);box-shadow:0 2px 10px var(--acc-glow)}
 .btn-cta:hover{box-shadow:0 6px 32px var(--acc-glow)}
 .login-alt{text-align:center;margin-top:16px;font-size:.75rem;color:var(--t3)}
@@ -84,7 +84,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .ib:active{transform:scale(.96);background:var(--s4)}
 .ib svg{width:18px;height:18px}
 .ndot{width:7px;height:7px;background:var(--acc);border-radius:50%;position:absolute;top:5px;right:5px;border:2px solid var(--bg);display:none;box-shadow:0 0 6px var(--acc)}
-.av{width:38px;height:38px;border-radius:12px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Archivo',sans-serif;font-size:.78rem;font-weight:800;color:#1a1206;cursor:pointer;box-shadow:0 4px 14px -4px var(--acc-glow);transition:transform .1s var(--spring)}
+.av{width:38px;height:38px;border-radius:12px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Archivo',sans-serif;font-size:.78rem;font-weight:800;color:#04231a;cursor:pointer;box-shadow:0 4px 14px -4px var(--acc-glow);transition:transform .1s var(--spring)}
 .av:active{transform:scale(.96)}
 
 /* ─── HERO ───────────────────────────────────────────── */
@@ -176,14 +176,14 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:24px}
 .cd{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:11px;font-size:.76rem;font-weight:500;color:var(--t3);cursor:pointer;position:relative;transition:background .1s,transform .1s var(--spring)}
 .cd:active{transform:scale(.955)}
-.cd.today{background:var(--acc);color:#1a1206;font-weight:800;box-shadow:0 2px 12px var(--acc-glow)}
+.cd.today{background:var(--acc);color:#04231a;font-weight:800;box-shadow:0 2px 12px var(--acc-glow)}
 .cd.hj{color:var(--t1);font-weight:700}
 .cd.hj::after{content:'';width:4px;height:4px;background:var(--acc);border-radius:50%;position:absolute;bottom:3px}
 .cd.empty{cursor:default}
 
 /* ─── PROFILE ────────────────────────────────────────── */
 .prof-hero{display:flex;align-items:center;gap:18px;padding:8px 20px 28px}
-.prof-av{width:62px;height:62px;border-radius:18px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Archivo',sans-serif;font-size:1.5rem;font-weight:800;color:#1a1206;flex-shrink:0;box-shadow:0 6px 20px -6px var(--acc-glow)}
+.prof-av{width:62px;height:62px;border-radius:18px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Archivo',sans-serif;font-size:1.5rem;font-weight:800;color:#04231a;flex-shrink:0;box-shadow:0 6px 20px -6px var(--acc-glow)}
 .prof-name{font-family:'Archivo',sans-serif;font-size:1.2rem;font-weight:700;letter-spacing:-.03em;margin-bottom:3px}
 .prof-trade{font-size:.72rem;color:var(--t3)}
 .sg{padding:0 20px 20px}
@@ -201,7 +201,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .colour-swatch.selected{border-color:var(--t1);transform:scale(1.2);box-shadow:0 0 8px currentColor}
 
 /* ─── SAVE BUTTON ────────────────────────────────────── */
-.save-btn{width:calc(100% - 40px);margin:0 20px 20px;padding:16px;background:var(--acc);border:none;border-radius:16px;font-family:'Hanken Grotesk',sans-serif;font-size:.88rem;font-weight:700;color:#1a1206;cursor:pointer;transition:transform .12s var(--press),box-shadow .15s;box-shadow:0 6px 22px -8px var(--acc-glow);will-change:transform}
+.save-btn{width:calc(100% - 40px);margin:0 20px 20px;padding:16px;background:var(--acc);border:none;border-radius:16px;font-family:'Hanken Grotesk',sans-serif;font-size:.88rem;font-weight:700;color:#04231a;cursor:pointer;transition:transform .12s var(--press),box-shadow .15s;box-shadow:0 6px 22px -8px var(--acc-glow);will-change:transform}
 .save-btn:active{transform:scale(.96);box-shadow:0 2px 8px var(--acc-glow)}
 .success-msg{text-align:center;color:var(--grn);font-size:.75rem;margin:-10px 20px 16px;min-height:20px}
 /* ─── SCREENS ────────────────────────────────────────── */
@@ -239,7 +239,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .empty-state .es-icon{width:48px;height:48px;border-radius:16px;background:var(--s2);border:1.5px solid var(--br);display:flex;align-items:center;justify-content:center;color:var(--t4);margin-bottom:4px}
 .empty-state .es-icon svg{width:22px;height:22px}
 .empty-state strong{color:var(--t2);font-size:.88rem;font-weight:700}
-.empty-state .es-cta{margin-top:4px;padding:9px 18px;background:var(--acc-d);color:var(--acc2);border:1px solid rgba(255,158,27,.3);border-radius:22px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;transition:transform .12s var(--spring)}
+.empty-state .es-cta{margin-top:4px;padding:9px 18px;background:var(--acc-d);color:var(--acc2);border:1px solid rgba(31,184,136,.3);border-radius:22px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;transition:transform .12s var(--spring)}
 .empty-state .es-cta:active{transform:scale(.96)}
 
 /* ─── SWIPE-TO-ACTION ────────────────────────────────── */
@@ -368,7 +368,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .colour-swatch{width:32px;height:32px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:border-color .15s}
 .colour-swatch.selected{border-color:var(--t1)}
 .sg-val-ta{font-size:.78rem;color:var(--acc2);font-weight:400;text-align:right;background:none;border:none;font-family:'Hanken Grotesk',sans-serif;outline:none;width:160px;resize:none;line-height:1.5}
-.save-btn{display:block;width:calc(100% - 40px);margin:0 20px 20px;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Hanken Grotesk',sans-serif;font-size:.88rem;font-weight:700;color:#1a1206;cursor:pointer;transition:opacity .15s}
+.save-btn{display:block;width:calc(100% - 40px);margin:0 20px 20px;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Hanken Grotesk',sans-serif;font-size:.88rem;font-weight:700;color:#04231a;cursor:pointer;transition:opacity .15s}
 .save-btn:disabled{opacity:.5;cursor:not-allowed}
 .success-msg{text-align:center;font-size:.75rem;color:var(--grn);margin:-10px 20px 20px;min-height:20px}
 
@@ -441,7 +441,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 #hfOverlay .hf-typed.show{display:flex}
 #hfOverlay .hf-typed input{flex:1;padding:13px 15px;background:var(--s2);border:1px solid var(--br);border-radius:13px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.92rem;outline:none}
 #hfOverlay .hf-typed input:focus{border-color:var(--acc)}
-#hfOverlay .hf-typed button{width:48px;border:none;border-radius:13px;background:var(--acc);color:#1a1206;font-size:1.05rem;cursor:pointer}
+#hfOverlay .hf-typed button{width:48px;border:none;border-radius:13px;background:var(--acc);color:#04231a;font-size:1.05rem;cursor:pointer}
 
 .inbox-list{display:flex;flex-direction:column}
 .iconv{display:flex;align-items:center;gap:13px;padding:14px 20px;border-bottom:1px solid var(--br2);cursor:pointer;transition:background .15s}
@@ -460,10 +460,10 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .tmsg-time{font-size:.6rem;color:var(--t4);margin-top:4px}
 .thread-reply{flex-shrink:0;padding:10px 14px 28px;background:linear-gradient(180deg,transparent,var(--bg) 22%);display:flex;gap:8px;align-items:flex-end}
 .reply-ta{flex:1;padding:12px 14px;background:var(--s2);border:1px solid var(--br);border-radius:14px;color:var(--t1);font-family:Hanken\ Grotesk,sans-serif;font-size:.9rem;outline:none;resize:none;min-height:44px;max-height:120px;overflow-y:auto;transition:border-color .2s}
-.reply-ta:focus{border-color:var(--acc)}.reply-send{width:44px;height:44px;border-radius:13px;background:var(--acc);border:none;color:#1a1206;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform .12s var(--press)}
+.reply-ta:focus{border-color:var(--acc)}.reply-send{width:44px;height:44px;border-radius:13px;background:var(--acc);border:none;color:#04231a;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform .12s var(--press)}
 .reply-send:active{transform:scale(.94)}.reply-send svg{width:19px;height:19px}
 
-.setup-card{margin:0 16px 18px;padding:20px;background:linear-gradient(135deg,rgba(255,158,27,.08),rgba(255,158,27,.03));border:1px solid rgba(255,158,27,.25);border-radius:20px;box-shadow:inset 0 1px 0 rgba(255,158,27,.12)}
+.setup-card{margin:0 16px 18px;padding:20px;background:linear-gradient(135deg,rgba(31,184,136,.08),rgba(31,184,136,.03));border:1px solid rgba(31,184,136,.25);border-radius:20px;box-shadow:inset 0 1px 0 rgba(31,184,136,.12)}
 .setup-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}
 .setup-step{text-align:center;padding:10px 6px;background:var(--s2);border-radius:12px;border:1px solid var(--br2)}
 .setup-step-n{width:26px;height:26px;border-radius:50%;background:var(--acc-d);color:var(--acc2);font-family:Archivo,sans-serif;font-weight:700;font-size:.85rem;display:flex;align-items:center;justify-content:center;margin:0 auto 6px}
@@ -479,7 +479,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .admin-body{flex:1;min-width:0}
 .admin-name{font-weight:600;font-size:.88rem;margin-bottom:2px}
 .admin-detail{font-size:.7rem;color:var(--t3)}
-.admin-act{padding:7px 14px;background:var(--acc);border:none;border-radius:9px;font-family:Archivo,sans-serif;font-weight:700;font-size:.72rem;color:#1a1206;cursor:pointer;transition:transform .12s var(--press);flex-shrink:0}
+.admin-act{padding:7px 14px;background:var(--acc);border:none;border-radius:9px;font-family:Archivo,sans-serif;font-weight:700;font-size:.72rem;color:#04231a;cursor:pointer;transition:transform .12s var(--press);flex-shrink:0}
 .admin-act:active{transform:scale(.94)}
 .activate-form{margin-top:12px;padding-top:12px;border-top:1px solid var(--br2);display:none}
 .activate-form.open{display:block}
@@ -505,7 +505,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .asst-mic:active{transform:scale(.94)}
 .asst-ta{flex:1;padding:12px 14px;background:var(--s2);border:1px solid var(--br);border-radius:14px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.9rem;outline:none;resize:none;min-height:44px;max-height:120px;overflow-y:auto}
 .asst-ta:focus{border-color:var(--acc)}
-.asst-send{width:44px;height:44px;border-radius:13px;background:var(--acc);border:none;color:#1a1206;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform .12s}
+.asst-send{width:44px;height:44px;border-radius:13px;background:var(--acc);border:none;color:#04231a;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform .12s}
 .asst-send:active{transform:scale(.94)}
 .asst-mic svg,.asst-send svg{width:19px;height:19px}
 .asst-typing{align-self:flex-start;display:flex;gap:4px;padding:13px 15px;background:var(--s2);border:1px solid var(--br2);border-radius:16px;border-bottom-left-radius:5px}
@@ -556,7 +556,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .empty-state .es-icon{width:48px;height:48px;border-radius:16px;background:var(--s2);border:1.5px solid var(--br);display:flex;align-items:center;justify-content:center;color:var(--t4);margin-bottom:4px}
 .empty-state .es-icon svg{width:22px;height:22px}
 .empty-state strong{color:var(--t2);font-size:.88rem;font-weight:700}
-.empty-state .es-cta{margin-top:4px;padding:9px 18px;background:var(--acc-d);color:var(--acc2);border:1px solid rgba(255,158,27,.3);border-radius:22px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;transition:transform .12s var(--spring)}
+.empty-state .es-cta{margin-top:4px;padding:9px 18px;background:var(--acc-d);color:var(--acc2);border:1px solid rgba(31,184,136,.3);border-radius:22px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;transition:transform .12s var(--spring)}
 .empty-state .es-cta:active{transform:scale(.96)}
 
 /* ─── SWIPE-TO-ACTION ────────────────────────────────── */
@@ -855,7 +855,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     <div id="s-quotes" class="scr">
       <div class="ph" style="display:flex;align-items:center;justify-content:space-between">
         <div class="ph-title">Quotes</div>
-        <button onclick="go('quotegen')" style="display:flex;align-items:center;gap:6px;padding:9px 15px;background:var(--acc);border:none;border-radius:11px;font-family:'Archivo',sans-serif;font-weight:700;font-size:.78rem;color:#1a1206;cursor:pointer">
+        <button onclick="go('quotegen')" style="display:flex;align-items:center;gap:6px;padding:9px 15px;background:var(--acc);border:none;border-radius:11px;font-family:'Archivo',sans-serif;font-weight:700;font-size:.78rem;color:#04231a;cursor:pointer">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>New AI Quote
         </button>
       </div>
@@ -866,7 +866,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px">
         <div class="ph-title" style="margin:0">AI Quote</div>
         <div style="display:flex;gap:6px;align-items:center">
-          <button onclick="hfOpen()" title="Hands-free conversation" style="display:flex;align-items:center;gap:5px;font-size:.68rem;font-weight:700;color:var(--acc2);background:var(--acc-d);border:1px solid rgba(255,158,27,.3);cursor:pointer;font-family:'Hanken Grotesk',sans-serif;padding:5px 10px;border-radius:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="width:1.05em;height:1.05em"><path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg> Hands-free</button>
+          <button onclick="hfOpen()" title="Hands-free conversation" style="display:flex;align-items:center;gap:5px;font-size:.68rem;font-weight:700;color:var(--acc2);background:var(--acc-d);border:1px solid rgba(31,184,136,.3);cursor:pointer;font-family:'Hanken Grotesk',sans-serif;padding:5px 10px;border-radius:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="width:1.05em;height:1.05em"><path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg> Hands-free</button>
           <button id="qgVoiceToggle" onclick="qgToggleVoiceMode()" title="Toggle voice mode" style="font-size:.68rem;color:var(--t3);background:none;border:none;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;padding:4px 8px;border-radius:8px;border:1px solid var(--br)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:1.05em;height:1.05em;vertical-align:-.17em;flex-shrink:0"><path d="M5 9h3l4-3v12l-4-3H5z" stroke-linejoin="round"/><path d="M16 9l4 6M20 9l-4 6" stroke-linecap="round"/></svg> Voice off</button>
           <button onclick="qgReset()" style="font-size:.68rem;color:var(--t3);background:none;border:none;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;padding:4px 8px;border-radius:8px;border:1px solid var(--br)">New quote</button>
         </div>
@@ -923,7 +923,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 
           <div id="qgBrandCard" style="background:var(--s1);border:1px solid var(--br);border-radius:18px;overflow:hidden;margin-bottom:12px;box-shadow:inset 0 1px 0 var(--toplight),0 18px 40px -28px #000">
             <div style="padding:16px 18px;background:linear-gradient(180deg,var(--s2),var(--s1));border-bottom:1px solid var(--br);display:flex;align-items:center;gap:12px">
-              <div id="qgCardLogo" style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Archivo',sans-serif;font-weight:800;color:#1a1206;flex-shrink:0">HC</div>
+              <div id="qgCardLogo" style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Archivo',sans-serif;font-weight:800;color:#04231a;flex-shrink:0">HC</div>
               <div style="min-width:0"><div id="qgCardBiz" class="disp" style="font-family:'Archivo',sans-serif;font-weight:700;font-size:.95rem;letter-spacing:-.02em">Your Business</div><div id="qgCardSub" style="font-size:.68rem;color:var(--t3);margin-top:2px">—</div></div>
             </div>
             <div style="padding:13px 18px;border-bottom:1px solid var(--br2)"><div style="color:var(--t3);text-transform:uppercase;letter-spacing:.08em;font-weight:700;font-size:.58rem">Quote for</div><div id="qgCardClient" style="font-weight:600;font-size:.86rem;margin-top:3px">Customer</div></div>
@@ -1304,7 +1304,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <button onclick="sendChat()" style="width:44px;height:44px;border-radius:12px;background:var(--acc);border:none;color:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">→</button>
     </div>
   </div>
-  <button id="chatBtn" onclick="toggleChat()" style="display:none;position:fixed;bottom:90px;right:16px;width:56px;height:56px;border-radius:50%;background:var(--acc);border:none;color:#1a1206;font-size:1.5rem;cursor:pointer;z-index:199;box-shadow:0 8px 24px -6px var(--acc-glow);transition:transform .12s var(--press)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:24px;height:24px;display:block"><path d="M21 12a8 8 0 0 1-11 7.4L4 21l1.6-6A8 8 0 1 1 21 12z" stroke-linejoin="round"/></svg></button>
+  <button id="chatBtn" onclick="toggleChat()" style="display:none;position:fixed;bottom:90px;right:16px;width:56px;height:56px;border-radius:50%;background:var(--acc);border:none;color:#04231a;font-size:1.5rem;cursor:pointer;z-index:199;box-shadow:0 8px 24px -6px var(--acc-glow);transition:transform .12s var(--press)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:24px;height:24px;display:block"><path d="M21 12a8 8 0 0 1-11 7.4L4 21l1.6-6A8 8 0 1 1 21 12z" stroke-linejoin="round"/></svg></button>
 
   <div id="hfOverlay" class="idle">
     <div class="hf-top">
