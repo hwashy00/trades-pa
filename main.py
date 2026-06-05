@@ -2224,37 +2224,58 @@ def _build_detailed_quote(profile, job_description, client_name="Customer", mate
     given = ""
     if materials_cost: given += " The user gave a materials cost of " + str(materials_cost) + " pounds (do not add markup to this)."
     if labour_days: given += " The user said " + str(labour_days) + " labour days."
-    prompt = ("You are a quoting engine for a UK " + trade + " business. Day rate " + str(int(day_rate)) +
-              " pounds, materials markup " + str(int(markup)) + " percent. Job: " + job_description + given +
-              " Estimate it sensibly. Respond with ONLY this JSON and nothing else: "
-              '{"scopeItems":["specific item 1","specific item 2","specific item 3"],'
-              '"materials":[{"item":"name","qty":"1","unitCost":0,"total":0}],'
-              '"labourDays":1,"leadTimeDays":"3-5","note":""}')
-    resp = client.messages.create(model="claude-sonnet-4-5", max_tokens=900,
-                                  messages=[{"role":"user","content":prompt}])
-    raw = ""
-    for b in resp.content:
-        if b.type == "text": raw += b.text
-    import re as _re
-    mt = _re.search(r"\{[\s\S]*\}", raw)
-    parsed = json.loads(mt.group(0)) if mt else {}
-    scope = parsed.get("scopeItems", [job_description])
-    mats = parsed.get("materials", [])
-    ld = labour_days if labour_days else parsed.get("labourDays", 1)
+    sys = ("You are an expert UK " + trade + " writing the scope of works for a professional customer quote. "
+           "You output ONLY valid JSON, no preamble, no markdown, no code fences.")
+    user = ("Job: " + job_description + given +
+            " Day rate " + str(int(day_rate)) + " pounds. Materials markup " + str(int(markup)) + " percent. "
+            "Write a proper professional quote. Give 4 to 6 detailed scope-of-works items, each a full sentence "
+            "describing the work as it would appear on a customer quotation (e.g. 'Supply and erect a timber stud "
+            "partition wall including noggins and insulation'). Estimate materials and labour realistically. "
+            'Respond with ONLY this JSON: '
+            '{"scopeItems":["...","...","...","..."],'
+            '"materials":[{"item":"name","qty":"1","unitCost":0,"total":0}],'
+            '"labourDays":1,"leadTimeDays":"3-5","note":""}')
+    scope = []; mats = []; ld = labour_days or 1; note = ""; lead = "3-5"
+    try:
+        resp = client.messages.create(model="claude-sonnet-4-5", max_tokens=1100,
+                                      system=sys, messages=[{"role":"user","content":user}])
+        raw = ""
+        for b in resp.content:
+            if b.type == "text": raw += b.text
+        import re as _re
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = _re.sub(r"^```[a-zA-Z]*", "", raw).rsplit("```", 1)[0]
+        mt = _re.search(r"\{[\s\S]*\}", raw)
+        parsed = json.loads(mt.group(0)) if mt else {}
+        scope = parsed.get("scopeItems", []) or []
+        mats = parsed.get("materials", []) or []
+        ld = labour_days if labour_days else parsed.get("labourDays", 1)
+        note = parsed.get("note", "") or ""
+        lead = parsed.get("leadTimeDays", "3-5") or "3-5"
+    except Exception as e:
+        print("Quote build parse error:", e)
+    # sensible fallbacks so a quote is never bare
+    if not scope:
+        scope = ["Supply all labour and materials for: " + job_description,
+                 "All work carried out to current UK building standards",
+                 "Site protection during works and full clean-down on completion"]
     try: ld = float(ld)
     except: ld = 1
+    if ld <= 0: ld = 1
     labour_cost = ld * day_rate
     if materials_cost:
         raw_mats = float(materials_cost); markup_amt = 0; mats_final = raw_mats
     else:
         raw_mats = sum(float(x.get("total", 0) or 0) for x in mats)
+        if raw_mats <= 0: raw_mats = labour_cost * 0.4  # rough materials estimate if model gave none
         markup_amt = raw_mats * markup / 100.0
         mats_final = raw_mats + markup_amt
     total = round((labour_cost + mats_final) / 5.0) * 5
+    if total <= 0: total = round(day_rate / 5.0) * 5
     return {"client_name": client_name, "scope": scope, "materials": mats,
             "labour_days": ld, "labour_cost": labour_cost, "materials_cost": mats_final,
-            "markup_amount": markup_amt, "total": total, "note": parsed.get("note", ""),
-            "lead_time": parsed.get("leadTimeDays", "3-5")}
+            "markup_amount": markup_amt, "total": total, "note": note, "lead_time": lead}
 
 
 def _assistant_execute_tool(name, ti, profile):
