@@ -375,12 +375,13 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .thread-back{width:36px;height:36px;border-radius:11px;background:var(--s2);border:1px solid var(--br);display:flex;align-items:center;justify-content:center;color:var(--t2);cursor:pointer;flex-shrink:0;transition:background .15s}
 .thread-back:active{background:var(--s3)}.thread-back svg{width:17px;height:17px}
 .thread-name{font-family:Archivo,sans-serif;font-weight:700;font-size:1rem;letter-spacing:-.02em}.thread-num{font-size:.68rem;color:var(--t3);margin-top:1px}
-.thread-msgs{padding:14px 16px 110px;display:flex;flex-direction:column;gap:10px}
+.thread-msgs{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+.thread-msgs::-webkit-scrollbar{display:none}
 .tmsg{max-width:80%;padding:10px 13px;font-size:.84rem;line-height:1.5;border-radius:16px}
 .tmsg.in{background:var(--s2);border:1px solid var(--br2);border-bottom-left-radius:5px;align-self:flex-start;color:var(--t1)}
 .tmsg.out{background:var(--acc-d);border-bottom-right-radius:5px;align-self:flex-end;color:var(--acc2);font-weight:500}
 .tmsg-time{font-size:.6rem;color:var(--t4);margin-top:4px}
-.thread-reply{position:sticky;bottom:0;padding:10px 14px 30px;background:linear-gradient(180deg,transparent,var(--bg) 22%);display:flex;gap:8px;align-items:flex-end}
+.thread-reply{flex-shrink:0;padding:10px 14px 28px;background:linear-gradient(180deg,transparent,var(--bg) 22%);display:flex;gap:8px;align-items:flex-end}
 .reply-ta{flex:1;padding:12px 14px;background:var(--s2);border:1px solid var(--br);border-radius:14px;color:var(--t1);font-family:Hanken\ Grotesk,sans-serif;font-size:.9rem;outline:none;resize:none;min-height:44px;max-height:120px;overflow-y:auto;transition:border-color .2s}
 .reply-ta:focus{border-color:var(--acc)}.reply-send{width:44px;height:44px;border-radius:13px;background:var(--acc);border:none;color:#1a1206;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform .12s var(--press)}
 .reply-send:active{transform:scale(.94)}.reply-send svg{width:19px;height:19px}
@@ -1114,7 +1115,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
             <div style="font-size:.78rem;color:var(--t3);line-height:1.6">When customers text your bot, threads appear here.</div>
           </div>
         </div>
-        <div id="inboxThreadView" style="display:none">
+        <div id="inboxThreadView" style="display:none;flex-direction:column;height:calc(100vh - 96px)">
           <div class="thread-bar">
             <button class="thread-back" onclick="backToInbox()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             <div><div class="thread-name disp" id="threadName">Customer</div><div class="thread-num" id="threadNum"></div></div>
@@ -3314,9 +3315,9 @@ function openThread(num,nameEnc){
   inboxCurrentClient=num;
   inboxCurrentName=decodeURIComponent(nameEnc);
   document.getElementById('threadName').textContent=inboxCurrentName;
-  document.getElementById('threadNum').textContent=num;
+  document.getElementById('threadNum').textContent=num.replace('whatsapp:','');
   document.getElementById('inboxListView').style.display='none';
-  document.getElementById('inboxThreadView').style.display='block';
+  document.getElementById('inboxThreadView').style.display='flex';
   var url='/api/conversation/'+encodeURIComponent(num)+
           '?phone='+encodeURIComponent(userPhone)+
           '&pin='+encodeURIComponent(userPin);
@@ -3362,10 +3363,11 @@ async function sendReply(){
     var res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_number:inboxCurrentClient,message:msg})});
     var d=await res.json();
     ts.textContent=d.ok?'Sent \u2713':'Error: '+(d.error||'failed');
-    if(!d.ok) bubble.style.opacity='0.5';
+    if(!d.ok){bubble.style.opacity='0.5';ts.style.color='var(--red)';}
   }catch(e){
     ts.textContent='Failed \u2014 check your connection';
     bubble.style.opacity='0.5';
+    ts.style.color='var(--red)';
   }
   if(btn) btn.style.opacity='1';
 }
@@ -3491,7 +3493,8 @@ function loadAdminPanel(){
       var nm=document.createElement('div'); nm.className='admin-name';
       nm.textContent=c.business_name||c.owner_name||c.phone;
       var det=document.createElement('div'); det.className='admin-detail';
-      det.textContent=(c.trade||'')+((c.location)?' \u00b7 '+c.location:'')+((c.phone)?' \u00b7 '+c.phone:'');
+      var dispPhone=(c.client_number||'').replace('whatsapp:','');
+      det.textContent=dispPhone;
       var req=c.twilio_number||'';
       var reqN=document.createElement('div'); reqN.className='admin-detail'; reqN.style.marginTop='2px';
       reqN.textContent=req==='pending:new'||req==='pending:'?'Wants new number':'Wants: '+req.replace('pending:','');
