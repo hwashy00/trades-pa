@@ -3105,7 +3105,7 @@ async function hfSpeak(text){
     try{
       const r=await fetch('/api/tts?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
         method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({text:String(text).replace(/[*_#]/g,'').substring(0,800)})
+        body:JSON.stringify({text:String(text).replace(/[*_#]/g,'').substring(0,2000)})
       });
       if(!r.ok) throw new Error('tts '+r.status);
       const blob=await r.blob();
@@ -3168,7 +3168,7 @@ function hfStartVAD(){
         if(!hfSilenceStart) hfSilenceStart = now;
         else if(now - hfSilenceStart > 3000){ hfStopRecording(); return; }
       }
-      if(now - hfRecStart > 20000){ hfStopRecording(); return; }
+      if(now - hfRecStart > 40000){ hfStopRecording(); return; }
       hfVadRAF = requestAnimationFrame(tick);
     }
     hfVadRAF = requestAnimationFrame(tick);
