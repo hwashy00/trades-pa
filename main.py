@@ -406,7 +406,7 @@ def build_quote_html(quote, profile, template, is_invoice=False):
 
     scope_items_used = quote.get("line_items") or scope_items
     if isinstance(scope_items_used, list) and scope_items_used and isinstance(scope_items_used[0], dict):
-        scope_items_used = [f'{i.get("description","")} — £{i.get("amount","")}' for i in scope_items_used]
+        scope_items_used = [(f'{i.get("description","")} — £{i.get("amount","")}' if str(i.get("amount","")).strip() else i.get("description","")) for i in scope_items_used]
 
     vat_html = '<div style="font-size:11px;font-weight:700;margin-top:4px">+ VAT</div>' if show_vat else ""
     note_html = f'<div style="border:1.5px solid {accent};border-radius:5px;padding:10px 12px;margin-top:14px;background:#fffef5"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">PLEASE NOTE</div><div style="font-size:10px;color:#555;line-height:1.6">{note}</div></div>' if show_note else ""
@@ -2288,12 +2288,7 @@ def _assistant_execute_tool(name, ti, profile):
                 print("Quote client lookup:", le)
             cnt = supabase.table("quotes").select("id").eq("sender", sender).execute()
             num = "QU-" + str(len(cnt.data) + 1).zfill(3)
-            line_items = []
-            for mat in q["materials"]:
-                line_items.append({"description": mat.get("item", ""), "qty": str(mat.get("qty", "")),
-                                   "amount": str(mat.get("total", ""))})
-            line_items.append({"description": "Labour (" + str(q["labour_days"]) + " day(s))",
-                               "amount": str(int(q["labour_cost"]))})
+            line_items = [{"description": s, "amount": ""} for s in q["scope"]]
             # insert as draft first so we have an id for the PDF link
             ins = supabase.table("quotes").insert({
                 "sender": sender, "client_name": client_name,
