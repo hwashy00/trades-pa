@@ -937,7 +937,34 @@ def whatsapp():
                         "gmail_token": "", "gmail_refresh_token": ""
                     }).execute()
                     supabase.table("onboarding").delete().eq("sender", sender).execute()
-                    resp.message("All set " + data.get("owner_name", "") + "! You are ready to go.\n\nVisit your dashboard at:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard\n\nLog in with your mobile number and PIN.")
+
+                    # 60-SECOND WOW: instantly generate a real sample quote in their trade
+                    fresh_profile = get_user_profile(sender) or {
+                        "sender": sender, "business_name": data.get("business_name", ""),
+                        "owner_name": data.get("owner_name", ""), "trade": data.get("trade", ""),
+                        "day_rate": "250", "materials_markup": "20", "phone": phone
+                    }
+                    owner_fw = (data.get("owner_name", "") or "").split(" ")[0]
+                    resp.message("All set, " + owner_fw + "! ✅ Give me two seconds - I'll show you what I can do...")
+
+                    sample = send_welcome_sample_quote(fresh_profile)
+                    try:
+                        from twilio.rest import Client as _TC
+                        _tc = _TC(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
+                        def _wa(n): return n if str(n).startswith("whatsapp:") else "whatsapp:" + str(n)
+                        _from = _wa(os.environ.get("TWILIO_NUMBER"))
+                        if sample:
+                            wow = ("Here is a sample quote I just made for you - a real \"" + sample["job"][:60] +
+                                   "\" job, priced and branded with your business name:\n\n" + sample["url"] +
+                                   "\n\nThat is about 30 seconds of work, done for you. 💷 Your real quotes will look just like this.\n\n"
+                                   "Try it now - just describe any job (or send a photo) and I will quote it. "
+                                   "Or open your dashboard:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard")
+                        else:
+                            wow = ("You are ready to go. Try me now - describe a job or send a photo and I will build you a quote.\n\n"
+                                   "Your dashboard:\nhttps://trades-pa-trades-pa.up.railway.app/dashboard")
+                        _tc.messages.create(body=wow, from_=_from, to=_wa(sender))
+                    except Exception as _we:
+                        print("welcome wow send error:", _we)
                 except Exception as e:
                     print("Profile save error: " + str(e))
                     print(traceback.format_exc())
@@ -2687,6 +2714,90 @@ def _normalise_job_type(text):
     cleaned = "".join(ch if ch.isalnum() or ch == " " else " " for ch in t)
     words = [w for w in cleaned.split() if len(w) > 2][:2]
     return " ".join(words) or "general"
+
+
+def _sample_job_for_trade(trade):
+    """A believable sample job + scope + ballpark numbers for the welcome quote."""
+    t = (trade or "").lower()
+    table = [
+        (["carpenter", "joiner", "carpentry"],
+         ("Supply and fit 4 internal oak veneer doors with new hinges and handles", "Sample Client",
+          ["Remove existing doors and ironmongery", "Hang 4 oak veneer doors, adjusted to frame",
+           "Fit new hinges, latches and handles", "Adjust, ease and finish; site clean-down"], 2, 360)),
+        (["plasterer", "plastering", "renderer"],
+         ("Skim two ceilings and one feature wall to a smooth finish", "Sample Client",
+          ["Prepare and tape joints", "Apply bonding coat where needed",
+           "Skim two ceilings and one wall to smooth finish", "Make good and clean down"], 2, 180)),
+        (["plumber", "plumbing", "heating", "gas"],
+         ("Replace bathroom suite - basin, WC and taps", "Sample Client",
+          ["Isolate supplies and remove old suite", "Fit new basin, WC and taps",
+           "Connect, test for leaks and commission", "Seal and clean down"], 2, 420)),
+        (["electrician", "electrical"],
+         ("Replace consumer unit and add two double sockets", "Sample Client",
+          ["Isolate and remove old consumer unit", "Install new 18th-edition consumer unit",
+           "Run and connect two new double sockets", "Test, certify and clean down"], 1, 220)),
+        (["fencer", "fencing", "landscaper", "landscaping", "garden"],
+         ("Supply and install 6 feather-edge fence panels with posts", "Sample Client",
+          ["Remove existing panels", "Set 6 posts in postcrete",
+           "Fit 6 feather-edge panels and gravel boards", "Clear site and take away waste"], 1, 300)),
+        (["tiler", "tiling"],
+         ("Tile bathroom walls - supply and fit, approx 12 sq m", "Sample Client",
+          ["Prepare and prime walls", "Fix approx 12 sq m wall tiles",
+           "Grout, seal and finish edges", "Clean down"], 2, 260)),
+        (["roofer", "roofing"],
+         ("Replace 10 slipped tiles and re-point ridge line", "Sample Client",
+          ["Access and make safe", "Replace 10 slipped/broken tiles",
+           "Re-bed and point ridge line", "Clear debris and clean down"], 1, 140)),
+        (["painter", "decorator", "decorating"],
+         ("Paint lounge and hallway - walls, ceilings and woodwork", "Sample Client",
+          ["Prepare, fill and sand surfaces", "Two coats emulsion to walls and ceilings",
+           "Gloss/satin to woodwork", "Clean down and make good"], 2, 160)),
+        (["builder", "building", "groundwork"],
+         ("Lay 20 sq m patio in porcelain paving", "Sample Client",
+          ["Excavate and prepare sub-base", "Lay and compact base",
+           "Lay 20 sq m porcelain paving", "Point, seal and clear site"], 3, 650)),
+    ]
+    for keys, payload in table:
+        if any(k in t for k in keys):
+            return payload
+    return ("Sample job for your trade - typical 2-day project", "Sample Client",
+            ["Preparation and set-up", "Carry out the works to a high standard",
+             "Finishing and adjustments", "Site clean-down on completion"], 2, 250)
+
+
+def send_welcome_sample_quote(profile):
+    """Build a real SAMPLE quote in the user's trade; return pdf url + blurb data. Never raises."""
+    try:
+        sender = profile.get("sender", "")
+        trade = profile.get("trade", "")
+        day_rate = float(str(profile.get("day_rate") or "250").replace("\u00a3", "").replace(",", "").strip() or 250) or 250
+        job_desc, client_name, scope, labour_days, materials_cost = _sample_job_for_trade(trade)
+        labour_cost = labour_days * day_rate
+        total = int(round((labour_cost + materials_cost) / 5.0) * 5)
+        template_result = supabase.table("quote_templates").select("*").eq("sender", sender).execute()
+        template = template_result.data[0] if template_result.data else {}
+        cnt = supabase.table("quotes").select("id").eq("sender", sender).execute()
+        num = "QU-" + str(len(cnt.data) + 1).zfill(3)
+        quote_obj = {"client_name": client_name, "client_address": "",
+                     "total": str(total), "quote_number": num, "line_items": scope}
+        try:
+            html = build_quote_html(quote_obj, profile, template, is_invoice=False)
+        except Exception as he:
+            print("welcome quote html error:", he); html = ""
+        saved = supabase.table("quotes").insert({
+            "sender": sender, "client_name": client_name, "client_address": "",
+            "job_description": job_desc, "line_items": scope,
+            "subtotal": str(total), "vat": "0", "total": str(total),
+            "status": "draft", "quote_number": num, "quote_text": html, "client_number": ""
+        }).execute()
+        quote_id = saved.data[0].get("id", "") if saved.data else ""
+        if not quote_id:
+            return None
+        return {"url": "https://trades-pa-trades-pa.up.railway.app/generate-pdf/" + str(quote_id),
+                "total": total, "job": job_desc, "client": client_name, "number": num}
+    except Exception as e:
+        print("send_welcome_sample_quote error:", e)
+        return None
 
 
 def save_pricing_memory(profile, job_description, quote):
