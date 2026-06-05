@@ -2372,7 +2372,9 @@ def reply_client():
         auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
         from twilio.rest import Client as TwilioClient
         tc = TwilioClient(account_sid,auth_token)
-        tc.messages.create(body=message,from_="whatsapp:"+twilio_number,to="whatsapp:"+client_number)
+        # normalise numbers — strip any existing whatsapp: prefix before adding it
+        def wa(n): return "whatsapp:"+n if not n.startswith("whatsapp:") else n
+        tc.messages.create(body=message, from_=wa(twilio_number), to=wa(client_number))
         supabase.table("client_chats").insert({"twilio_number":twilio_number,"client_number":client_number,"message":message,"direction":"outbound","sender_profile":sp}).execute()
         return jsonify({"ok":True})
     except Exception as e:
