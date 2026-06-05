@@ -2234,14 +2234,14 @@ ASSISTANT_TOOLS = [
 ]
 
 
-def _build_detailed_quote(profile, job_description, client_name="Customer", materials_cost=None, labour_days=None):
+def _build_detailed_quote(profile, job_description, client_name="Customer", materials_cost=None, labour_days=None, image_data=None, image_type=None):
     day_rate = float(str(profile.get("day_rate") or "250").replace("\u00a3","").replace(",","").strip() or 250) or 250
     # build a message for the SAME engine the AI Quote tab uses, pushing it to generate immediately
     msg = job_description
     if materials_cost: msg += ". Materials " + str(materials_cost) + " pounds."
     if labour_days: msg += ". " + str(labour_days) + " days labour."
     msg += " Generate the quote now with sensible professional assumptions. Do not ask any questions."
-    qd = _quote_gen_core(profile, msg)
+    qd = _quote_gen_core(profile, msg, image_data=image_data, image_type=image_type)
     if qd.get("type") == "quote":
         scope = qd.get("scopeItems", []) or []
         total = float(qd.get("totalPrice", 0) or 0)
@@ -2272,6 +2272,71 @@ def _build_detailed_quote(profile, job_description, client_name="Customer", mate
             "markup_amount": markup_amt, "total": total, "note": note, "lead_time": lead}
 
 
+def _assistant_create_quote(profile, sender, job_description, client_name="Customer", materials_cost=None, labour_days=None, image_data=None, image_type=None):
+    try:
+        q = _build_detailed_quote(profile, job_description, client_name, materials_cost, labour_days, image_data, image_type)
+        client_name = q["client_name"]
+        client_number = ""
+        fw = client_name.split()[0] if client_name.split() else client_name
+        try:
+            enq = supabase.table("enquiries").select("sender").ilike("client_name", "%" + fw + "%").order("created_at", desc=True).limit(1).execute()
+            if enq.data:
+                client_number = enq.data[0].get("sender", "")
+        except Exception as le:
+            print("Quote client lookup:", le)
+        cnt = supabase.table("quotes").select("id").eq("sender", sender).execute()
+        num = "QU-" + str(len(cnt.data) + 1).zfill(3)
+        line_items = [{"description": s, "amount": ""} for s in q["scope"]]
+        ins = supabase.table("quotes").insert({
+            "sender": sender, "client_name": client_name,
+            "job_description": "; ".join(q["scope"]), "total": str(int(q["total"])),
+            "subtotal": str(int(q["total"])), "vat": "0", "line_items": line_items,
+            "status": "draft", "quote_number": num, "quote_text": "",
+            "client_number": client_number
+        }).execute()
+        quote_id = ins.data[0].get("id", "") if ins.data else ""
+        sent = False
+        if client_number and quote_id:
+            try:
+                def wa(n): return n if n.startswith("whatsapp:") else "whatsapp:" + n
+                twilio_num = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER", "")
+                try:
+                    host = request.host_url.rstrip("/")
+                except Exception:
+                    host = "https://trades-pa-trades-pa.up.railway.app"
+                view_url = host + "/quote-view/" + str(quote_id)
+                biz = profile.get("business_name") or profile.get("owner_name") or "your tradesperson"
+                body_msg = ("Hi! Here is your quote from " + biz + ". " + num + " - "
+                            + "; ".join(q["scope"]) + ". Total " + str(int(q["total"]))
+                            + " pounds. View: " + view_url)
+                from twilio.rest import Client as TwilioClient
+                tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
+                tc.messages.create(body=body_msg, from_=wa(twilio_num), to=wa(client_number))
+                sent = True
+            except Exception as se:
+                print("Quote send error:", se)
+        if sent:
+            try:
+                supabase.table("quotes").update({"status": "sent"}).eq("id", quote_id).execute()
+                supabase.table("enquiries").update({"status": "quoted"}).ilike("client_name", "%" + fw + "%").execute()
+            except Exception:
+                pass
+        mat_lines = ", ".join((x.get("item", "") for x in q["materials"][:6])) or "materials"
+        base = ("Quote " + num + " for " + client_name + ". Labour " + str(q["labour_days"])
+                + " day(s) at " + str(int(q["labour_cost"])) + " pounds, materials "
+                + str(int(q["materials_cost"])) + " pounds (" + mat_lines + "), total "
+                + str(int(q["total"])) + " pounds.")
+        if sent:
+            return base + " Saved and sent to " + client_name + " on WhatsApp. View it in the Quotes tab."
+        elif client_number:
+            return base + " Saved to the Quotes tab as a draft. I tried to send it but it didn't go through, so send it manually from there."
+        else:
+            return base + " Saved to the Quotes tab as a draft. I don't have " + client_name + "'s number, so it hasn't been sent - open it from the Quotes tab."
+    except Exception as e:
+        print("create_quote helper error:", e)
+        return "I had trouble creating that quote: " + str(e)
+
+
 def _assistant_execute_tool(name, ti, profile):
     sender = profile.get("sender", "")
     try:
@@ -2288,72 +2353,9 @@ def _assistant_execute_tool(name, ti, profile):
             return "Created invoice " + num + " for " + ti.get("client_name", "") + ", total \u00a3" + total + "."
 
         if name == "create_quote":
-            q = _build_detailed_quote(profile, ti.get("job_description", ""),
-                                      ti.get("client_name", "Customer"),
-                                      ti.get("materials_cost"), ti.get("labour_days"))
-            client_name = q["client_name"]
-            # find client WhatsApp number from enquiries
-            client_number = ""
-            fw = client_name.split()[0] if client_name.split() else client_name
-            try:
-                enq = supabase.table("enquiries").select("sender").ilike("client_name", "%" + fw + "%").order("created_at", desc=True).limit(1).execute()
-                if enq.data:
-                    client_number = enq.data[0].get("sender", "")
-            except Exception as le:
-                print("Quote client lookup:", le)
-            cnt = supabase.table("quotes").select("id").eq("sender", sender).execute()
-            num = "QU-" + str(len(cnt.data) + 1).zfill(3)
-            line_items = [{"description": s, "amount": ""} for s in q["scope"]]
-            # insert as draft first so we have an id for the PDF link
-            ins = supabase.table("quotes").insert({
-                "sender": sender, "client_name": client_name,
-                "job_description": "; ".join(q["scope"]), "total": str(int(q["total"])),
-                "subtotal": str(int(q["total"])), "vat": "0", "line_items": line_items,
-                "status": "draft", "quote_number": num, "quote_text": "",
-                "client_number": client_number
-            }).execute()
-            quote_id = ins.data[0].get("id", "") if ins.data else ""
-            # only attempt send if we actually found a number
-            sent = False
-            send_err = ""
-            if client_number and quote_id:
-                try:
-                    def wa(n): return n if n.startswith("whatsapp:") else "whatsapp:" + n
-                    twilio_num = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER", "")
-                    try:
-                        host = request.host_url.rstrip("/")
-                    except Exception:
-                        host = "https://trades-pa-trades-pa.up.railway.app"
-                    pdf_url = host + "/quote-view/" + str(quote_id)
-                    biz = profile.get("business_name") or profile.get("owner_name") or "your tradesperson"
-                    body_msg = ("Hi! Here is your quote from " + biz + ". " + num + " - "
-                                + "; ".join(q["scope"]) + ". Total " + str(int(q["total"]))
-                                + " pounds. View and download: " + pdf_url)
-                    from twilio.rest import Client as TwilioClient
-                    tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
-                    tc.messages.create(body=body_msg, from_=wa(twilio_num), to=wa(client_number))
-                    sent = True
-                except Exception as se:
-                    send_err = str(se)
-                    print("Quote send error:", se)
-            # only now mark it sent, if the send truly succeeded
-            if sent:
-                try:
-                    supabase.table("quotes").update({"status": "sent"}).eq("id", quote_id).execute()
-                    supabase.table("enquiries").update({"status": "quoted"}).ilike("client_name", "%" + fw + "%").execute()
-                except Exception:
-                    pass
-            mat_lines = ", ".join((x.get("item", "") for x in q["materials"][:6])) or "materials"
-            base = ("Quote " + num + " for " + client_name + ". Labour " + str(q["labour_days"])
-                    + " day(s) at " + str(int(q["labour_cost"])) + " pounds, materials "
-                    + str(int(q["materials_cost"])) + " pounds (" + mat_lines + "), total "
-                    + str(int(q["total"])) + " pounds.")
-            if sent:
-                return base + " Saved and sent to " + client_name + " on WhatsApp. You can view the PDF in the Quotes tab."
-            elif client_number:
-                return base + " Saved to the Quotes tab as a draft. I tried to send it but it didn't go through, so send it manually from there."
-            else:
-                return base + " Saved to the Quotes tab as a draft. I don't have " + client_name + "'s number, so it hasn't been sent - open it from the Quotes tab to send."
+            return _assistant_create_quote(profile, sender, ti.get("job_description", ""),
+                                           ti.get("client_name", "Customer"),
+                                           ti.get("materials_cost"), ti.get("labour_days"))
 
         if name == "get_schedule":
             bookings = supabase.table("bookings").select("*").eq("sender", sender).order("date").execute().data or []
@@ -2421,9 +2423,27 @@ def assistant():
         if not result.data or str(result.data[0].get("pin", "")) != str(pin):
             return jsonify({"error": "Unauthorised"}), 401
         profile = result.data[0]
+        sender = profile.get("sender", "")
         data = request.json or {}
         user_msg = (data.get("message") or "").strip()
         history = data.get("history", [])
+        image_data = data.get("image", None)
+        image_type = data.get("imageType", "image/jpeg")
+
+        # PHOTO-TO-QUOTE: a photo is a quote request. Route straight to the quote engine.
+        if image_data:
+            cname = "Customer"
+            try:
+                import re as _re2
+                mt = _re2.search(r"(?:for|quote)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)", user_msg or "")
+                if mt:
+                    cname = mt.group(1)
+            except Exception:
+                pass
+            job_desc = (user_msg or "Quote this job from the photo") + " Generate the quote now from the photo with sensible professional assumptions. Do not ask questions."
+            reply = _assistant_create_quote(profile, sender, job_desc, cname, None, None, image_data, image_type)
+            return jsonify({"reply": reply, "actions": ["create_quote"]})
+
         if not user_msg:
             return jsonify({"error": "No message"}), 400
 
