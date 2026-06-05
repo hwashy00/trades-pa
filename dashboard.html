@@ -366,25 +366,75 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 #hfOverlay .hf-typed input:focus{border-color:var(--acc)}
 #hfOverlay .hf-typed button{width:48px;border:none;border-radius:13px;background:var(--acc);color:#04231a;font-size:1.05rem;cursor:pointer}
 
-.inbox-list{display:flex;flex-direction:column}
-.iconv{display:flex;align-items:center;gap:13px;padding:14px 20px;border-bottom:1px solid var(--br2);cursor:pointer;transition:background .15s}
-.iconv:active{background:var(--s2)}.iconv-av{width:46px;height:46px;border-radius:14px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-family:Archivo,sans-serif;font-weight:700;font-size:1rem;color:var(--t2);flex-shrink:0}
-.iconv-body{flex:1;min-width:0}.iconv-name{font-weight:600;font-size:.9rem;margin-bottom:3px}.iconv-last{font-size:.74rem;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.iconv-meta{text-align:right;flex-shrink:0}.iconv-time{font-size:.65rem;color:var(--t4)}
-.thread-bar{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--br);background:var(--s1);position:sticky;top:0;z-index:3}
-.thread-back{width:36px;height:36px;border-radius:11px;background:var(--s2);border:1px solid var(--br);display:flex;align-items:center;justify-content:center;color:var(--t2);cursor:pointer;flex-shrink:0;transition:background .15s}
-.thread-back:active{background:var(--s3)}.thread-back svg{width:17px;height:17px}
-.thread-name{font-family:Archivo,sans-serif;font-weight:700;font-size:1rem;letter-spacing:-.02em}.thread-num{font-size:.68rem;color:var(--t3);margin-top:1px}
-.thread-msgs{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+/* ─── INBOX: list ──────────────────────────────────── */
+.inbox-search{position:sticky;top:0;z-index:4;background:var(--bg);padding:6px 16px 10px}
+.inbox-search-box{display:flex;align-items:center;gap:9px;background:var(--s2);border:1px solid var(--br);border-radius:13px;padding:10px 13px;transition:border-color .2s}
+.inbox-search-box:focus-within{border-color:var(--acc)}
+.inbox-search-box svg{width:16px;height:16px;color:var(--t3);flex-shrink:0}
+.inbox-search-box input{flex:1;background:none;border:none;outline:none;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.88rem}
+.inbox-search-box input::placeholder{color:var(--t4)}
+.inbox-list{display:flex;flex-direction:column;padding:0 8px}
+.iconv{display:flex;align-items:center;gap:13px;padding:12px 12px;border-radius:16px;cursor:pointer;transition:background .15s;position:relative}
+.iconv:active{background:var(--s2)}
+.iconv.unread{background:rgba(31,184,136,.05)}
+.iconv-av{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Archivo,sans-serif;font-weight:700;font-size:1.1rem;color:#fff;flex-shrink:0;position:relative}
+.iconv-av .av-dot{position:absolute;top:-1px;right:-1px;width:14px;height:14px;border-radius:50%;background:var(--acc);border:2.5px solid var(--bg)}
+.iconv-body{flex:1;min-width:0}
+.iconv-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:3px}
+.iconv-name{font-weight:600;font-size:.92rem;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.iconv.unread .iconv-name{font-weight:800}
+.iconv-time{font-size:.66rem;color:var(--t4);flex-shrink:0;white-space:nowrap}
+.iconv.unread .iconv-time{color:var(--acc2);font-weight:700}
+.iconv-last{font-size:.78rem;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px}
+.iconv.unread .iconv-last{color:var(--t2)}
+.iconv-last .tick{color:var(--t4);flex-shrink:0}
+.iconv-badge{min-width:20px;height:20px;border-radius:10px;background:var(--acc);color:#04231a;font-size:.62rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 6px;flex-shrink:0}
+.iconv-sep{height:1px;background:var(--br2);margin:0 12px 0 75px}
+.iconv:last-child .iconv-sep{display:none}
+
+/* ─── INBOX: thread ───────────────────────────────── */
+.thread-bar{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--br);background:var(--s1);position:sticky;top:0;z-index:3}
+.thread-back{width:38px;height:38px;border-radius:50%;background:var(--s2);border:1px solid var(--br);display:flex;align-items:center;justify-content:center;color:var(--t2);cursor:pointer;flex-shrink:0;transition:background .15s,transform .12s var(--press)}
+.thread-back:active{background:var(--s3);transform:scale(.92)}
+.thread-back svg{width:18px;height:18px}
+.thread-bar-av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Archivo,sans-serif;font-weight:700;font-size:.95rem;color:#fff;flex-shrink:0}
+.thread-bar-info{flex:1;min-width:0}
+.thread-name{font-family:Archivo,sans-serif;font-weight:700;font-size:1rem;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thread-num{font-size:.68rem;color:var(--t3);margin-top:1px}
+.thread-call{width:38px;height:38px;border-radius:50%;background:var(--s2);border:1px solid var(--br);display:flex;align-items:center;justify-content:center;color:var(--acc2);cursor:pointer;flex-shrink:0;transition:transform .12s var(--press)}
+.thread-call:active{transform:scale(.92)}
+.thread-call svg{width:17px;height:17px}
+.thread-msgs{flex:1;overflow-y:auto;padding:16px 14px 8px;display:flex;flex-direction:column;gap:2px;-webkit-overflow-scrolling:touch}
 .thread-msgs::-webkit-scrollbar{display:none}
-.tmsg{max-width:80%;padding:10px 13px;font-size:.84rem;line-height:1.5;border-radius:16px}
-.tmsg.in{background:var(--s2);border:1px solid var(--br2);border-bottom-left-radius:5px;align-self:flex-start;color:var(--t1)}
-.tmsg.out{background:var(--acc-d);border-bottom-right-radius:5px;align-self:flex-end;color:var(--acc2);font-weight:500}
-.tmsg-time{font-size:.6rem;color:var(--t4);margin-top:4px}
-.thread-reply{flex-shrink:0;padding:10px 14px 28px;background:linear-gradient(180deg,transparent,var(--bg) 22%);display:flex;gap:8px;align-items:flex-end}
-.reply-ta{flex:1;padding:12px 14px;background:var(--s2);border:1px solid var(--br);border-radius:14px;color:var(--t1);font-family:Hanken\ Grotesk,sans-serif;font-size:.9rem;outline:none;resize:none;min-height:44px;max-height:120px;overflow-y:auto;transition:border-color .2s}
-.reply-ta:focus{border-color:var(--acc)}.reply-send{width:44px;height:44px;border-radius:13px;background:var(--acc);border:none;color:#04231a;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform .12s var(--press)}
-.reply-send:active{transform:scale(.94)}.reply-send svg{width:19px;height:19px}
+.tday{align-self:center;font-size:.62rem;font-weight:700;color:var(--t3);background:var(--s2);border:1px solid var(--br2);padding:4px 12px;border-radius:11px;margin:14px 0 8px;text-transform:uppercase;letter-spacing:.05em}
+.trow{display:flex;flex-direction:column;max-width:82%;margin-bottom:2px}
+.trow.out{align-self:flex-end;align-items:flex-end}
+.trow.in{align-self:flex-start;align-items:flex-start}
+.trow.grouped{margin-top:1px}
+.tmsg{padding:9px 13px;font-size:.88rem;line-height:1.45;border-radius:18px;word-wrap:break-word;position:relative;animation:msgPop .26s var(--spring)}
+@keyframes msgPop{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
+.trow.in .tmsg{background:var(--s2);border:1px solid var(--br2);color:var(--t1);border-bottom-left-radius:6px}
+.trow.out .tmsg{background:var(--acc);color:#04231a;font-weight:500;border-bottom-right-radius:6px}
+.trow.grouped.in .tmsg{border-top-left-radius:6px}
+.trow.grouped.out .tmsg{border-top-right-radius:6px}
+.tmeta{font-size:.6rem;color:var(--t4);margin:3px 4px 0;display:flex;align-items:center;gap:4px}
+.trow.out .tmeta{color:var(--t3)}
+.tmeta .tick{display:inline-flex}
+.tmeta .tick.sent{color:var(--t4)}
+.tmeta .tick.ok{color:var(--acc2)}
+.tmeta .tick.err{color:var(--red)}
+.thread-typing{align-self:flex-start;display:flex;gap:4px;padding:11px 14px;background:var(--s2);border:1px solid var(--br2);border-radius:18px;border-bottom-left-radius:6px;margin-top:4px}
+.thread-typing span{width:6px;height:6px;border-radius:50%;background:var(--t3);animation:asstdot 1.2s infinite}
+.thread-typing span:nth-child(2){animation-delay:.2s}.thread-typing span:nth-child(3){animation-delay:.4s}
+.thread-reply{flex-shrink:0;padding:10px 12px 26px;background:linear-gradient(180deg,transparent,var(--bg) 22%);display:flex;gap:8px;align-items:flex-end}
+.reply-ta{flex:1;padding:11px 15px;background:var(--s2);border:1px solid var(--br);border-radius:22px;color:var(--t1);font-family:Hanken\ Grotesk,sans-serif;font-size:.9rem;outline:none;resize:none;min-height:44px;max-height:120px;overflow-y:auto;transition:border-color .2s;line-height:1.4}
+.reply-ta:focus{border-color:var(--acc)}
+.reply-send{width:46px;height:46px;border-radius:50%;background:var(--acc);border:none;color:#04231a;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform .12s var(--press),opacity .15s}
+.reply-send:active{transform:scale(.9)}.reply-send svg{width:20px;height:20px}
+.reply-quick{flex-shrink:0;display:flex;gap:7px;padding:0 12px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.reply-quick::-webkit-scrollbar{display:none}
+.reply-quick button{flex-shrink:0;background:var(--s2);border:1px solid var(--br);border-radius:18px;padding:7px 13px;font-size:.74rem;color:var(--t2);font-family:'Hanken Grotesk',sans-serif;cursor:pointer;white-space:nowrap;transition:transform .12s var(--press),background .15s}
+.reply-quick button:active{transform:scale(.95);background:var(--s3)}
 
 .setup-card{margin:0 16px 18px;padding:20px;background:linear-gradient(135deg,rgba(31,184,136,.08),rgba(31,184,136,.03));border:1px solid rgba(31,184,136,.25);border-radius:20px;box-shadow:inset 0 1px 0 rgba(31,184,136,.12)}
 .setup-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}
@@ -1210,21 +1260,39 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div id="s-inbox" class="scr">
         <div id="inboxListView">
           <div class="ph"><div class="ph-eyebrow">Messages</div><div class="ph-title disp">Inbox</div></div>
+          <div class="inbox-search">
+            <div class="inbox-search-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" stroke-linecap="round"/></svg>
+              <input id="inboxSearch" placeholder="Search messages" oninput="filterInbox(this.value)" autocomplete="off">
+            </div>
+          </div>
           <div id="inboxList" class="inbox-list"></div>
           <div id="inboxEmpty" style="display:none;padding:56px 24px;text-align:center">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:34px;height:34px;margin:0 auto 14px;display:block;color:var(--t4)"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linejoin="round"/></svg>
             <div class="disp" style="font-weight:700;color:var(--t2);margin-bottom:6px">No conversations yet</div>
             <div style="font-size:.78rem;color:var(--t3);line-height:1.6">When customers text your bot, threads appear here.</div>
           </div>
+          <div id="inboxNoResults" style="display:none;padding:48px 24px;text-align:center;color:var(--t3);font-size:.82rem">No matches.</div>
         </div>
-        <div id="inboxThreadView" style="display:none;flex-direction:column;height:calc(100vh - 96px)">
+        <div id="inboxThreadView" style="display:none;flex-direction:column;height:calc(100vh - 96px);height:calc(100dvh - 96px)">
           <div class="thread-bar">
-            <button class="thread-back" onclick="backToInbox()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-            <div><div class="thread-name disp" id="threadName">Customer</div><div class="thread-num" id="threadNum"></div></div>
+            <button class="thread-back" onclick="backToInbox()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <div class="thread-bar-av" id="threadAv">?</div>
+            <div class="thread-bar-info">
+              <div class="thread-name disp" id="threadName">Customer</div>
+              <div class="thread-num" id="threadNum"></div>
+            </div>
+            <button class="thread-call" id="threadCall" title="Call client"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" stroke-linejoin="round"/></svg></button>
           </div>
           <div class="thread-msgs" id="threadMsgs"></div>
+          <div class="reply-quick" id="replyQuick">
+            <button onclick="qReply('Hi, thanks for your message — I\'ll get back to you shortly.')">Thanks, will reply soon</button>
+            <button onclick="qReply('Can you send a photo of the job?')">Send a photo?</button>
+            <button onclick="qReply('When suits you for a quick look?')">When suits you?</button>
+            <button onclick="qReply('Happy to quote that — leave it with me.')">Happy to quote</button>
+          </div>
           <div class="thread-reply">
-            <textarea class="reply-ta" id="replyTa" placeholder="Message..." rows="1" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+            <textarea class="reply-ta" id="replyTa" placeholder="Message..." rows="1" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendReply();}"></textarea>
             <button class="reply-send" onclick="sendReply()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 12l16-8-6 16-3-7-7-1z" stroke-linejoin="round"/></svg></button>
           </div>
         </div>
@@ -1490,6 +1558,8 @@ function _launchApp(data){
   const _home=document.getElementById('s-home');
   if(_home){_home.classList.add('reveal');requestAnimationFrame(()=>requestAnimationFrame(()=>_home.classList.add('go')));}
   const _nav=document.querySelector('.nav');if(_nav){_nav.classList.add('slideup');}
+  // Inbox: preload conversations for unread badge + start live polling
+  try{ loadInbox(true); startInboxPolling(); }catch(e){ console.warn('inbox init',e); }
 }
 
 function doLogout(){
@@ -1920,7 +1990,7 @@ function go(name){
   if(name==='designer')initDesigner();
   if(name==='invoices')renderInvoices(allInvoices,currentInvFilter);
   if(name==='calendar'){renderBookings(allBookings);renderCal()}
-  if(name==='inbox'){loadInbox();}
+  if(name==='inbox'){ loadInbox(inboxConvs.length>0); }
   if(name==='profile'){loadAdminPanel();hfInitVoiceSettings();}
 }
 
@@ -3528,118 +3598,261 @@ function hfSendTyped(){const v=document.getElementById('hfInput').value.trim();i
 
 /* ── INBOX ── */
 let inboxCurrentClient=null,inboxCurrentName='Customer';
-function timeAgo(iso){
-  if(!iso)return '';
-  try{
-    var d=new Date(iso),n=new Date(),s=Math.floor((n-d)/1e3);
-    if(s<60)return 'just now';
-    if(s<3600)return Math.floor(s/60)+'m ago';
-    if(s<86400)return Math.floor(s/3600)+'h ago';
-    return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-  }catch(e){return '';}
+let inboxConvs=[], inboxPollTimer=null, inboxThreadPollTimer=null;
+
+// ── avatar colour from name (stable hash -> hue) ──
+function avColour(seed){
+  let h=0; const s=String(seed||'?');
+  for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))>>>0; }
+  const hue=h%360;
+  return 'linear-gradient(135deg,hsl('+hue+',55%,48%),hsl('+((hue+30)%360)+',55%,38%))';
 }
+function avInitials(name){
+  const p=String(name||'?').trim().split(/\s+/);
+  if(p.length>=2) return (p[0][0]+p[1][0]).toUpperCase();
+  return (p[0]||'?').substring(0,2).toUpperCase();
+}
+
+// ── unread tracking (client-side via last-seen timestamps) ──
+function inboxSeenKey(num){ return 'inbox_seen_'+num; }
+function getSeen(num){ try{ return localStorage.getItem(inboxSeenKey(num))||''; }catch(e){ return ''; } }
+function markSeen(num,ts){ try{ localStorage.setItem(inboxSeenKey(num), ts||new Date().toISOString()); }catch(e){} }
+function convUnread(c){
+  // unread if latest inbound message is newer than last-seen and not from us
+  if(c.direction==='outbound') return false;
+  const seen=getSeen(c.client_number);
+  if(!seen) return true;
+  return (c.created_at||'') > seen;
+}
+function updateInboxBadge(){
+  const count=inboxConvs.filter(convUnread).length;
+  let dot=document.getElementById('navInboxBadge');
+  const navBtn=document.getElementById('n-inbox');
+  if(!navBtn) return;
+  if(count>0){
+    if(!dot){
+      dot=document.createElement('div'); dot.id='navInboxBadge';
+      dot.style.cssText='position:absolute;top:4px;right:50%;transform:translateX(16px);min-width:17px;height:17px;border-radius:9px;background:var(--acc);color:#04231a;font-size:.58rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg)';
+      navBtn.style.position='relative'; navBtn.appendChild(dot);
+    }
+    dot.textContent=count>9?'9+':count;
+    dot.style.display='flex';
+  } else if(dot){ dot.style.display='none'; }
+}
+
+function timeAgo(iso){
+  if(!iso) return '';
+  const d=new Date(iso), now=new Date();
+  const diff=(now-d)/1000;
+  if(diff<60) return 'now';
+  if(diff<3600) return Math.floor(diff/60)+'m';
+  const sameDay=d.toDateString()===now.toDateString();
+  if(sameDay) return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  const yest=new Date(now); yest.setDate(now.getDate()-1);
+  if(d.toDateString()===yest.toDateString()) return 'Yesterday';
+  if(diff<7*86400) return d.toLocaleDateString('en-GB',{weekday:'short'});
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+}
+function msgTime(iso){
+  if(!iso) return '';
+  return new Date(iso).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+function dayLabel(iso){
+  const d=new Date(iso), now=new Date();
+  if(d.toDateString()===now.toDateString()) return 'Today';
+  const yest=new Date(now); yest.setDate(now.getDate()-1);
+  if(d.toDateString()===yest.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+}
+
 function renderConvRow(c){
-  var init=(c.client_name||'?').charAt(0).toUpperCase();
-  var pre=c.direction==='outbound'?'\u2192 ':'';
-  var row=document.createElement('div');
-  row.className='iconv';
+  const unread=convUnread(c);
+  const init=avInitials(c.client_name||c.client_number);
+  const pre=c.direction==='outbound'?'<span class="tick">'+ICO.check+'</span> ':'';
+  const row=document.createElement('div');
+  row.className='iconv'+(unread?' unread':'');
   row.dataset.num=c.client_number;
   row.dataset.name=encodeURIComponent(c.client_name||c.client_number);
+  row.dataset.search=((c.client_name||'')+' '+(c.client_number||'')+' '+(c.last_message||'')).toLowerCase();
+  const badge=unread?'<div class="iconv-badge">1</div>':'';
+  const dot=unread?'<div class="av-dot"></div>':'';
   row.innerHTML=
-    '<div class="iconv-av">'+init+'</div>'+
+    '<div class="iconv-av" style="background:'+avColour(c.client_name||c.client_number)+'">'+init+dot+'</div>'+
     '<div class="iconv-body">'+
-      '<div class="iconv-name">'+(c.client_name||c.client_number)+'</div>'+
-      '<div class="iconv-last">'+pre+c.last_message+'</div>'+
-    '</div>'+
-    '<div class="iconv-meta"><div class="iconv-time">'+timeAgo(c.created_at)+'</div></div>';
-  row.addEventListener('click',function(){openThread(this.dataset.num,this.dataset.name);});
-  return row;
-}
-function loadInbox(){
-  var url='/api/conversations?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin);
-  fetch(url).then(function(r){return r.json();}).then(function(d){
-    var list=document.getElementById('inboxList');
-    var empty=document.getElementById('inboxEmpty');
-    var convs=d.conversations||[];
-    list.innerHTML='';
-    if(!convs.length){empty.style.display='block';return;}
-    empty.style.display='none';
-    convs.forEach(function(c){list.appendChild(renderConvRow(c));});
-  }).catch(function(e){console.warn('inbox',e);});
-}
-function renderMsgBubble(msg){
-  var out=msg.direction==='outbound';
-  var wrap=document.createElement('div');
-  var bubble=document.createElement('div');
-  bubble.className='tmsg '+(out?'out':'in');
-  bubble.textContent=msg.message;
-  var ts=document.createElement('div');
-  ts.className='tmsg-time';
-  ts.style.textAlign=out?'right':'left';
-  ts.textContent=timeAgo(msg.created_at);
-  wrap.appendChild(bubble);
-  wrap.appendChild(ts);
+      '<div class="iconv-top"><div class="iconv-name">'+(c.client_name||c.client_number)+'</div>'+
+      '<div class="iconv-time">'+timeAgo(c.created_at)+'</div></div>'+
+      '<div class="iconv-last">'+pre+escapeHtml(c.last_message||'')+'</div>'+
+    '</div>'+(badge?'<div style="margin-left:8px">'+badge+'</div>':'');
+  row.addEventListener('click',function(){ haptic('light'); openThread(this.dataset.num,this.dataset.name); });
+  // long-press -> quick actions
+  let lp; row.addEventListener('pointerdown',()=>{lp=setTimeout(()=>{
+    openCtx(c.client_name||'Conversation',[
+      {label:'Quote this client',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" stroke-linejoin="round"/></svg>',fn:()=>qgStartFromJob(c.client_name||'','')},
+      {label:'Mark as read',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px"><polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg>',fn:()=>{markSeen(c.client_number,c.created_at);loadInbox(true);}}
+    ]);
+  },520);});
+  row.addEventListener('pointerup',()=>clearTimeout(lp));
+  row.addEventListener('pointercancel',()=>clearTimeout(lp));
+  const sep=document.createElement('div'); sep.className='iconv-sep';
+  const wrap=document.createDocumentFragment(); wrap.appendChild(row); wrap.appendChild(sep);
   return wrap;
 }
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+function loadInbox(silent){
+  const url='/api/conversations?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin);
+  if(!silent){ showSkeleton('inboxList',5); }
+  fetch(url).then(r=>r.json()).then(d=>{
+    const list=document.getElementById('inboxList');
+    const empty=document.getElementById('inboxEmpty');
+    inboxConvs=d.conversations||[];
+    list.innerHTML='';
+    if(!inboxConvs.length){ empty.style.display='block'; updateInboxBadge(); return; }
+    empty.style.display='none';
+    inboxConvs.forEach(c=>list.appendChild(renderConvRow(c)));
+    updateInboxBadge();
+    const sv=document.getElementById('inboxSearch'); if(sv&&sv.value) filterInbox(sv.value);
+  }).catch(e=>console.warn('inbox',e));
+}
+
+function filterInbox(q){
+  q=(q||'').trim().toLowerCase();
+  const rows=document.querySelectorAll('#inboxList .iconv');
+  let shown=0;
+  rows.forEach(r=>{
+    const match=!q || (r.dataset.search||'').indexOf(q)>=0;
+    r.style.display=match?'':'none';
+    if(r.nextElementSibling&&r.nextElementSibling.classList.contains('iconv-sep')) r.nextElementSibling.style.display=match?'':'none';
+    if(match) shown++;
+  });
+  const nores=document.getElementById('inboxNoResults');
+  if(nores) nores.style.display=(q&&shown===0)?'block':'none';
+}
+
+function renderThread(messages){
+  const el=document.getElementById('threadMsgs');
+  el.innerHTML='';
+  let lastDay='', lastDir='', lastT=0;
+  (messages||[]).forEach(m=>{
+    const out=m.direction==='outbound';
+    const t=new Date(m.created_at).getTime();
+    const day=dayLabel(m.created_at);
+    if(day!==lastDay){ const d=document.createElement('div'); d.className='tday'; d.textContent=day; el.appendChild(d); lastDay=day; lastDir=''; }
+    const grouped=(m.direction===lastDir)&&(t-lastT<120000); // same sender within 2 min
+    const row=document.createElement('div');
+    row.className='trow '+(out?'out':'in')+(grouped?' grouped':'');
+    const bubble=document.createElement('div'); bubble.className='tmsg'; bubble.textContent=m.message;
+    row.appendChild(bubble);
+    if(!grouped || true){
+      const meta=document.createElement('div'); meta.className='tmeta';
+      meta.innerHTML=msgTime(m.created_at)+(out?' <span class="tick ok">'+ICO.check+'</span>':'');
+      row.appendChild(meta);
+    }
+    el.appendChild(row);
+    lastDir=m.direction; lastT=t;
+  });
+  el.scrollTop=el.scrollHeight;
+}
+
 function openThread(num,nameEnc){
   inboxCurrentClient=num;
   inboxCurrentName=decodeURIComponent(nameEnc);
+  const cleanNum=num.replace('whatsapp:','');
   document.getElementById('threadName').textContent=inboxCurrentName;
-  document.getElementById('threadNum').textContent=num.replace('whatsapp:','');
+  document.getElementById('threadNum').textContent=cleanNum;
+  const av=document.getElementById('threadAv');
+  av.textContent=avInitials(inboxCurrentName); av.style.background=avColour(inboxCurrentName);
+  const call=document.getElementById('threadCall');
+  if(call) call.onclick=function(){ haptic('light'); window.location.href='tel:'+cleanNum; };
   document.getElementById('inboxListView').style.display='none';
   document.getElementById('inboxThreadView').style.display='flex';
-  var url='/api/conversation/'+encodeURIComponent(num)+
-          '?phone='+encodeURIComponent(userPhone)+
-          '&pin='+encodeURIComponent(userPin);
-  fetch(url).then(function(r){return r.json();}).then(function(d){
-    var el=document.getElementById('threadMsgs');
-    el.innerHTML='';
-    (d.messages||[]).forEach(function(m){el.appendChild(renderMsgBubble(m));});
-    el.scrollTop=el.scrollHeight;
-  }).catch(function(e){console.warn('thread',e);});
+  const msgsEl=document.getElementById('threadMsgs');
+  msgsEl.innerHTML='<div class="thread-typing" style="margin:auto"><span></span><span></span><span></span></div>';
+  fetchThread(num,true);
   document.getElementById('replyTa').value='';
+  // mark read using newest message time
+  const conv=inboxConvs.find(x=>x.client_number===num);
+  if(conv) markSeen(num, conv.created_at);
+  updateInboxBadge();
+  // live thread polling every 5s
+  if(inboxThreadPollTimer) clearInterval(inboxThreadPollTimer);
+  inboxThreadPollTimer=setInterval(()=>fetchThread(num,false),5000);
 }
+
+function fetchThread(num,initial){
+  const url='/api/conversation/'+encodeURIComponent(num)+'?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin);
+  fetch(url).then(r=>r.json()).then(d=>{
+    if(inboxCurrentClient!==num) return; // user navigated away
+    const msgs=d.messages||[];
+    const el=document.getElementById('threadMsgs');
+    // only re-render if message count changed (avoid scroll jump on poll)
+    if(!initial && el.dataset.count==String(msgs.length)) return;
+    el.dataset.count=String(msgs.length);
+    renderThread(msgs);
+    if(msgs.length){ markSeen(num, msgs[msgs.length-1].created_at); }
+  }).catch(e=>console.warn('thread',e));
+}
+
 function backToInbox(){
+  if(inboxThreadPollTimer){ clearInterval(inboxThreadPollTimer); inboxThreadPollTimer=null; }
   document.getElementById('inboxThreadView').style.display='none';
   document.getElementById('inboxListView').style.display='block';
+  inboxCurrentClient=null;
+  loadInbox(true);
 }
+
+function qReply(text){
+  const ta=document.getElementById('replyTa');
+  ta.value=text; ta.focus();
+  ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px';
+}
+
 async function sendReply(){
-  var ta=document.getElementById('replyTa');
-  var msg=ta.value.trim();
+  const ta=document.getElementById('replyTa');
+  const msg=ta.value.trim();
   if(!msg) return;
-  if(!inboxCurrentClient){
-    var el=document.getElementById('threadMsgs');
-    var warn=document.createElement('div');
-    warn.innerHTML='<div class="tmsg in" style="color:var(--red)">No client — go back and re-open the conversation.</div>';
-    el.appendChild(warn);
-    return;
-  }
-  var btn=document.querySelector('.reply-send');
+  if(!inboxCurrentClient){ return; }
+  haptic('light');
+  const btn=document.querySelector('.reply-send');
   if(btn) btn.style.opacity='0.5';
   ta.value=''; ta.style.height='';
-  var el=document.getElementById('threadMsgs');
-  var wrap=document.createElement('div');
-  var bubble=document.createElement('div');
-  bubble.className='tmsg out';
-  bubble.textContent=msg;
-  var ts=document.createElement('div');
-  ts.className='tmsg-time';
-  ts.style.textAlign='right';
-  ts.textContent='Sending\u2026';
-  wrap.appendChild(bubble); wrap.appendChild(ts);
-  el.appendChild(wrap); el.scrollTop=el.scrollHeight;
+  const el=document.getElementById('threadMsgs');
+  // optimistic bubble
+  const row=document.createElement('div'); row.className='trow out';
+  const bubble=document.createElement('div'); bubble.className='tmsg'; bubble.textContent=msg;
+  const meta=document.createElement('div'); meta.className='tmeta';
+  meta.innerHTML='Sending… <span class="tick sent">'+ICO.check+'</span>';
+  row.appendChild(bubble); row.appendChild(meta);
+  el.appendChild(row); el.scrollTop=el.scrollHeight;
+  const nowCount=parseInt(el.dataset.count||'0')+1; el.dataset.count=String(nowCount);
   try{
-    var url='/api/reply-client?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin);
-    var res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_number:inboxCurrentClient,message:msg})});
-    var d=await res.json();
-    ts.textContent=d.ok?'Sent \u2713':'Error: '+(d.error||'failed');
-    if(!d.ok){bubble.style.opacity='0.5';ts.style.color='var(--red)';}
+    const url='/api/reply-client?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin);
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_number:inboxCurrentClient,message:msg})});
+    const d=await res.json();
+    if(d.ok){
+      meta.innerHTML=msgTime(new Date().toISOString())+' <span class="tick ok">'+ICO.check+'</span>';
+      haptic('success');
+    } else {
+      meta.innerHTML='<span class="tick err">Failed</span>'; bubble.style.opacity='0.6'; haptic('error');
+    }
   }catch(e){
-    ts.textContent='Failed \u2014 check your connection';
-    bubble.style.opacity='0.5';
-    ts.style.color='var(--red)';
+    meta.innerHTML='<span class="tick err">Failed — check connection</span>'; bubble.style.opacity='0.6'; haptic('error');
   }
   if(btn) btn.style.opacity='1';
+}
+
+// ── live inbox polling while on the inbox list ──
+function startInboxPolling(){
+  if(inboxPollTimer) clearInterval(inboxPollTimer);
+  inboxPollTimer=setInterval(()=>{
+    const onInbox=document.getElementById('s-inbox')&&document.getElementById('s-inbox').classList.contains('on');
+    const listVisible=document.getElementById('inboxListView')&&document.getElementById('inboxListView').style.display!=='none';
+    if(onInbox&&listVisible){ loadInbox(true); }
+    else { // still refresh badge in background occasionally
+      const url='/api/conversations?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin);
+      fetch(url).then(r=>r.json()).then(d=>{ inboxConvs=d.conversations||[]; updateInboxBadge(); }).catch(()=>{});
+    }
+  },10000);
 }
 
 /* ── SETUP WIZARD ── */
