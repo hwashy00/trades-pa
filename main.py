@@ -1833,21 +1833,44 @@ def incoming_sms():
             else:
                 chat_messages.append({"role": "assistant", "content": h.get("message", "")})
 
-        system = "You are the virtual assistant for " + biz_name + ", run by " + owner_name + ".\n"
-        system += "Trade: " + str(profile.get("trade", "")) + "\n\n"
-        system += "You are responding to a potential client who has texted the business number.\n"
-        system += "Rules:\n"
-        system += "- Respond as 'we' not 'I'. You represent the business, not the person.\n"
-        system += "- Be friendly, professional, and helpful.\n"
-        system += "- Collect: what job they need, where they are, when they want it done.\n"
-        system += "- Never pretend to be " + owner_name + " personally.\n"
-        system += "- If they ask something you cant answer, say you will get " + owner_name + " to call them back.\n"
-        system += "- Keep responses short - this is a text message.\n"
-        system += "- If you have collected enough details (job type, location, timing), end with:\n"
-        system += "NEWJOB:name=<client name or Unknown>|job=<job type>|location=<location>\n"
-        system += "- Only add the NEWJOB tag once you have the key details, not on every message.\n"
+        # Pull the diary so the bot can propose / confirm real times.
+        today_iso = datetime.date.today().isoformat()
+        upcoming = supabase.table("bookings").select("*").eq("sender", sender).gte("date", today_iso).order("date").limit(20).execute().data or []
+        diary_lines = []
+        for b in upcoming[:15]:
+            diary_lines.append((b.get("date","") or "") + " " + (b.get("time","") or "") + " - " + (b.get("client_name","") or "job"))
+        diary_text = "\n".join(diary_lines) if diary_lines else "Diary is currently clear."
 
-        ai_response = client.messages.create(model="claude-sonnet-4-5", max_tokens=300, system=system, messages=chat_messages)
+        today_name = datetime.date.today().strftime("%A %d %B %Y")
+        system = "You are the customer-facing assistant for " + biz_name + ", a " + str(profile.get("trade","")) + " business run by " + owner_name + ".\n"
+        system += "Today is " + today_name + ". You are texting a CUSTOMER who contacted the business.\n\n"
+        system += "PERSONALITY: Think for yourself and hold a real, natural back-and-forth like a sharp office manager would. "
+        system += "Never give robotic brush-offs like 'I'll get " + owner_name + " to call you' unless you genuinely need to escalate (see below). "
+        system += "Speak as 'we', warm and concise (this is SMS). Never pretend to BE " + owner_name + " personally.\n\n"
+        system += "THE DIARY (upcoming jobs):\n" + diary_text + "\n\n"
+        system += "YOU CAN HANDLE THESE YOURSELF:\n"
+        system += "- Booking or changing appointments: propose times that are free, and when the customer agrees a specific date+time that does NOT clash with the diary above, confirm it warmly and record it.\n"
+        system += "- Simple questions: opening hours, areas covered, what trade/work we do.\n"
+        system += "- Gathering details for a quote: what the job is, where, rough timing.\n\n"
+        system += "CRITICAL RULE ON TIMES & BOOKINGS:\n"
+        system += "You must NEVER confirm, agree, or commit to a specific appointment time yourself. "
+        system += owner_name + " has a personal life the work diary does not show, so ONLY " + owner_name + " can approve a time.\n"
+        system += "Whenever the conversation reaches ANY of these, you hand the decision to " + owner_name + ":\n"
+        system += "- the customer asks when you can come / proposes or asks about timing / wants to book or rearrange;\n"
+        system += "- ANYTHING about price, cost, money, deposits, or discounts;\n"
+        system += "- complaints or an unhappy customer; emergencies/urgent; anything you are unsure about.\n\n"
+        system += "TO HAND IT OVER: send the customer a warm, honest holding line that does NOT promise a specific time or answer "
+        system += "(e.g. 'Let me check with " + owner_name + "\u2019s diary and come right back to you on that'). "
+        system += "Then on its OWN FINAL LINE add:\n"
+        system += "NEEDYOU:reason=<short reason e.g. choose a day to view>|options=<2-5 short choices " + owner_name + " could pick, separated by commas>\n"
+        system += "The options must be SMART and based on what the customer said. Example: if they say 'any evening next week', options could be: "
+        system += "Mon eve,Tue eve,Wed eve,Thu eve,Fri eve. If they ask a price, options could be: Send rough quote,Arrange a call,I\u2019ll reply myself. "
+        system += "Always make the LAST option a sensible catch-all. Never invent the answer yourself \u2014 the options are for " + owner_name + " to choose from.\n\n"
+        system += "WHEN YOU HAVE ENOUGH JOB DETAIL for a quote (job, location, rough timing) and it is NOT a timing/price/booking moment, end with:\n"
+        system += "NEWJOB:name=<name or Unknown>|job=<job type>|location=<location>\n\n"
+        system += "Keep replies short and human (SMS). Put any tag (NEEDYOU/NEWJOB) on its own final line; the customer NEVER sees the tags."
+
+        ai_response = client.messages.create(model="claude-sonnet-4-5", max_tokens=400, system=system, messages=chat_messages)
         reply = ai_response.content[0].text.strip()
 
         # Check if client is confirming payment
@@ -1902,7 +1925,56 @@ def incoming_sms():
             except Exception as e:
                 print("Job extraction error: " + str(e))
 
-        clean_reply = reply.split("NEWJOB:")[0].strip()
+        # ── NEEDYOU: bot is handing a decision to the owner — park it + nudge, never auto-commit ──
+        if "NEEDYOU:" in reply:
+            try:
+                nl = reply.split("NEEDYOU:")[1].strip().split("\n")[0]
+                np = dict(p.split("=", 1) for p in nl.split("|") if "=" in p)
+                reason = (np.get("reason", "") or "needs your reply").strip()
+                opts_raw = (np.get("options", "") or "").strip()
+                options = [o.strip() for o in opts_raw.split(",") if o.strip()]
+                if not options:
+                    options = ["Arrange a call", "I\u2019ll reply myself"]
+                # best-known client name from enquiries
+                cname = ""
+                try:
+                    enq = supabase.table("enquiries").select("client_name").eq("sender", sender).order("created_at", desc=True).limit(5).execute().data or []
+                    for e in enq:
+                        if e.get("client_name"):
+                            cname = e["client_name"]; break
+                except Exception:
+                    pass
+                # park the pending decision for the dashboard
+                supabase.table("pending_actions").insert({
+                    "sender": sender, "client_number": client_number, "client_name": cname,
+                    "twilio_number": twilio_number, "kind": "decision",
+                    "customer_msg": incoming_msg, "reason": reason,
+                    "options": options, "status": "pending"
+                }).execute()
+                # nudge the owner on WhatsApp to come and choose
+                try:
+                    _nt = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
+                    who = cname or client_number
+                    _nt.messages.create(
+                        body="\u26A0 " + who + " needs you: " + reason + ".\nOpen VanOffice \u2192 Inbox to choose what to send.",
+                        from_="whatsapp:" + (twilio_number or os.environ.get("TWILIO_NUMBER","")),
+                        to="whatsapp:" + profile.get("phone", "")
+                    )
+                except Exception as ne:
+                    print("needyou notify error:", ne)
+            except Exception as e:
+                print("NEEDYOU parse error:", e)
+
+        # Strip ALL control tags so the customer only sees the human-readable reply.
+        # Cut at the EARLIEST tag so nothing leaks if several are present.
+        _cut = len(reply)
+        for _tag in ("NEWJOB:", "NEEDYOU:", "BOOKED:", "ESCALATE:"):
+            _i = reply.find(_tag)
+            if _i != -1:
+                _cut = min(_cut, _i)
+        clean_reply = reply[:_cut].strip()
+        if not clean_reply:
+            clean_reply = "Thanks for your message \u2014 we\u2019ll be in touch shortly."
 
         # Save outgoing message
         supabase.table("client_chats").insert({
@@ -2698,6 +2770,112 @@ def _assistant_execute_tool(name, ti, profile):
     except Exception as e:
         print("Tool exec error (" + name + "):", e)
         return "That didn't work: " + str(e)
+
+
+@app.route("/api/pending", methods=["GET"])
+def api_pending():
+    """List the owner's pending decisions for the dashboard."""
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        sender = result.data[0].get("sender", "")
+        rows = (supabase.table("pending_actions").select("*")
+                .eq("sender", sender).eq("status", "pending")
+                .order("created_at", desc=True).limit(50).execute().data or [])
+        return jsonify({"pending": rows})
+    except Exception as e:
+        print("api_pending error:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/pending/resolve", methods=["POST"])
+def api_pending_resolve():
+    """
+    Owner picked an option (or typed an instruction) for a pending decision.
+    The bot turns the owner's choice into a natural customer message and sends it.
+    If the choice implies a specific bookable time, we create a follow-up
+    'confirm_booking' pending action rather than writing the diary directly.
+    """
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+        d = request.json or {}
+        pid = d.get("id")
+        choice = (d.get("choice") or "").strip()           # the tapped option or typed instruction
+        send_verbatim = bool(d.get("verbatim", False))     # send exactly what owner typed
+        if not pid or not choice:
+            return jsonify({"error": "Missing id or choice"}), 400
+
+        pa_rows = supabase.table("pending_actions").select("*").eq("id", pid).eq("sender", sender).limit(1).execute().data or []
+        if not pa_rows:
+            return jsonify({"error": "Not found"}), 404
+        pa = pa_rows[0]
+        client_number = pa.get("client_number", "")
+        cname = pa.get("client_name") or "there"
+
+        if send_verbatim:
+            customer_message = choice
+        else:
+            # Ask the AI to phrase the owner's instruction as a warm message to the customer.
+            owner_name = profile.get("owner_name", "")
+            biz = profile.get("business_name", "the business")
+            convo = pa.get("customer_msg", "")
+            phr_sys = ("You write a single short, warm SMS to a customer on behalf of " + biz + ".\n"
+                       "The customer said: \"" + convo + "\".\n"
+                       "The owner (" + owner_name + ") has decided: \"" + choice + "\".\n"
+                       "Write ONLY the message to send to the customer relaying that decision naturally. "
+                       "Do not add quotes, signatures, or tags. Keep it brief and human.")
+            try:
+                ai = client.messages.create(model="claude-sonnet-4-5", max_tokens=180,
+                                            system=phr_sys, messages=[{"role": "user", "content": "Write the message."}])
+                customer_message = ai.content[0].text.strip()
+            except Exception as ae:
+                print("phrasing error:", ae)
+                customer_message = choice
+
+        # Send to the customer on their channel.
+        send_res = send_to_client(profile, client_number, customer_message)
+        if not send_res["ok"]:
+            return jsonify({"ok": False, "error": send_res.get("error") or "Send failed"}), 200
+
+        # Mark this pending action done.
+        supabase.table("pending_actions").update({
+            "status": "done", "resolved_at": datetime.datetime.now().isoformat()
+        }).eq("id", pid).execute()
+
+        return jsonify({"ok": True, "sent": customer_message})
+    except Exception as e:
+        print("api_pending_resolve error:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/pending/dismiss", methods=["POST"])
+def api_pending_dismiss():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        sender = result.data[0].get("sender", "")
+        pid = (request.json or {}).get("id")
+        if not pid:
+            return jsonify({"error": "Missing id"}), 400
+        supabase.table("pending_actions").update({
+            "status": "dismissed", "resolved_at": datetime.datetime.now().isoformat()
+        }).eq("id", pid).eq("sender", sender).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        print("api_pending_dismiss error:", e)
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/usage", methods=["GET"])
