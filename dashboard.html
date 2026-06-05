@@ -3163,12 +3163,12 @@ function hfStartVAD(){
       const rms = Math.sqrt(sum/buf.length);
       bars.forEach((b,i)=>{ b.style.height = Math.max(6, Math.min(34, 6 + rms*200*(0.6+Math.sin(Date.now()/110+i)*0.4)))+'px'; });
       const now = Date.now();
-      if(rms > 0.025){ hfHeardSpeech=true; hfSilenceStart=0; }
+      if(rms > 0.018){ hfHeardSpeech=true; hfSilenceStart=0; }
       else if(hfHeardSpeech){
         if(!hfSilenceStart) hfSilenceStart = now;
-        else if(now - hfSilenceStart > 1600){ hfStopRecording(); return; }
+        else if(now - hfSilenceStart > 3000){ hfStopRecording(); return; }
       }
-      if(now - hfRecStart > 12000){ hfStopRecording(); return; }
+      if(now - hfRecStart > 20000){ hfStopRecording(); return; }
       hfVadRAF = requestAnimationFrame(tick);
     }
     hfVadRAF = requestAnimationFrame(tick);
