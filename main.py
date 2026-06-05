@@ -2234,47 +2234,54 @@ ASSISTANT_TOOLS = [
 ]
 
 
-def _build_detailed_quote(profile, job_description, client_name="Customer", materials_cost=None, labour_days=None, image_data=None, image_type=None):
+def _map_qd_to_quote(qd, profile, client_name="Customer", materials_cost=None, labour_days=None, job_description=""):
     day_rate = float(str(profile.get("day_rate") or "250").replace("\u00a3","").replace(",","").strip() or 250) or 250
-    # build a message for the SAME engine the AI Quote tab uses, pushing it to generate immediately
+    scope = qd.get("scopeItems", []) or []
+    total = float(qd.get("totalPrice", 0) or 0)
+    labour_cost = float(qd.get("labourCost", 0) or 0)
+    ld = float(qd.get("labourDays", 0) or (labour_days or 1))
+    materials = qd.get("materials", []) or []
+    mats_final = float(qd.get("materialsCost", 0) or 0)
+    markup_amt = float(qd.get("markupAmount", 0) or 0)
+    note = qd.get("note", "") or ""
+    lead = qd.get("leadTimeDays", "3-5")
+    if not scope:
+        scope = ["Supply all labour and materials for: " + (job_description or "the works"),
+                 "All work carried out to current UK building standards",
+                 "Full site clean-down on completion"]
+    if labour_cost <= 0:
+        labour_cost = ld * day_rate
+    if total <= 0:
+        total = round((labour_cost + mats_final) / 5.0) * 5 or round(day_rate / 5.0) * 5
+    cname = qd.get("clientName") or client_name or "Customer"
+    if cname in ("Customer", "Example Client", "Client") and client_name not in ("Customer", "", None):
+        cname = client_name
+    return {"client_name": cname, "scope": scope, "materials": materials,
+            "labour_days": ld, "labour_cost": labour_cost, "materials_cost": mats_final,
+            "markup_amount": markup_amt, "total": total, "note": note, "lead_time": lead}
+
+
+def _build_detailed_quote(profile, job_description, client_name="Customer", materials_cost=None, labour_days=None, image_data=None, image_type=None):
     msg = job_description
     if materials_cost: msg += ". Materials " + str(materials_cost) + " pounds."
     if labour_days: msg += ". " + str(labour_days) + " days labour."
     msg += " Generate the quote now with sensible professional assumptions. Do not ask any questions."
     qd = _quote_gen_core(profile, msg, image_data=image_data, image_type=image_type)
-    if qd.get("type") == "quote":
-        scope = qd.get("scopeItems", []) or []
-        total = float(qd.get("totalPrice", 0) or 0)
-        labour_cost = float(qd.get("labourCost", 0) or 0)
-        ld = float(qd.get("labourDays", 0) or (labour_days or 1))
-        materials = qd.get("materials", []) or []
-        mats_final = float(qd.get("materialsCost", 0) or 0)
-        markup_amt = float(qd.get("markupAmount", 0) or 0)
-        note = qd.get("note", "") or ""
-        lead = qd.get("leadTimeDays", "3-5")
-    else:
-        # model asked a question instead of quoting — build a sound fallback so nothing is bare
+    if qd.get("type") != "quote":
+        day_rate = float(str(profile.get("day_rate") or "250").replace("\u00a3","").replace(",","").strip() or 250) or 250
         ld = float(labour_days or 1)
         labour_cost = ld * day_rate
         mats_final = float(materials_cost) if materials_cost else labour_cost * 0.4
-        markup_amt = 0
         total = round((labour_cost + mats_final) / 5.0) * 5
-        scope = ["Supply all labour and materials for: " + job_description,
-                 "All work carried out to current UK building standards",
-                 "Full site clean-down on completion"]
-        materials = []; note = ""; lead = "3-5"
-    if not scope:
-        scope = ["Supply all labour and materials for: " + job_description]
-    if total <= 0:
-        total = round((labour_cost + mats_final) / 5.0) * 5 or round(day_rate / 5.0) * 5
-    return {"client_name": client_name, "scope": scope, "materials": materials,
-            "labour_days": ld, "labour_cost": labour_cost, "materials_cost": mats_final,
-            "markup_amount": markup_amt, "total": total, "note": note, "lead_time": lead}
+        return {"client_name": client_name, "scope": ["Supply all labour and materials for: " + job_description,
+                "All work carried out to current UK building standards", "Full site clean-down on completion"],
+                "materials": [], "labour_days": ld, "labour_cost": labour_cost, "materials_cost": mats_final,
+                "markup_amount": 0, "total": total, "note": "", "lead_time": "3-5"}
+    return _map_qd_to_quote(qd, profile, client_name, materials_cost, labour_days, job_description)
 
 
-def _assistant_create_quote(profile, sender, job_description, client_name="Customer", materials_cost=None, labour_days=None, image_data=None, image_type=None):
+def _save_and_send_quote(profile, sender, q):
     try:
-        q = _build_detailed_quote(profile, job_description, client_name, materials_cost, labour_days, image_data, image_type)
         client_name = q["client_name"]
         client_number = ""
         fw = client_name.split()[0] if client_name.split() else client_name
@@ -2344,8 +2351,13 @@ def _assistant_create_quote(profile, sender, job_description, client_name="Custo
         else:
             return base + " Saved to the Quotes tab as a draft. I don't have " + client_name + "'s number, so it hasn't been sent - open it from the Quotes tab."
     except Exception as e:
-        print("create_quote helper error:", e)
-        return "I had trouble creating that quote: " + str(e)
+        print("save_and_send error:", e)
+        return "I had trouble saving that quote: " + str(e)
+
+
+def _assistant_create_quote(profile, sender, job_description, client_name="Customer", materials_cost=None, labour_days=None, image_data=None, image_type=None):
+    q = _build_detailed_quote(profile, job_description, client_name, materials_cost, labour_days, image_data, image_type)
+    return _save_and_send_quote(profile, sender, q)
 
 
 def _assistant_execute_tool(name, ti, profile):
@@ -2440,20 +2452,32 @@ def assistant():
         history = data.get("history", [])
         image_data = data.get("image", None)
         image_type = data.get("imageType", "image/jpeg")
+        quote_mode = data.get("quote_mode", False)
+        quote_history = data.get("quote_history", []) or []
 
-        # PHOTO-TO-QUOTE: a photo is a quote request. Route straight to the quote engine.
-        if image_data:
+        # QUOTE MODE: a photo, or an ongoing quote conversation. Let the engine ASK about
+        # materials/specifics before pricing, then save + send once it has what it needs.
+        if image_data or quote_mode:
+            ask_hint = (" Important: if the materials to be used are not clearly specified and would affect the price "
+                        "(for example boxing-in, cladding, board or timber choice, or finishes), do NOT assume - ask the "
+                        "user which materials they will use. Ask one short question at a time about materials and any key "
+                        "dimensions, then produce the quote once you have what you need.")
+            qmsg = (user_msg or "Please quote this job from the photo.") + ask_hint
+            qd = _quote_gen_core(profile, qmsg, history=quote_history, image_data=image_data, image_type=image_type)
+            if qd.get("type") == "question":
+                return jsonify({"reply": qd.get("message", ""), "quote_pending": True})
             cname = "Customer"
             try:
                 import re as _re2
-                mt = _re2.search(r"(?:for|quote)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)", user_msg or "")
+                joined = (user_msg or "") + " " + " ".join((h.get("content","") for h in quote_history if h.get("role")=="user"))
+                mt = _re2.search(r"(?:for|quote)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)", joined)
                 if mt:
                     cname = mt.group(1)
             except Exception:
                 pass
-            job_desc = (user_msg or "Quote this job from the photo") + " Generate the quote now from the photo with sensible professional assumptions. Do not ask questions."
-            reply = _assistant_create_quote(profile, sender, job_desc, cname, None, None, image_data, image_type)
-            return jsonify({"reply": reply, "actions": ["create_quote"]})
+            q = _map_qd_to_quote(qd, profile, cname, job_description=(user_msg or ""))
+            reply = _save_and_send_quote(profile, sender, q)
+            return jsonify({"reply": reply, "actions": ["create_quote"], "quote_done": True})
 
         if not user_msg:
             return jsonify({"error": "No message"}), 400
@@ -2472,7 +2496,8 @@ def assistant():
             "NEVER say you have created, saved, sent or booked something unless you have actually called the tool and seen its result. "
             "Do not claim a quote or invoice is saved to any tab unless the tool confirmed it. "
             "When the user clearly asks for an action and you have enough detail, call the tool straight away rather than just describing what you will do. "
-            "When a quote is created, relay the full materials and labour breakdown that the tool returns to the user - keep the itemised list, do not shorten it."
+            "When a quote is created, relay the full materials and labour breakdown that the tool returns to the user - keep the itemised list, do not shorten it. "
+            "Before creating a quote, if the job involves a material choice that affects price (boxing-in, cladding, boards, timber, finishes) and the user has not said what they will use, ask them which materials first, then call the tool with the chosen material included in the job description."
         )
 
         messages = []
