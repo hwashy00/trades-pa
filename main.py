@@ -2131,6 +2131,238 @@ def api_chat():
         return jsonify({"error": str(e)}), 500
 
 
+
+# ════════════════════════════════════════════════════════════════
+#  AI ASSISTANT — conversational PA with tool-calling
+# ════════════════════════════════════════════════════════════════
+ASSISTANT_TOOLS = [
+    {
+        "name": "create_invoice",
+        "description": "Create an invoice for a client. Use when the user wants to invoice or bill someone for completed work.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "client_name": {"type": "string", "description": "Customer's name"},
+                "total": {"type": "string", "description": "Total amount in pounds, digits only e.g. '450'"},
+                "job_description": {"type": "string", "description": "Short description of the work"}
+            },
+            "required": ["client_name", "total"]
+        }
+    },
+    {
+        "name": "create_quote",
+        "description": "Create and save a quote for a client for upcoming work.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "client_name": {"type": "string"},
+                "total": {"type": "string", "description": "Total in pounds, digits only"},
+                "job_description": {"type": "string"}
+            },
+            "required": ["client_name", "total"]
+        }
+    },
+    {
+        "name": "get_schedule",
+        "description": "Look up the user's upcoming jobs/bookings. Use for questions like 'what's on tomorrow' or 'what have I got this week'.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "when": {"type": "string", "description": "Natural description of the time period e.g. 'today', 'tomorrow', 'this week'"}
+            }
+        }
+    },
+    {
+        "name": "add_booking",
+        "description": "Add a job/booking to the diary.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "client_name": {"type": "string"},
+                "date": {"type": "string", "description": "ISO date YYYY-MM-DD"},
+                "time": {"type": "string", "description": "e.g. '09:00'"},
+                "description": {"type": "string"}
+            },
+            "required": ["client_name", "date"]
+        }
+    },
+    {
+        "name": "list_enquiries",
+        "description": "List recent customer enquiries. Use for 'any new enquiries' or 'who's messaged me'.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "description": "Optional filter: 'new', 'quoted', etc."}
+            }
+        }
+    },
+    {
+        "name": "mark_invoice_paid",
+        "description": "Mark an invoice as paid, found by client name or invoice number.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "client_name": {"type": "string"},
+                "invoice_number": {"type": "string"}
+            }
+        }
+    },
+    {
+        "name": "get_summary",
+        "description": "Get an overview of the business right now: unpaid invoices total, jobs coming up, new enquiries count.",
+        "input_schema": {"type": "object", "properties": {}}
+    }
+]
+
+
+def _assistant_execute_tool(name, ti, profile):
+    sender = profile.get("sender", "")
+    try:
+        if name == "create_invoice":
+            cnt = supabase.table("invoices").select("id").eq("sender", sender).execute()
+            num = "INV-" + str(len(cnt.data) + 1).zfill(3)
+            total = str(ti.get("total", "0"))
+            supabase.table("invoices").insert({
+                "sender": sender, "client_name": ti.get("client_name", ""),
+                "job_description": ti.get("job_description", ""), "total": total,
+                "subtotal": total, "vat": "0", "line_items": [], "status": "unpaid",
+                "invoice_number": num, "due_date": "", "client_number": "", "invoice_text": ""
+            }).execute()
+            return "Created invoice " + num + " for " + ti.get("client_name", "") + ", total \u00a3" + total + "."
+
+        if name == "create_quote":
+            cnt = supabase.table("quotes").select("id").eq("sender", sender).execute()
+            num = "QU-" + str(len(cnt.data) + 1).zfill(3)
+            total = str(ti.get("total", "0"))
+            supabase.table("quotes").insert({
+                "sender": sender, "client_name": ti.get("client_name", ""),
+                "job_description": ti.get("job_description", ""), "total": total,
+                "subtotal": total, "vat": "0", "line_items": [], "status": "draft",
+                "quote_number": num, "quote_text": "", "client_number": ""
+            }).execute()
+            return "Created quote " + num + " for " + ti.get("client_name", "") + ", total \u00a3" + total + "."
+
+        if name == "get_schedule":
+            bookings = supabase.table("bookings").select("*").eq("sender", sender).order("date").execute().data or []
+            if not bookings:
+                return "No jobs in the diary."
+            lines = []
+            for b in bookings[:15]:
+                lines.append(b.get("date", "") + " " + (b.get("time", "") or "") + " - " + (b.get("client_name", "") or "") + " (" + (b.get("description", "") or b.get("job_type", "") or "job") + ")")
+            return "Diary:\n" + "\n".join(lines)
+
+        if name == "add_booking":
+            supabase.table("bookings").insert({
+                "sender": sender, "client_name": ti.get("client_name", ""),
+                "date": ti.get("date", ""), "time": ti.get("time", ""),
+                "description": ti.get("description", ""), "status": "confirmed"
+            }).execute()
+            return "Booked " + ti.get("client_name", "") + " on " + ti.get("date", "") + (" at " + ti.get("time", "") if ti.get("time") else "") + "."
+
+        if name == "list_enquiries":
+            q = supabase.table("enquiries").select("*").order("created_at", desc=True).limit(10)
+            if ti.get("status"):
+                q = q.eq("status", ti.get("status"))
+            enq = q.execute().data or []
+            if not enq:
+                return "No enquiries."
+            lines = []
+            for e in enq[:10]:
+                lines.append((e.get("client_name", "") or "Unknown") + " - " + (e.get("job_type", "") or e.get("summary", "") or "enquiry") + " [" + (e.get("status", "") or "new") + "]")
+            return "Enquiries:\n" + "\n".join(lines)
+
+        if name == "mark_invoice_paid":
+            q = supabase.table("invoices").select("*").eq("sender", sender)
+            if ti.get("invoice_number"):
+                q = q.eq("invoice_number", ti.get("invoice_number"))
+            elif ti.get("client_name"):
+                q = q.ilike("client_name", "%" + ti.get("client_name") + "%")
+            found = q.execute().data or []
+            if not found:
+                return "Couldn't find that invoice."
+            inv = found[0]
+            supabase.table("invoices").update({"status": "paid"}).eq("id", inv["id"]).execute()
+            return "Marked invoice " + inv.get("invoice_number", "") + " for " + inv.get("client_name", "") + " as paid."
+
+        if name == "get_summary":
+            invoices = supabase.table("invoices").select("*").eq("sender", sender).execute().data or []
+            unpaid = [i for i in invoices if i.get("status") != "paid"]
+            unpaid_total = sum(float(str(i.get("total", "0")).replace("\u00a3", "") or 0) for i in unpaid)
+            bookings = supabase.table("bookings").select("*").eq("sender", sender).execute().data or []
+            new_enq = supabase.table("enquiries").select("id").eq("status", "new").execute().data or []
+            return ("Summary: \u00a3" + str(int(unpaid_total)) + " unpaid across " + str(len(unpaid)) +
+                    " invoices, " + str(len(bookings)) + " jobs in the diary, " + str(len(new_enq)) + " new enquiries.")
+
+        return "Unknown action."
+    except Exception as e:
+        print("Tool exec error (" + name + "):", e)
+        return "That didn't work: " + str(e)
+
+
+@app.route("/api/assistant", methods=["POST"])
+def assistant():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        data = request.json or {}
+        user_msg = (data.get("message") or "").strip()
+        history = data.get("history", [])
+        if not user_msg:
+            return jsonify({"error": "No message"}), 400
+
+        biz = profile.get("business_name") or profile.get("owner_name") or "the business"
+        trade = profile.get("trade", "tradesperson")
+        today = datetime.datetime.now().strftime("%A %d %B %Y")
+        system_prompt = (
+            "You are the personal assistant for " + biz + ", a " + trade + " business. "
+            "Today is " + today + ". You help them stay on top of admin hands-free while they work. "
+            "You can create quotes and invoices, check and add diary bookings, read enquiries, and mark invoices paid using your tools. "
+            "Be brief, warm and practical — like a sharp office manager. Confirm actions in one short sentence. "
+            "If you need a key detail (like an amount or client name) ask one quick question rather than guessing. "
+            "Amounts are in pounds. Keep replies short enough to be read aloud."
+        )
+
+        messages = []
+        for h in history[-10:]:
+            if h.get("role") in ("user", "assistant") and h.get("content"):
+                messages.append({"role": h["role"], "content": h["content"]})
+        messages.append({"role": "user", "content": user_msg})
+
+        actions = []
+        final_text = ""
+        for _ in range(6):
+            resp = client.messages.create(
+                model="claude-sonnet-4-5", max_tokens=1024,
+                system=system_prompt, tools=ASSISTANT_TOOLS, messages=messages
+            )
+            if resp.stop_reason == "tool_use":
+                messages.append({"role": "assistant", "content": resp.content})
+                tool_results = []
+                for block in resp.content:
+                    if block.type == "tool_use":
+                        out = _assistant_execute_tool(block.name, block.input, profile)
+                        actions.append(block.name)
+                        tool_results.append({
+                            "type": "tool_result", "tool_use_id": block.id, "content": out
+                        })
+                messages.append({"role": "user", "content": tool_results})
+                continue
+            else:
+                for block in resp.content:
+                    if block.type == "text":
+                        final_text += block.text
+                break
+
+        return jsonify({"reply": final_text or "Done.", "actions": actions})
+    except Exception as e:
+        print("Assistant error:", e)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/generate-quote-ai", methods=["POST"])
 def generate_quote_ai():
     try:
