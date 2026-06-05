@@ -2391,6 +2391,62 @@ def check_phone():
         return jsonify({"exists": False, "error": str(e)})
 
 
+@app.route("/api/pending-clients", methods=["GET"])
+def pending_clients():
+    try:
+        phone = format_phone(request.args.get("phone","").strip())
+        pin = request.args.get("pin","").strip()
+        result = supabase.table("profiles").select("*").eq("phone",phone).execute()
+        if not result.data or str(result.data[0].get("pin","")) != str(pin):
+            return jsonify({"error":"Unauthorised"}),401
+        pending = supabase.table("profiles").select("phone,owner_name,business_name,trade,location,twilio_number").ilike("twilio_number","pending:%").execute()
+        return jsonify({"clients": pending.data or []})
+    except Exception as e:
+        return jsonify({"error":str(e)}),500
+
+
+@app.route("/api/activate-client", methods=["POST"])
+def activate_client():
+    try:
+        phone = format_phone(request.args.get("phone","").strip())
+        pin = request.args.get("pin","").strip()
+        result = supabase.table("profiles").select("*").eq("phone",phone).execute()
+        if not result.data or str(result.data[0].get("pin","")) != str(pin):
+            return jsonify({"error":"Unauthorised"}),401
+        data = request.json or {}
+        client_phone = format_phone((data.get("client_phone") or "").strip())
+        twilio_num   = (data.get("twilio_number") or "").strip()
+        if not client_phone or not twilio_num:
+            return jsonify({"error":"client_phone and twilio_number required"}),400
+        # update the client profile
+        supabase.table("profiles").update({"twilio_number": twilio_num}).eq("phone",client_phone).execute()
+        # fetch client profile for the message
+        cp = supabase.table("profiles").select("*").eq("phone",client_phone).execute()
+        if not cp.data:
+            return jsonify({"error":"Client not found"}),404
+        client = cp.data[0]
+        biz = client.get("business_name") or client.get("owner_name","")
+        dashboard_url = "https://trades-pa-trades-pa.up.railway.app/dashboard"
+        # send WhatsApp to client
+        try:
+            account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+            auth_token  = os.environ.get("TWILIO_AUTH_TOKEN")
+            from_num    = os.environ.get("TWILIO_NUMBER","")
+            from twilio.rest import Client as TwilioClient
+            tc = TwilioClient(account_sid, auth_token)
+            msg = ("Hi " + (client.get("owner_name") or biz) + "! Your VanOffice bot is now live. "
+                   + "Customers can text you on " + twilio_num + " to get quotes and enquiries. "
+                   + "Log into your dashboard here: " + dashboard_url)
+            tc.messages.create(body=msg, from_="whatsapp:"+from_num, to="whatsapp:"+client_phone)
+        except Exception as ne:
+            print("Activate notify error:", ne)
+            return jsonify({"ok":True, "warned":"Activated but WhatsApp notification failed: "+str(ne)})
+        return jsonify({"ok":True, "message":"Activated and client notified"})
+    except Exception as e:
+        print("activate_client error:",e)
+        return jsonify({"error":str(e)}),500
+
+
 @app.route("/api/request-setup", methods=["POST"])
 def request_setup():
     try:
