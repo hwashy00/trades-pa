@@ -140,6 +140,73 @@ def send_to_client(profile, client_number, message, prefer=None):
         return {"ok": False, "channel": None, "error": str(e)}
 
 
+# ─────────────────────────────────────────────────────────────
+# USAGE METERING (silent — counts credits, does NOT block anything yet)
+# Credit weights mirror real cost: text=1, sms=1, quote=1, voice=4.
+# Call track_usage(sender, action) wherever a metered action happens.
+# Wrapped so it can NEVER break a user action if metering fails.
+# ─────────────────────────────────────────────────────────────
+CREDIT_WEIGHTS = {"text": 1, "sms": 1, "quote": 1, "voice": 4}
+
+def track_usage(sender, action):
+    """Increment this tradesperson's credit usage for the current month. Never raises."""
+    try:
+        if not sender:
+            return
+        credits = CREDIT_WEIGHTS.get(action, 1)
+        period = datetime.datetime.now().strftime("%Y-%m")
+        # fetch-or-create this period's row
+        existing = (supabase.table("usage_meter").select("*")
+                    .eq("sender", sender).eq("period", period).limit(1).execute().data or [])
+        col = {"text": "text_actions", "voice": "voice_actions",
+               "sms": "sms_actions", "quote": "quote_actions"}.get(action, "text_actions")
+        if existing:
+            row = existing[0]
+            supabase.table("usage_meter").update({
+                "credits_used": float(row.get("credits_used", 0) or 0) + credits,
+                col: int(row.get(col, 0) or 0) + 1,
+                "updated_at": datetime.datetime.now().isoformat()
+            }).eq("id", row["id"]).execute()
+        else:
+            supabase.table("usage_meter").insert({
+                "sender": sender, "period": period, "credits_used": credits,
+                col: 1
+            }).execute()
+        # fine-grained event log (optional table)
+        try:
+            supabase.table("usage_events").insert({
+                "sender": sender, "action": action, "credits": credits
+            }).execute()
+        except Exception:
+            pass
+    except Exception as e:
+        print("track_usage error:", e)
+
+
+def get_usage_summary(sender):
+    """Return this month's usage for display. Never raises."""
+    try:
+        period = datetime.datetime.now().strftime("%Y-%m")
+        rows = (supabase.table("usage_meter").select("*")
+                .eq("sender", sender).eq("period", period).limit(1).execute().data or [])
+        if not rows:
+            return {"period": period, "credits_used": 0, "text_actions": 0,
+                    "voice_actions": 0, "sms_actions": 0, "quote_actions": 0}
+        r = rows[0]
+        return {
+            "period": period,
+            "credits_used": float(r.get("credits_used", 0) or 0),
+            "text_actions": int(r.get("text_actions", 0) or 0),
+            "voice_actions": int(r.get("voice_actions", 0) or 0),
+            "sms_actions": int(r.get("sms_actions", 0) or 0),
+            "quote_actions": int(r.get("quote_actions", 0) or 0),
+        }
+    except Exception as e:
+        print("get_usage_summary error:", e)
+        return {"period": "", "credits_used": 0, "text_actions": 0,
+                "voice_actions": 0, "sms_actions": 0, "quote_actions": 0}
+
+
 ONBOARDING_QUESTIONS = [
     ("business_name", "Welcome to VanOffice! Lets get you set up - only takes 1 minute.\n\nWhat is your business name?"),
     ("owner_name", "What is your name?"),
@@ -2633,6 +2700,25 @@ def _assistant_execute_tool(name, ti, profile):
         return "That didn't work: " + str(e)
 
 
+@app.route("/api/usage", methods=["GET"])
+def api_usage():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        sender = result.data[0].get("sender", "")
+        summary = get_usage_summary(sender)
+        # Show an indicative allowance so the meter has context (Pro tier default).
+        # This is display-only for now — no enforcement.
+        summary["allowance"] = 1000
+        return jsonify(summary)
+    except Exception as e:
+        print("api_usage error:", e)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/briefing", methods=["GET"])
 def briefing():
     try:
@@ -2733,6 +2819,8 @@ def assistant():
                 pass
             q = _map_qd_to_quote(qd, profile, cname, job_description=(user_msg or ""))
             reply = _save_and_send_quote(profile, sender, q)
+            try: track_usage(sender, "quote")
+            except Exception: pass
             return jsonify({"reply": reply, "actions": ["create_quote"], "quote_done": True})
 
         if not user_msg:
@@ -2791,7 +2879,9 @@ def assistant():
                         final_text += block.text
                 break
 
-        return jsonify({"reply": final_text or "Done.", "actions": actions})
+        try: track_usage(sender, "text")
+        except Exception: pass
+        return jsonify({"reply": final_text or "Done.", "actions": actions, "usage": get_usage_summary(sender)})
     except Exception as e:
         print("Assistant error:", e)
         return jsonify({"error": str(e)}), 500
@@ -3202,6 +3292,8 @@ def revise_quote():
         except Exception as _se:
             print("pricing save (revise):", _se)
 
+        try: track_usage(sender, "quote")
+        except Exception: pass
         return jsonify({"ok": True, "quote_id": saved_id})
     except Exception as e:
         print("revise_quote error:", e)
@@ -3548,9 +3640,10 @@ def stt():
         pin = request.args.get("pin", "").strip()
         if not phone or not pin:
             return jsonify({"error": "Auth required"}), 401
-        result = supabase.table("profiles").select("pin").eq("phone", phone).execute()
+        result = supabase.table("profiles").select("pin,sender").eq("phone", phone).execute()
         if not result.data or str(result.data[0].get("pin", "")) != str(pin):
             return jsonify({"error": "Unauthorised"}), 401
+        _stt_sender = result.data[0].get("sender", "")
 
         if "audio" not in request.files:
             return jsonify({"error": "No audio"}), 400
@@ -3575,6 +3668,8 @@ def stt():
         if r.status_code != 200:
             print("STT error:", r.status_code, r.text[:300])
             return jsonify({"error": "STT failed"}), 502
+        try: track_usage(_stt_sender, "voice")
+        except Exception: pass
         return jsonify({"text": r.json().get("text", "")})
     except Exception as e:
         print("STT error:", e)
