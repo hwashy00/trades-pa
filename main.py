@@ -1142,6 +1142,14 @@ Always be concise — this is WhatsApp. Never say you can't do something."""
             if saved_quote.data:
                 quote_id = saved_quote.data[0]["id"]
                 pdf_url = "https://trades-pa-trades-pa.up.railway.app/generate-pdf/" + str(quote_id)
+                try:
+                    save_pricing_memory(profile, ", ".join(scope_items) or qd.get("clientName",""), {
+                        "scope": scope_items, "total": total,
+                        "labour_days": qd.get("labourDays"), "labour_cost": qd.get("labourCost"),
+                        "materials_cost": qd.get("materialsCost"), "client_name": qd.get("clientName","")
+                    })
+                except Exception as _se:
+                    print("pricing save (whatsapp path):", _se)
 
         except Exception as e:
             print("QUOTE_READY handler error: " + str(e))
@@ -2317,6 +2325,10 @@ def _save_and_send_quote(profile, sender, q):
             "client_number": client_number
         }).execute()
         quote_id = ins.data[0].get("id", "") if ins.data else ""
+        try:
+            save_pricing_memory(profile, q.get("job_description") or "; ".join(q.get("scope", [])), q)
+        except Exception as _se:
+            print("pricing save (assistant path):", _se)
         sent = False
         if client_number and quote_id:
             try:
@@ -2645,6 +2657,91 @@ def assistant():
         return jsonify({"error": str(e)}), 500
 
 
+def _normalise_job_type(text):
+    """Reduce a free-text job description to a stable key for pricing memory."""
+    if not text:
+        return "general"
+    t = text.lower()
+    # Common trade job buckets - first match wins
+    buckets = [
+        ("fencing", ["fence", "fencing", "panel", "feather edge", "post and rail"]),
+        ("decking", ["deck", "decking", "balustrade"]),
+        ("bathroom", ["bathroom", "ensuite", "wet room", "shower room"]),
+        ("kitchen", ["kitchen", "units", "worktop", "cabinet"]),
+        ("plastering", ["plaster", "skim", "render", "artex", "boarding", "board and skim"]),
+        ("flooring", ["floor", "laminate", "lvt", "vinyl", "tiling floor"]),
+        ("tiling", ["tile", "tiling", "splashback"]),
+        ("doors", ["door", "doors", "architrave", "skirting"]),
+        ("loft", ["loft", "attic"]),
+        ("roofing", ["roof", "felt", "fascia", "soffit", "guttering"]),
+        ("painting", ["paint", "decorat", "emulsion", "gloss"]),
+        ("garden", ["patio", "paving", "driveway", "landscap", "turf"]),
+        ("extension", ["extension", "single storey", "garage conversion"]),
+        ("electrical", ["socket", "consumer unit", "rewire", "downlight", "spotlight"]),
+        ("plumbing", ["pipe", "radiator", "boiler", "tap", "leak", "bathroom plumb"]),
+    ]
+    for key, words in buckets:
+        if any(w in t for w in words):
+            return key
+    # fallback: first two meaningful words
+    cleaned = "".join(ch if ch.isalnum() or ch == " " else " " for ch in t)
+    words = [w for w in cleaned.split() if len(w) > 2][:2]
+    return " ".join(words) or "general"
+
+
+def save_pricing_memory(profile, job_description, quote):
+    """Record the price actually used so future similar jobs can reference it."""
+    try:
+        sender = profile.get("sender", "")
+        if not sender:
+            return
+        jt = _normalise_job_type(job_description or "; ".join(quote.get("scope", []) if isinstance(quote, dict) else []))
+        def _f(v):
+            try:
+                return float(str(v).replace("\u00a3", "").replace(",", "") or 0)
+            except Exception:
+                return 0.0
+        total = _f(quote.get("total"))
+        if total <= 0:
+            return
+        supabase.table("pricing_memory").insert({
+            "sender": sender,
+            "job_type": jt,
+            "job_keywords": (job_description or "")[:300],
+            "labour_days": _f(quote.get("labour_days")),
+            "labour_cost": _f(quote.get("labour_cost")),
+            "materials_cost": _f(quote.get("materials_cost")),
+            "total_price": total,
+            "client_name": quote.get("client_name", ""),
+        }).execute()
+    except Exception as e:
+        print("save_pricing_memory error:", e)
+
+
+def lookup_pricing_memory(sender, job_description, limit=3):
+    """Return a short human hint about what this person charged for similar jobs, or ''."""
+    try:
+        if not sender:
+            return ""
+        jt = _normalise_job_type(job_description)
+        rows = (supabase.table("pricing_memory")
+                .select("*").eq("sender", sender).eq("job_type", jt)
+                .order("created_at", desc=True).limit(limit).execute().data or [])
+        if not rows:
+            return ""
+        bits = []
+        for r in rows:
+            tot = int(r.get("total_price") or 0)
+            days = r.get("labour_days")
+            when = str(r.get("created_at", ""))[:10]
+            extra = (", " + str(days) + " day(s) labour") if days else ""
+            bits.append("\u00a3" + str(tot) + extra + " (" + when + ")")
+        return "PAST PRICING for similar '" + jt + "' jobs (most recent first): " + "; ".join(bits) + ". Use these as a strong reference for your estimate unless the job clearly differs."
+    except Exception as e:
+        print("lookup_pricing_memory error:", e)
+        return ""
+
+
 def _quote_gen_core(profile, message, history=None, image_data=None, image_type="image/jpeg"):
     sender = profile.get("sender", "")
     history = history or []
@@ -2717,6 +2814,17 @@ If the user sends a photo:
 - Note anything affecting price — artex, blown plaster, complex layouts, inspiration style
 - Use what you see to reduce questions needed
 
+━━━ REVISING AN EXISTING QUOTE ━━━
+If a quote has already been produced earlier in this conversation and the user now asks to CHANGE it
+(e.g. "make it £900", "change labour to 3 days", "add £200 materials", "round it to 2 grand",
+"drop the price a bit", "take the skirting off"), treat it as a REVISION, NOT a new quote:
+- Start from the previous quote's numbers and scope.
+- Apply ONLY the change they asked for. Keep everything else identical.
+- If they set a target TOTAL (e.g. "make it £900"), keep the scope, adjust so totalPrice matches;
+  if needed, back-calculate labour/materials sensibly so the parts still add up to the new total.
+- Re-emit the FULL QUOTE_READY JSON with the updated numbers. Never reply with prose-only when revising.
+- Keep the same clientName unless they change it.
+
 ━━━ WHEN READY — respond with ONLY this JSON (no other text): ━━━
 QUOTE_READY:{{
   "clientName": "Customer",
@@ -2742,6 +2850,17 @@ Carpentry: MDF £25-35/sheet, timber £3-6/m, screws/fixings £5-15, adhesive £
 Tiling: tiles £15-40/m², adhesive £15/20kg, grout £8/3kg, spacers £3, trim £3-5/m
 Roofing: felt £30-50/roll, nails £5, lead £30-50/m², tiles £40-80/m²
 Flooring: laminate £15-30/m², underlay £3-5/m², adhesive £20, threshold strips £8"""
+
+        # Smart pricing memory: prepend what this tradesperson actually charged before.
+        try:
+            _hint_src = message if isinstance(message, str) else ""
+            if not _hint_src and history:
+                _hint_src = " ".join(h.get("content", "") for h in history if isinstance(h.get("content"), str))
+            _phint = lookup_pricing_memory(sender, _hint_src)
+            if _phint:
+                system = system + "\n\n\u2501\u2501\u2501 YOUR OWN PAST PRICING (use as primary reference) \u2501\u2501\u2501\n" + _phint
+        except Exception as _pe:
+            print("pricing hint error:", _pe)
 
         messages = []
         for h in history:
@@ -2793,6 +2912,76 @@ Flooring: laminate £15-30/m², underlay £3-5/m², adhesive £20, threshold str
     except Exception as e:
         print("Quote core error: " + str(e))
         return {"type": "question", "message": "Sorry, I had trouble building that quote. Give me a bit more detail and I will try again."}
+
+
+@app.route("/api/revise-quote", methods=["POST"])
+def revise_quote():
+    """Save a manually-edited quote price/labour/materials and remember it for next time."""
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+        d = request.json or {}
+
+        def _f(v):
+            try:
+                return float(str(v).replace("\u00a3", "").replace(",", "") or 0)
+            except Exception:
+                return 0.0
+
+        client_name = (d.get("client_name") or "Customer").strip()
+        job_description = (d.get("job_description") or "").strip()
+        scope = d.get("scope") or []
+        total = _f(d.get("total"))
+        labour_days = _f(d.get("labour_days"))
+        labour_cost = _f(d.get("labour_cost"))
+        materials_cost = _f(d.get("materials_cost"))
+        quote_id = d.get("quote_id")
+
+        if total <= 0:
+            return jsonify({"error": "Total must be greater than zero"}), 400
+
+        line_items = [{"description": s, "amount": ""} for s in scope]
+
+        if quote_id:
+            # Update existing quote
+            supabase.table("quotes").update({
+                "client_name": client_name,
+                "job_description": "; ".join(scope) if scope else job_description,
+                "total": str(int(total)), "subtotal": str(int(total)),
+                "line_items": line_items
+            }).eq("id", quote_id).eq("sender", sender).execute()
+            saved_id = quote_id
+        else:
+            cnt = supabase.table("quotes").select("id").eq("sender", sender).execute()
+            num = "QU-" + str(len(cnt.data) + 1).zfill(3)
+            ins = supabase.table("quotes").insert({
+                "sender": sender, "client_name": client_name,
+                "job_description": "; ".join(scope) if scope else job_description,
+                "total": str(int(total)), "subtotal": str(int(total)), "vat": "0",
+                "line_items": line_items, "status": "draft",
+                "quote_number": num, "quote_text": "", "client_number": ""
+            }).execute()
+            saved_id = ins.data[0].get("id", "") if ins.data else ""
+
+        # Remember the (possibly overridden) price
+        try:
+            save_pricing_memory(profile, job_description or "; ".join(scope), {
+                "scope": scope, "total": total, "labour_days": labour_days,
+                "labour_cost": labour_cost, "materials_cost": materials_cost,
+                "client_name": client_name
+            })
+        except Exception as _se:
+            print("pricing save (revise):", _se)
+
+        return jsonify({"ok": True, "quote_id": saved_id})
+    except Exception as e:
+        print("revise_quote error:", e)
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/generate-quote-ai", methods=["POST"])
