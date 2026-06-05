@@ -786,14 +786,23 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 
           <div style="background:var(--s1);border-radius:14px;padding:14px 16px;margin-bottom:12px">
             <div style="font-size:.68rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Price summary</div>
+            <div id="qgEditHint" style="font-size:.64rem;color:var(--t4);margin:-4px 0 10px;line-height:1.5">Tap any figure to edit \u2014 or just tell me \u201cmake it \u00a3900\u201d.</div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
               <div style="font-size:.82rem;color:var(--t2)">Labour</div>
-              <div style="font-size:.82rem;font-weight:600;color:var(--t1)" id="qgLabourLine">—</div>
+              <div style="display:flex;align-items:center;gap:5px">
+                <span style="font-size:.8rem;color:var(--t3)">£</span>
+                <input id="qgLabourInput" type="number" oninput="qgRecalcFromParts()" style="width:78px;padding:5px 8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:600;color:var(--t1);text-align:right;outline:none">
+              </div>
             </div>
+            <div id="qgLabourLine" style="font-size:.62rem;color:var(--t4);text-align:right;margin:-4px 0 8px">—</div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
               <div style="font-size:.82rem;color:var(--t2)">Materials</div>
-              <div style="font-size:.82rem;font-weight:600;color:var(--t1)" id="qgMatsLine">—</div>
+              <div style="display:flex;align-items:center;gap:5px">
+                <span style="font-size:.8rem;color:var(--t3)">£</span>
+                <input id="qgMatsInput" type="number" oninput="qgRecalcFromParts()" style="width:78px;padding:5px 8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:600;color:var(--t1);text-align:right;outline:none">
+              </div>
             </div>
+            <div id="qgMatsLine" style="display:none"></div>
             <div style="height:0.5px;background:var(--br);margin:10px 0"></div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
               <div style="font-size:.88rem;font-weight:700;color:var(--t1)">Total</div>
@@ -2988,10 +2997,11 @@ function qgShowPriceSummary(q){
   qgQuoteData = q;
   const labourCost = q.labourCost || 0;
   const matsCost = q.materialsCost || 0;
+  document.getElementById('qgLabourInput').value = Math.round(labourCost);
+  document.getElementById('qgMatsInput').value = Math.round(matsCost);
   document.getElementById('qgLabourLine').textContent = q.labourDays
-    ? `${q.labourDays} day${q.labourDays!==1?'s':''} — £${labourCost.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}`
-    : `£${labourCost.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-  document.getElementById('qgMatsLine').textContent = `£${matsCost.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+    ? `${q.labourDays} day${q.labourDays!==1?'s':''} @ day rate`
+    : '';
   document.getElementById('qgTotalInput').value = q.totalPrice || 0;
 
   if(q.materials && q.materials.length > 0){
@@ -3022,10 +3032,36 @@ function qgShowPriceSummary(q){
   document.getElementById('qgCardScope').innerHTML = scope.map(s=>'<div class="qg-scope-row">'+ICO.check+'<div>'+s+'</div></div>').join('');
   const totalEl = document.getElementById('qgCardTotal');
   const ti = document.getElementById('qgTotalInput');
-  ti.oninput = function(){ totalEl.textContent = '\u00A3'+(Number(this.value)||0).toLocaleString('en-GB'); };
+  ti.oninput = function(){
+    const newTotal = Number(this.value)||0;
+    totalEl.textContent = '\u00A3'+newTotal.toLocaleString('en-GB');
+    // Keep labour fixed, flex materials to hit the new total (sensible default).
+    if(qgQuoteData){
+      const lab = Number(document.getElementById('qgLabourInput').value)||0;
+      const newMat = Math.max(0, newTotal - lab);
+      document.getElementById('qgMatsInput').value = Math.round(newMat);
+      qgQuoteData.totalPrice = newTotal;
+      qgQuoteData.materialsCost = newMat;
+    }
+  };
   document.getElementById('qgQuoteWrap').style.display='block';haptic('medium');
   qgCountUp(totalEl, Number(q.totalPrice)||0);
   document.getElementById('qgBrandCard').scrollIntoView({behavior:'smooth'});
+}
+
+function qgRecalcFromParts(){
+  const lab = Number(document.getElementById('qgLabourInput').value) || 0;
+  const mat = Number(document.getElementById('qgMatsInput').value) || 0;
+  const total = lab + mat;
+  const ti = document.getElementById('qgTotalInput');
+  ti.value = Math.round(total);
+  const totalEl = document.getElementById('qgCardTotal');
+  if(totalEl) totalEl.textContent = '\u00A3' + Math.round(total).toLocaleString('en-GB');
+  if(qgQuoteData){
+    qgQuoteData.labourCost = lab;
+    qgQuoteData.materialsCost = mat;
+    qgQuoteData.totalPrice = total;
+  }
 }
 
 function qgToggleBreakdown(){
@@ -3075,19 +3111,34 @@ async function qgGenerateQuote(){
 async function qgSaveQuote(){
   if(!qgQuoteData) return;
   try{
-    const total = document.getElementById('qgTotalInput').value || qgQuoteData.totalPrice;
-    await fetch('/api/create-quote?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+    const total = Number(document.getElementById('qgTotalInput').value) || qgQuoteData.totalPrice;
+    const labour = Number(document.getElementById('qgLabourInput').value) || qgQuoteData.labourCost || 0;
+    const mats = Number(document.getElementById('qgMatsInput').value) || qgQuoteData.materialsCost || 0;
+    const res = await fetch('/api/revise-quote?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
+        quote_id: qgQuoteData.quoteId || null,
         client_name: qgQuoteData.clientName || 'Customer',
-        job_description: qgQuoteData.scopeItems?.join(', ') || '',
-        total: total,
-        line_items: qgQuoteData.scopeItems?.map(s=>({description:s, amount:''})) || []
+        job_description: qgQuoteData_jobText(),
+        scope: qgQuoteData.scopeItems || [],
+        total: total, labour_cost: labour, materials_cost: mats,
+        labour_days: qgQuoteData.labourDays || 0
       })
     });
-    qgAddMsg('ai','✓ Quote saved! You can find it in the Quotes tab.');
+    const d = await res.json();
+    if(d.ok){
+      qgQuoteData.quoteId = d.quote_id;   // so a second save updates, not duplicates
+      if(typeof showSentAnimation==='function') showSentAnimation('Quote saved!', 'Find it in the Quotes tab');
+      else qgAddMsg('ai','\u2713 Quote saved! You can find it in the Quotes tab.');
+      if(typeof refreshQuotes==='function') refreshQuotes();
+    } else {
+      qgAddMsg('ai','Couldn\'t save: '+(d.error||'try again'));
+    }
   }catch(e){ qgAddMsg('ai','Error saving quote. Try again.'); }
+}
+function qgQuoteData_jobText(){
+  try{ return (qgQuoteData.scopeItems||[]).join(', '); }catch(e){ return ''; }
 }
 
 async function qgSend(){
