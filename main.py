@@ -2336,7 +2336,7 @@ def assistant():
         final_text = ""
         for _ in range(6):
             resp = client.messages.create(
-                model="claude-sonnet-4-5", max_tokens=1024,
+                model="claude-sonnet-4-5", max_tokens=2048,
                 system=system_prompt, tools=ASSISTANT_TOOLS, messages=messages
             )
             if resp.stop_reason == "tool_use":
