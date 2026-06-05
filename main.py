@@ -29,6 +29,117 @@ MICROSOFT_REDIRECT_URI = "https://trades-pa-trades-pa.up.railway.app/auth/outloo
 
 conversation_history = {}
 
+# ─────────────────────────────────────────────────────────────
+# CHANNEL-AWARE OUTBOUND
+# One place that decides HOW to send a message to a client:
+#   - Reply on the channel the client last used (whatsapp or sms).
+#   - If that channel is WhatsApp but their last inbound was >24h ago,
+#     WhatsApp's free-form window has closed -> fall back to SMS.
+#   - Always log the outbound message with the channel actually used.
+# Every outbound path (chatbox reply, AI quote, invoice chase, etc.)
+# should call send_to_client() instead of calling Twilio directly.
+# ─────────────────────────────────────────────────────────────
+WHATSAPP_WINDOW_HOURS = 24
+
+def _strip_wa(n):
+    return str(n or "").replace("whatsapp:", "")
+
+def _last_inbound_channel(twilio_number, client_number):
+    """Return (channel, last_inbound_dt) for this client, or ('whatsapp', None)."""
+    try:
+        rows = (supabase.table("client_chats")
+                .select("channel,created_at,direction")
+                .eq("twilio_number", _strip_wa(twilio_number))
+                .eq("client_number", _strip_wa(client_number))
+                .eq("direction", "inbound")
+                .order("created_at", desc=True).limit(1).execute().data or [])
+        if not rows:
+            # No history: also try matching with whatsapp: prefixed numbers
+            return ("whatsapp", None)
+        ch = rows[0].get("channel") or "whatsapp"
+        ts = rows[0].get("created_at")
+        dt = None
+        if ts:
+            try:
+                dt = datetime.datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+            except Exception:
+                dt = None
+        return (ch, dt)
+    except Exception as e:
+        print("_last_inbound_channel error:", e)
+        return ("whatsapp", None)
+
+def _within_whatsapp_window(last_inbound_dt):
+    if not last_inbound_dt:
+        return False
+    try:
+        now = datetime.datetime.now(last_inbound_dt.tzinfo) if last_inbound_dt.tzinfo else datetime.datetime.now()
+        return (now - last_inbound_dt) <= datetime.timedelta(hours=WHATSAPP_WINDOW_HOURS)
+    except Exception:
+        return False
+
+def send_to_client(profile, client_number, message, prefer=None):
+    """
+    Send a message to a client on the right channel, with SMS fallback.
+    prefer: optional 'whatsapp' or 'sms' to force a starting preference.
+    Returns dict: {ok, channel, error}.
+    """
+    try:
+        twilio_number = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER", "")
+        sender = profile.get("sender", "")
+        if not twilio_number:
+            return {"ok": False, "channel": None, "error": "No business number set (profiles.twilio_number)."}
+        if not client_number or not message:
+            return {"ok": False, "channel": None, "error": "Missing client number or message."}
+
+        last_channel, last_dt = _last_inbound_channel(twilio_number, client_number)
+        chosen = prefer or last_channel or "whatsapp"
+
+        # If we'd choose WhatsApp but the 24h window has closed, fall back to SMS.
+        if chosen == "whatsapp" and not _within_whatsapp_window(last_dt):
+            chosen = "sms"
+
+        tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
+        clean_from = _strip_wa(twilio_number)
+        clean_to = _strip_wa(client_number)
+
+        def _send(channel):
+            if channel == "whatsapp":
+                return tc.messages.create(body=message, from_="whatsapp:" + clean_from, to="whatsapp:" + clean_to)
+            return tc.messages.create(body=message, from_=clean_from, to=clean_to)
+
+        used = chosen
+        try:
+            _send(chosen)
+        except Exception as primary_err:
+            # If WhatsApp send failed for any reason, try SMS as a safety net.
+            if chosen == "whatsapp":
+                print("send_to_client whatsapp failed, falling back to sms:", repr(primary_err))
+                try:
+                    _send("sms"); used = "sms"
+                except Exception as sms_err:
+                    print("send_to_client sms fallback failed:", repr(sms_err))
+                    return {"ok": False, "channel": None, "error": str(sms_err)}
+            else:
+                print("send_to_client sms failed:", repr(primary_err))
+                return {"ok": False, "channel": None, "error": str(primary_err)}
+
+        # Log the outbound with the channel actually used.
+        try:
+            supabase.table("client_chats").insert({
+                "twilio_number": clean_from, "client_number": clean_to,
+                "message": message, "direction": "outbound",
+                "sender_profile": sender, "channel": used
+            }).execute()
+        except Exception as le:
+            print("send_to_client log error:", le)
+
+        return {"ok": True, "channel": used, "error": None}
+    except Exception as e:
+        print("send_to_client error:", e)
+        return {"ok": False, "channel": None, "error": str(e)}
+
+
 ONBOARDING_QUESTIONS = [
     ("business_name", "Welcome to VanOffice! Lets get you set up - only takes 1 minute.\n\nWhat is your business name?"),
     ("owner_name", "What is your name?"),
@@ -321,7 +432,9 @@ def run_invoice_chase():
                 else:
                     msg = f"FINAL NOTICE: Hi {first_name}, invoice {inv_num} for £{total} is {days_overdue} days overdue. Immediate payment is required. Please contact us urgently. {biz_name}"
 
-                twilio_client.messages.create(to=phone, from_=from_number, body=msg)
+                _chase_tn = locals().get("twilio_num") or from_number or os.environ.get("TWILIO_NUMBER","")
+                _chase_profile = {"sender": sender, "twilio_number": _chase_tn, "business_name": biz_name}
+                send_to_client(_chase_profile, phone, msg)
 
                 supabase.table("invoice_chases").insert({
                     "invoice_id":   inv_id,
@@ -1640,7 +1753,8 @@ def incoming_sms():
             "client_number": client_number,
             "message": incoming_msg,
             "direction": "inbound",
-            "sender_profile": sender
+            "sender_profile": sender,
+            "channel": "sms"
         }).execute()
 
         # Get conversation history with this client
@@ -1729,7 +1843,8 @@ def incoming_sms():
             "client_number": client_number,
             "message": clean_reply,
             "direction": "outbound",
-            "sender_profile": sender
+            "sender_profile": sender,
+            "channel": "sms"
         }).execute()
 
         resp.message(clean_reply)
@@ -2370,10 +2485,8 @@ def _save_and_send_quote(profile, sender, q):
                 body_msg = ("Hi! Here is your quote from " + biz + ". " + num + " - "
                             + "; ".join(q["scope"]) + ". Total " + str(int(q["total"]))
                             + " pounds. View: " + view_url)
-                from twilio.rest import Client as TwilioClient
-                tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
-                tc.messages.create(body=body_msg, from_=wa(twilio_num), to=wa(client_number))
-                sent = True
+                _qsend = send_to_client(profile, client_number, body_msg)
+                sent = _qsend["ok"]
             except Exception as se:
                 print("Quote send error:", se)
         if sent:
@@ -3186,18 +3299,12 @@ def reply_client():
         message = (data.get("message") or "").strip()
         if not client_number or not message:
             return jsonify({"error":"Missing fields"}),400
-        twilio_number = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER","")
-        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-        from twilio.rest import Client as TwilioClient
-        tc = TwilioClient(account_sid,auth_token)
-        # normalise numbers — strip any existing whatsapp: prefix before adding it
-        def wa(n): return "whatsapp:"+n if not n.startswith("whatsapp:") else n
-        tc.messages.create(body=message, from_=wa(twilio_number), to=wa(client_number))
-        supabase.table("client_chats").insert({"twilio_number":twilio_number,"client_number":client_number,"message":message,"direction":"outbound","sender_profile":sp}).execute()
-        return jsonify({"ok":True})
+        result_send = send_to_client(profile, client_number, message)
+        if not result_send["ok"]:
+            return jsonify({"ok":False,"error":result_send["error"] or "Could not send."}),200
+        return jsonify({"ok":True,"channel":result_send["channel"]})
     except Exception as e:
-        print("reply error:",e); return jsonify({"error":str(e)}),500
+        print("reply error:", repr(e)); print(traceback.format_exc()); return jsonify({"ok":False,"error":str(e)}),200
 
 
 @app.route("/api/check-phone", methods=["GET"])
