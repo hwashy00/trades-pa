@@ -3617,20 +3617,29 @@ async function asstSend(preset){
   var ta=document.getElementById('asstInput');
   var msg=preset||(ta?ta.value.trim():'');
   var photo=asstPendingPhoto;
+  var inQuote=asstQuoteActive || !!photo;
   if(!msg && !photo)return;
   var sugg=document.querySelector('.asst-sugg'); if(sugg)sugg.remove();
   if(ta && !preset){ta.value='';ta.style.height='';}
   if(photo){
     asstClearPhoto();
     asstAddPhotoBubble(photo.url, msg);
+    asstQuoteImage={b64:photo.b64,type:photo.type};
   } else {
     asstAddBubble('me',msg);
   }
-  asstHistory.push({role:'user',content:(msg||'[sent a photo of the job]')});
   asstTyping(true);
   try{
-    var body={message:msg,history:asstHistory.slice(0,-1)};
-    if(photo){body.image=photo.b64;body.imageType=photo.type;}
+    var body;
+    if(inQuote){
+      body={message:msg,quote_mode:true,quote_history:asstQuoteHistory.slice()};
+      var img=photo?photo:asstQuoteImage;
+      if(img){body.image=img.b64;body.imageType=img.type;}
+      asstQuoteHistory.push({role:'user',content:(msg||'[sent a photo of the job]')});
+    } else {
+      body={message:msg,history:asstHistory.slice()};
+      asstHistory.push({role:'user',content:msg});
+    }
     var r=await fetch('/api/assistant?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(body)
@@ -3639,7 +3648,15 @@ async function asstSend(preset){
     asstTyping(false);
     var reply=d.reply||d.error||'Sorry, something went wrong.';
     asstAddBubble('ai',reply);
-    asstHistory.push({role:'assistant',content:reply});
+    if(inQuote){
+      asstQuoteHistory.push({role:'assistant',content:reply});
+      asstHistory.push({role:'user',content:(msg||'[sent a photo of the job]')});
+      asstHistory.push({role:'assistant',content:reply});
+      if(d.quote_done){asstQuoteActive=false;asstQuoteImage=null;asstQuoteHistory=[];}
+      else if(d.quote_pending){asstQuoteActive=true;}
+    } else {
+      asstHistory.push({role:'assistant',content:reply});
+    }
     if(d.actions&&d.actions.length){asstRefreshStats();refreshQuotes();}
   }catch(e){
     asstTyping(false);
@@ -3682,6 +3699,9 @@ function asstAddPhotoBubble(src, note){
   chat.appendChild(b); chat.scrollTop=chat.scrollHeight;
 }
 var asstPendingPhoto=null;
+var asstQuoteActive=false;
+var asstQuoteImage=null;
+var asstQuoteHistory=[];
 function asstHandlePhoto(input){
   if(!input.files||!input.files[0])return;
   var file=input.files[0];
