@@ -2151,15 +2151,16 @@ ASSISTANT_TOOLS = [
     },
     {
         "name": "create_quote",
-        "description": "Create and save a quote for a client for upcoming work.",
+        "description": "Build and save a detailed itemised quote for a client. Estimates materials and labour and produces a full breakdown automatically. Pass the job description with as much detail as known. Only pass materials_cost or labour_days if the user explicitly stated their own figures.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "client_name": {"type": "string"},
-                "total": {"type": "string", "description": "Total in pounds, digits only"},
-                "job_description": {"type": "string"}
+                "job_description": {"type": "string", "description": "What the work involves"},
+                "materials_cost": {"type": "number", "description": "Only if the user stated their own materials cost in pounds"},
+                "labour_days": {"type": "number", "description": "Only if the user stated the number of labour days"}
             },
-            "required": ["client_name", "total"]
+            "required": ["client_name", "job_description"]
         }
     },
     {
@@ -2215,6 +2216,47 @@ ASSISTANT_TOOLS = [
 ]
 
 
+def _build_detailed_quote(profile, job_description, client_name="Customer", materials_cost=None, labour_days=None):
+    day_rate = float(str(profile.get("day_rate") or "250").replace("\u00a3","").replace(",","").strip() or 250)
+    if day_rate == 0: day_rate = 250
+    markup = float(str(profile.get("materials_markup") or 20).replace("%","").strip() or 20)
+    trade = profile.get("trade", "tradesperson")
+    given = ""
+    if materials_cost: given += " The user gave a materials cost of " + str(materials_cost) + " pounds (do not add markup to this)."
+    if labour_days: given += " The user said " + str(labour_days) + " labour days."
+    prompt = ("You are a quoting engine for a UK " + trade + " business. Day rate " + str(int(day_rate)) +
+              " pounds, materials markup " + str(int(markup)) + " percent. Job: " + job_description + given +
+              " Estimate it sensibly. Respond with ONLY this JSON and nothing else: "
+              '{"scopeItems":["specific item 1","specific item 2","specific item 3"],'
+              '"materials":[{"item":"name","qty":"1","unitCost":0,"total":0}],'
+              '"labourDays":1,"leadTimeDays":"3-5","note":""}')
+    resp = client.messages.create(model="claude-sonnet-4-5", max_tokens=900,
+                                  messages=[{"role":"user","content":prompt}])
+    raw = ""
+    for b in resp.content:
+        if b.type == "text": raw += b.text
+    import re as _re
+    mt = _re.search(r"\{[\s\S]*\}", raw)
+    parsed = json.loads(mt.group(0)) if mt else {}
+    scope = parsed.get("scopeItems", [job_description])
+    mats = parsed.get("materials", [])
+    ld = labour_days if labour_days else parsed.get("labourDays", 1)
+    try: ld = float(ld)
+    except: ld = 1
+    labour_cost = ld * day_rate
+    if materials_cost:
+        raw_mats = float(materials_cost); markup_amt = 0; mats_final = raw_mats
+    else:
+        raw_mats = sum(float(x.get("total", 0) or 0) for x in mats)
+        markup_amt = raw_mats * markup / 100.0
+        mats_final = raw_mats + markup_amt
+    total = round((labour_cost + mats_final) / 5.0) * 5
+    return {"client_name": client_name, "scope": scope, "materials": mats,
+            "labour_days": ld, "labour_cost": labour_cost, "materials_cost": mats_final,
+            "markup_amount": markup_amt, "total": total, "note": parsed.get("note", ""),
+            "lead_time": parsed.get("leadTimeDays", "3-5")}
+
+
 def _assistant_execute_tool(name, ti, profile):
     sender = profile.get("sender", "")
     try:
@@ -2231,16 +2273,69 @@ def _assistant_execute_tool(name, ti, profile):
             return "Created invoice " + num + " for " + ti.get("client_name", "") + ", total \u00a3" + total + "."
 
         if name == "create_quote":
+            q = _build_detailed_quote(profile, ti.get("job_description", ""),
+                                      ti.get("client_name", "Customer"),
+                                      ti.get("materials_cost"), ti.get("labour_days"))
+            client_name = q["client_name"]
+            # find client WhatsApp number from enquiries
+            client_number = ""
+            try:
+                fw = client_name.split()[0] if client_name.split() else client_name
+                enq = supabase.table("enquiries").select("sender").ilike("client_name", "%" + fw + "%").order("created_at", desc=True).limit(1).execute()
+                if enq.data:
+                    client_number = enq.data[0].get("sender", "")
+            except Exception as le:
+                print("Quote client lookup:", le)
             cnt = supabase.table("quotes").select("id").eq("sender", sender).execute()
             num = "QU-" + str(len(cnt.data) + 1).zfill(3)
-            total = str(ti.get("total", "0"))
-            supabase.table("quotes").insert({
-                "sender": sender, "client_name": ti.get("client_name", ""),
-                "job_description": ti.get("job_description", ""), "total": total,
-                "subtotal": total, "vat": "0", "line_items": [], "status": "draft",
-                "quote_number": num, "quote_text": "", "client_number": ""
+            line_items = []
+            for mat in q["materials"]:
+                line_items.append({"description": mat.get("item", ""), "qty": str(mat.get("qty", "")),
+                                   "amount": str(mat.get("total", ""))})
+            line_items.append({"description": "Labour (" + str(q["labour_days"]) + " day(s))",
+                               "amount": str(int(q["labour_cost"]))})
+            ins = supabase.table("quotes").insert({
+                "sender": sender, "client_name": client_name,
+                "job_description": "; ".join(q["scope"]), "total": str(int(q["total"])),
+                "subtotal": str(int(q["total"])), "vat": "0", "line_items": line_items,
+                "status": "sent" if client_number else "draft", "quote_number": num,
+                "quote_text": "", "client_number": client_number
             }).execute()
-            return "Created quote " + num + " for " + ti.get("client_name", "") + ", total \u00a3" + total + "."
+            quote_id = ins.data[0].get("id", "") if ins.data else ""
+            # send to client if we have their number
+            sent = False
+            if client_number and quote_id:
+                try:
+                    def wa(n): return n if n.startswith("whatsapp:") else "whatsapp:" + n
+                    twilio_num = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER", "")
+                    try:
+                        host = request.host_url.rstrip("/")
+                    except Exception:
+                        host = "https://trades-pa-trades-pa.up.railway.app"
+                    pdf_url = host + "/generate-pdf/" + str(quote_id)
+                    biz = profile.get("business_name") or profile.get("owner_name") or "your tradesperson"
+                    body_msg = ("Hi! Here is your quote from " + biz + ". " + num + " - "
+                                + "; ".join(q["scope"]) + ". Total " + str(int(q["total"]))
+                                + " pounds. View and download: " + pdf_url)
+                    from twilio.rest import Client as TwilioClient
+                    tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
+                    tc.messages.create(body=body_msg, from_=wa(twilio_num), to=wa(client_number))
+                    try:
+                        supabase.table("enquiries").update({"status": "quoted"}).ilike("client_name", "%" + fw + "%").execute()
+                    except Exception:
+                        pass
+                    sent = True
+                except Exception as se:
+                    print("Quote send error:", se)
+            mat_lines = ", ".join((x.get("item", "") for x in q["materials"][:6])) or "materials"
+            base = ("Quote " + num + " for " + client_name + ". Labour " + str(q["labour_days"])
+                    + " day(s) at " + str(int(q["labour_cost"])) + " pounds, materials "
+                    + str(int(q["materials_cost"])) + " pounds (" + mat_lines + "), total "
+                    + str(int(q["total"])) + " pounds.")
+            if sent:
+                return base + " Sent to " + client_name + " on WhatsApp."
+            else:
+                return base + " Saved as a draft - I could not find " + client_name + "'s number, so send it from the Quotes tab."
 
         if name == "get_schedule":
             bookings = supabase.table("bookings").select("*").eq("sender", sender).order("date").execute().data or []
