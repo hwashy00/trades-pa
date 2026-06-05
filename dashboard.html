@@ -224,85 +224,8 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 @keyframes navUp{from{transform:translateY(110%)}to{transform:none}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001s!important;transition-duration:.001s!important}}
 .hidden{display:none!important}
-
-/* ─── SKELETON LOADERS ───────────────────────────────── */
-.loading{display:none!important}
-.skel-list{display:flex;flex-direction:column;gap:8px;padding:0 20px}
-.skel-li{display:flex;align-items:center;gap:13px;padding:13px 14px;background:var(--s1);border-radius:16px;border:1.5px solid var(--br2)}
-.skel-ico{width:44px;height:44px;border-radius:13px;flex-shrink:0}.skel-body{flex:1;display:flex;flex-direction:column;gap:7px}
-.skel-line{height:11px;border-radius:6px}.skel-line.w60{width:60%}.skel-line.w40{width:40%}.skel-line.w80{width:80%}
-.skel-right{width:48px;display:flex;flex-direction:column;gap:7px;align-items:flex-end}
-.skel-tag{height:18px;width:48px;border-radius:7px}
-
-/* ─── EMPTY STATES ───────────────────────────────────── */
-.empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;padding:48px 20px;color:var(--t3);font-size:.8rem;line-height:1.8;gap:8px}
-.empty-state .es-icon{width:48px;height:48px;border-radius:16px;background:var(--s2);border:1.5px solid var(--br);display:flex;align-items:center;justify-content:center;color:var(--t4);margin-bottom:4px}
-.empty-state .es-icon svg{width:22px;height:22px}
-.empty-state strong{color:var(--t2);font-size:.88rem;font-weight:700}
-.empty-state .es-cta{margin-top:4px;padding:9px 18px;background:var(--acc-d);color:var(--acc2);border:1px solid rgba(31,184,136,.3);border-radius:22px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;transition:transform .12s var(--spring)}
-.empty-state .es-cta:active{transform:scale(.96)}
-
-/* ─── SWIPE-TO-ACTION ────────────────────────────────── */
-.swipe-wrap{position:relative;overflow:hidden;border-radius:16px;margin-bottom:2px}
-.swipe-actions{position:absolute;right:0;top:0;bottom:0;display:flex;align-items:stretch;border-radius:0 16px 16px 0;overflow:hidden;pointer-events:none}
-.swipe-action{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:0 18px;font-size:.58rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;user-select:none;min-width:64px;transition:background .15s}
-.swipe-action.act-grn{background:var(--grn);color:#0d2e22}
-.swipe-action.act-amb{background:var(--amb);color:#2b1e04}
-.swipe-action.act-red{background:var(--red);color:#2b0808}
-.swipe-action svg{width:18px;height:18px}
-.swipe-inner{transform:translateX(0);transition:transform .22s var(--ease-out);will-change:transform;position:relative;z-index:1}
-.swipe-inner .li{border-radius:16px;margin:0}
-.swipe-wrap.swiped .swipe-actions{pointer-events:auto}
-
-/* ─── LONG-PRESS CONTEXT MENU ────────────────────────── */
-.ctx-backdrop{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);opacity:0;transition:opacity .2s var(--ease-out);pointer-events:none}
-.ctx-backdrop.open{opacity:1;pointer-events:auto}
-.ctx-menu{position:fixed;left:16px;right:16px;max-width:358px;margin:0 auto;bottom:-100%;z-index:801;background:var(--s2);border:1.5px solid var(--br);border-radius:20px;padding:8px;transition:bottom .28s var(--spring),opacity .2s;opacity:0;box-shadow:0 -8px 48px rgba(0,0,0,.5)}
-.ctx-menu.open{bottom:24px;opacity:1}
-.ctx-title{font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--t4);padding:10px 14px 6px}
-.ctx-btn{display:flex;align-items:center;gap:13px;padding:14px 14px;border-radius:13px;cursor:pointer;transition:background .12s;font-size:.88rem;font-weight:600;color:var(--t1);background:none;border:none;width:100%;font-family:'Hanken Grotesk',sans-serif;text-align:left}
-.ctx-btn:active{background:var(--s3)}
-.ctx-btn svg{width:18px;height:18px;flex-shrink:0;color:var(--t3)}
-.ctx-btn.danger{color:var(--red)}
-.ctx-btn.danger svg{color:var(--red)}
-.ctx-sep{height:1px;background:var(--br);margin:4px 0}
-
-/* ─── QUOTE SEND ANIMATION ───────────────────────────── */
-@keyframes quoteFly{0%{transform:translateY(0) scale(1);opacity:1}40%{transform:translateY(-18px) scale(.97);opacity:.9}100%{transform:translateY(-80px) scale(.88);opacity:0}}
-@keyframes sentCheck{0%{transform:scale(0) rotate(-15deg);opacity:0}55%{transform:scale(1.15) rotate(3deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
-.sent-overlay{position:fixed;inset:0;z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(11,12,14,.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);pointer-events:none;opacity:0;transition:opacity .3s}
-.sent-overlay.show{opacity:1;pointer-events:auto}
-.sent-check{width:72px;height:72px;border-radius:22px;background:var(--grn-d);border:2px solid var(--grn);display:flex;align-items:center;justify-content:center;animation:sentCheck .5s var(--spring-hard) both}
-.sent-check svg{width:34px;height:34px;color:var(--grn)}
-.sent-label{font-family:'Archivo',sans-serif;font-weight:800;font-size:1.1rem;letter-spacing:-.03em;color:var(--t1)}
-.sent-sub{font-size:.78rem;color:var(--t3)}
-
-/* ─── OVERDUE BANNER ─────────────────────────────────── */
-.overdue-banner{margin:0 20px 14px;padding:13px 16px;background:rgba(230,168,58,.1);border:1px solid rgba(230,168,58,.3);border-radius:14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .15s}
-.overdue-banner:active{background:rgba(230,168,58,.18)}
-.overdue-banner svg{width:18px;height:18px;color:var(--amb);flex-shrink:0}
-.overdue-banner-body{flex:1;min-width:0}
-.overdue-banner-title{font-size:.8rem;font-weight:700;color:var(--amb)}
-.overdue-banner-sub{font-size:.67rem;color:var(--t3);margin-top:1px}
-.overdue-banner-arrow{color:var(--t4);font-size:.9rem}
-
-/* ─── STATUS BADGE BORDER ACCENT ─────────────────────── */
-.bdg{display:inline-flex;align-items:center;gap:5px;font-size:.55rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:7px}
-.bdg::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
-.b-acc{background:var(--acc-d);color:var(--acc2)}.b-acc::before{background:var(--acc2)}
-.b-grn{background:var(--grn-d);color:var(--grn)}.b-grn::before{background:var(--grn)}
-.b-red{background:var(--red-d);color:var(--red)}.b-red::before{background:var(--red)}
-.b-amb{background:var(--amb-d);color:var(--amb)}.b-amb::before{background:var(--amb)}
-.b-muted{background:var(--s3);color:var(--t3)}.b-muted::before{background:var(--t4)}
-
-/* ─── BOTTOM SHEET DRAG HANDLE ───────────────────────── */
-.sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--br);margin:0 auto 20px}
-
-/* ─── MARK PAID / RESEND HAPTIC BUTTONS ──────────────── */
-.action-pill{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:20px;font-size:.62rem;font-weight:700;border:none;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;transition:transform .12s var(--spring)}
-.action-pill:active{transform:scale(.94)}
-.ap-grn{background:var(--grn-d);color:var(--grn)}
-.ap-amb{background:var(--amb-d);color:var(--amb)}
+.loading{text-align:center;padding:40px 20px;color:var(--t3);font-size:.8rem}
+.empty-state{text-align:center;padding:40px 20px;color:var(--t3);font-size:.8rem;line-height:1.8}
 
 /* ─── NAV ACTIVE INDICATOR ───────────────────────────── */
 .ni.on .ni-ico{animation:niPop .32s var(--spring-hard)}
@@ -539,85 +462,6 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .pulse-dot.pulse-p{background:var(--acc)}
 .pulse-v{font-family:'Spline Sans Mono',monospace;font-weight:600;font-size:.92rem;color:var(--t1)}
 .pulse-l{font-size:.58rem;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
-
-/* ─── SKELETON LOADERS ───────────────────────────────── */
-.loading{display:none!important}
-.skel-list{display:flex;flex-direction:column;gap:8px;padding:0 4px}
-.skel-li{display:flex;align-items:center;gap:13px;padding:13px 14px;background:var(--s1);border-radius:16px;border:1.5px solid var(--br2)}
-.skel-ico{width:44px;height:44px;border-radius:13px;flex-shrink:0}
-.skel-body{flex:1;display:flex;flex-direction:column;gap:7px}
-.skel-line{height:11px;border-radius:6px}
-.skel-line.w60{width:60%}.skel-line.w40{width:40%}.skel-line.w80{width:80%}
-.skel-right{width:48px;display:flex;flex-direction:column;gap:7px;align-items:flex-end}
-.skel-tag{height:18px;width:48px;border-radius:7px}
-
-/* ─── EMPTY STATES ───────────────────────────────────── */
-.empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;padding:48px 20px;color:var(--t3);font-size:.8rem;line-height:1.8;gap:8px}
-.empty-state .es-icon{width:48px;height:48px;border-radius:16px;background:var(--s2);border:1.5px solid var(--br);display:flex;align-items:center;justify-content:center;color:var(--t4);margin-bottom:4px}
-.empty-state .es-icon svg{width:22px;height:22px}
-.empty-state strong{color:var(--t2);font-size:.88rem;font-weight:700}
-.empty-state .es-cta{margin-top:4px;padding:9px 18px;background:var(--acc-d);color:var(--acc2);border:1px solid rgba(31,184,136,.3);border-radius:22px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;transition:transform .12s var(--spring)}
-.empty-state .es-cta:active{transform:scale(.96)}
-
-/* ─── SWIPE-TO-ACTION ────────────────────────────────── */
-.swipe-wrap{position:relative;overflow:hidden;border-radius:16px;margin-bottom:2px}
-.swipe-actions{position:absolute;right:0;top:0;bottom:0;display:flex;align-items:stretch;overflow:hidden;pointer-events:none}
-.swipe-action{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:0 18px;font-size:.56rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;user-select:none;min-width:68px;transition:background .15s;-webkit-user-select:none}
-.swipe-action.act-grn{background:var(--grn);color:#0d2e22}
-.swipe-action.act-amb{background:var(--amb);color:#2b1e04}
-.swipe-action.act-red{background:var(--red);color:#2b0808}
-.swipe-action svg{width:18px;height:18px;margin-bottom:1px}
-.swipe-inner{transform:translateX(0);transition:transform .22s var(--ease-out);will-change:transform;position:relative;z-index:1;touch-action:pan-y}
-.swipe-inner .li{border-radius:16px;margin:0}
-.swipe-wrap.swiped .swipe-actions{pointer-events:auto}
-
-/* ─── CONTEXT MENU ───────────────────────────────────── */
-.ctx-backdrop{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);opacity:0;transition:opacity .2s var(--ease-out);pointer-events:none}
-.ctx-backdrop.open{opacity:1;pointer-events:auto}
-.ctx-menu{position:fixed;left:16px;right:16px;max-width:358px;margin:0 auto;bottom:-100%;z-index:801;background:var(--s2);border:1.5px solid var(--br);border-radius:20px;padding:8px;transition:bottom .28s var(--spring);opacity:0;box-shadow:0 -8px 48px rgba(0,0,0,.5);transition:bottom .28s var(--spring),opacity .2s}
-.ctx-menu.open{bottom:24px;opacity:1}
-.ctx-title{font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--t4);padding:10px 14px 6px}
-.ctx-btn{display:flex;align-items:center;gap:13px;padding:14px 14px;border-radius:13px;cursor:pointer;transition:background .12s;font-size:.88rem;font-weight:600;color:var(--t1);background:none;border:none;width:100%;font-family:'Hanken Grotesk',sans-serif;text-align:left}
-.ctx-btn:active{background:var(--s3)}
-.ctx-btn.danger{color:var(--red)}
-.ctx-sep{height:1px;background:var(--br);margin:4px 0}
-
-/* ─── SENT OVERLAY ───────────────────────────────────── */
-@keyframes sentCheck{0%{transform:scale(0) rotate(-15deg);opacity:0}55%{transform:scale(1.15) rotate(3deg)}100%{transform:scale(1) rotate(0);opacity:1}}
-.sent-overlay{position:fixed;inset:0;max-width:390px;margin:0 auto;z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(11,12,14,.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);pointer-events:none;opacity:0;transition:opacity .25s var(--ease-out)}
-.sent-overlay.show{opacity:1;pointer-events:auto}
-.sent-check{width:72px;height:72px;border-radius:22px;background:var(--grn-d);border:2px solid var(--grn);display:flex;align-items:center;justify-content:center;animation:sentCheck .5s var(--spring-hard) both}
-.sent-check svg{width:34px;height:34px;color:var(--grn)}
-.sent-label{font-family:'Archivo',sans-serif;font-weight:800;font-size:1.1rem;letter-spacing:-.03em;color:var(--t1)}
-.sent-sub{font-size:.78rem;color:var(--t3)}
-
-/* ─── OVERDUE BANNER ─────────────────────────────────── */
-.overdue-banner{margin:0 20px 14px;padding:13px 16px;background:rgba(230,168,58,.1);border:1px solid rgba(230,168,58,.3);border-radius:14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .15s}
-.overdue-banner:active{background:rgba(230,168,58,.18)}
-.overdue-banner svg{width:18px;height:18px;color:var(--amb);flex-shrink:0}
-.overdue-banner-body{flex:1;min-width:0}
-.overdue-banner-title{font-size:.8rem;font-weight:700;color:var(--amb)}
-.overdue-banner-sub{font-size:.67rem;color:var(--t3);margin-top:1px}
-.overdue-banner-arrow{color:var(--t4);font-size:.9rem}
-
-/* ─── BADGE WITH STATUS DOT ──────────────────────────── */
-.bdg{display:inline-flex;align-items:center;gap:5px;font-size:.55rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:7px;vertical-align:middle}
-.bdg::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0;display:inline-block}
-.b-acc{background:var(--acc-d);color:var(--acc2)}.b-acc::before{background:var(--acc2)}
-.b-grn{background:var(--grn-d);color:var(--grn)}.b-grn::before{background:var(--grn)}
-.b-red{background:var(--red-d);color:var(--red)}.b-red::before{background:var(--red)}
-.b-amb{background:var(--amb-d);color:var(--amb)}.b-amb::before{background:var(--amb)}
-.b-muted{background:var(--s3);color:var(--t3)}.b-muted::before{background:var(--t4)}
-
-/* ─── BOTTOM SHEET HANDLE ────────────────────────────── */
-.sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--br);margin:0 auto 16px}
-
-/* ─── ACTION PILL BUTTONS ────────────────────────────── */
-.action-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:.6rem;font-weight:700;border:none;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;transition:transform .12s var(--spring)}
-.action-pill:active{transform:scale(.94)}
-.ap-grn{background:var(--grn-d);color:var(--grn)}
-.ap-amb{background:var(--amb-d);color:var(--amb)}
-
 </style>
 </head>
 <body>
@@ -1172,6 +1016,30 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       </div>
 
       <div class="sg">
+        <div class="sg-lbl">Voice &amp; conversation</div>
+        <div class="sg-list">
+          <div class="sg-row" style="flex-direction:column;align-items:stretch;gap:10px;padding:14px 18px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div class="sg-row-label">How long I wait when you pause</div>
+              <span id="hfWaitVal" style="font-size:.72rem;color:var(--acc2);font-weight:700">Patient</span>
+            </div>
+            <input type="range" id="hfWaitSlider" min="0" max="2" step="1" value="2"
+                   style="width:100%;accent-color:var(--acc)" oninput="hfSetWaitLevel(this.value)">
+            <div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--t4)">
+              <span>Quick</span><span>Balanced</span><span>Patient</span>
+            </div>
+            <div style="font-size:.64rem;color:var(--t3);line-height:1.5" id="hfWaitHint">Patient — won't rush you, waits a good couple of seconds before replying.</div>
+          </div>
+          <div class="sg-row" style="cursor:pointer" onclick="hfToggleBarge()">
+            <div class="sg-row-label">Let me interrupt by talking</div>
+            <div id="hfBargeToggle" style="width:44px;height:26px;border-radius:13px;background:var(--acc);position:relative;transition:background .2s;flex-shrink:0">
+              <div id="hfBargeKnob" style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;left:21px;transition:left .2s"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sg">
         <div class="sg-lbl">Quote footer</div>
         <div class="sg-list">
           <div class="sg-row" style="align-items:flex-start;padding:14px 18px">
@@ -1213,8 +1081,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 
   <!-- CREATE INVOICE MODAL -->
   <div id="invoiceModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeInvoiceModal()"></div>
-  <div id="invoiceModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:16px 20px 40px;max-height:90vh;overflow-y:auto">
-    <div class="sheet-handle"></div>
+  <div id="invoiceModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px;max-height:90vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
       <div style="font-size:1rem;font-weight:800">Create Invoice</div>
       <button onclick="closeInvoiceModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
@@ -1241,8 +1108,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 
   <!-- JOB DETAIL DRAWER -->
   <div id="jobDrawerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeJobDrawer()"></div>
-  <div id="jobDrawer" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:16px 20px 40px;max-height:85vh;overflow-y:auto">
-    <div class="sheet-handle"></div>
+  <div id="jobDrawer" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px;max-height:85vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
       <div style="font-size:1rem;font-weight:800" id="drawerClientName">Client</div>
       <button onclick="closeJobDrawer()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
@@ -1264,8 +1130,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 
   <!-- CREATE QUOTE MODAL -->
   <div id="quoteModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeQuoteModal()"></div>
-  <div id="quoteModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:16px 20px 40px;max-height:90vh;overflow-y:auto">
-    <div class="sheet-handle"></div>
+  <div id="quoteModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px;max-height:90vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
       <div style="font-size:1rem;font-weight:800">Create Quote</div>
       <button onclick="closeQuoteModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
@@ -1687,8 +1552,6 @@ function updateStats(data){
   document.getElementById('heroNew').textContent=(data.enquiries||0)+' enquiries';
   document.getElementById('heroMissed').textContent=(data.missed||0)+' missed';
   if(data.missed>0)document.getElementById('notifDot').style.display='block';
-  // Wire overdue banner after invoices are loaded
-  setTimeout(renderOverdueBanner,400);
 }
 
 function statusBadge(s){
@@ -1738,53 +1601,23 @@ function renderUpcoming(bookings){
 function renderJobs(items,filter){
   const el=document.getElementById('jobsList');
   let f=filter==='all'?items:items.filter(i=>i.status===filter);
-  if(!f||!f.length){el.innerHTML=emptyState('jobs');return}
-  el.innerHTML='';
-  f.forEach((item,idx)=>{
+  if(!f||!f.length){el.innerHTML='<div class="empty-state">No jobs found.</div>';return}
+  el.innerHTML=f.map((item,idx)=>{
     const ico=statusIcon(item.status);
     const snippet=item.summary||item.message||'';
     const preview=snippet.length>60?snippet.slice(0,60)+'…':snippet;
-    const liEl=document.createElement('div');
-    liEl.className='li';
-    liEl.style.cssText='flex-direction:column;align-items:stretch;gap:0;cursor:pointer';
-    liEl.innerHTML=`<div style="display:flex;align-items:center;gap:13px">
-      <div class="li-ico" style="${ico.style}">${ico.emoji}</div>
-      <div class="li-body">
-        <div class="li-name">${item.client_name||'Unknown'}</div>
-        <div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div>
-        ${preview?`<div class="li-detail" style="margin-top:3px;font-style:italic;color:var(--t3)">"${preview}"</div>`:''}
+    return`<div class="li" onclick="openJobDrawer(${idx},${filter==='all'?'allEnquiries':'allEnquiries.filter(i=>i.status===\''+filter+'\')'})" style="flex-direction:column;align-items:stretch;gap:0;cursor:pointer">
+      <div style="display:flex;align-items:center;gap:13px">
+        <div class="li-ico" style="${ico.style}">${ico.emoji}</div>
+        <div class="li-body">
+          <div class="li-name">${item.client_name||'Unknown'}</div>
+          <div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div>
+          ${preview?`<div class="li-detail" style="margin-top:3px;font-style:italic;color:var(--t3)">"${preview}"</div>`:''}
+        </div>
+        <div class="li-right">${statusBadge(item.status)}</div>
       </div>
-      <div class="li-right">${statusBadge(item.status)}</div>
     </div>`;
-    liEl.addEventListener('click',()=>openJobDrawer(idx,f));
-
-    // Long-press context menu
-    let lpTimer;
-    liEl.addEventListener('pointerdown',()=>{lpTimer=setTimeout(()=>{
-      openCtx(item.client_name||'Unknown',[
-        {label:'Quote this job',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" stroke-linejoin="round"/></svg>',fn:()=>{closeJobDrawer();qgStartFromJob(item.client_name||'',item.job_type||'');}},
-        {label:'Raise invoice',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-linejoin="round"/><polyline points="14 2 14 8 20 8"/></svg>',fn:()=>openInvoiceModal(item.client_name||'',item.job_type||'',item.sender||'',null),sep:true},
-        {label:'Mark as done',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px"><polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg>',fn:()=>haptic('light')}
-      ]);
-    },520);});
-    liEl.addEventListener('pointerup',()=>clearTimeout(lpTimer));
-    liEl.addEventListener('pointercancel',()=>clearTimeout(lpTimer));
-
-    // Swipe-to-action: swipe left to reveal Quote
-    const swipeActions=[
-      {label:'Quote',cls:'act-grn',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" stroke-linejoin="round"/></svg>',fn:()=>qgStartFromJob(item.client_name||'',item.job_type||'')}
-    ];
-    if(item.status!=='quoted'){
-      swipeActions.push({label:'Invoice',cls:'act-amb',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-linejoin="round"/></svg>',fn:()=>openInvoiceModal(item.client_name||'',item.job_type||'',item.sender||'',null)});
-    }
-    // liEl is still detached; makeSwipeable replaces it in-place which won't work since it's detached.
-    // So we append first then swipe-enable
-    el.appendChild(liEl);
-    const swipeEl=el.lastElementChild;
-    swipeEl.style.opacity='0';
-    swipeEl.style.animation=`liIn .28s var(--ease-out) ${idx*0.04}s forwards`;
-    makeSwipeable(swipeEl, swipeActions);
-  });
+  }).join('');
 }
 
 let allQuotes=[];
@@ -1798,37 +1631,15 @@ function renderQuotes(items){
 
 function renderQuotesList(quotes){
   const el=document.getElementById('quotesList');
-  if(!quotes||!quotes.length){el.innerHTML=emptyState('quotes');return}
-  el.innerHTML='';
-  quotes.forEach((q,idx)=>{
+  if(!quotes||!quotes.length){el.innerHTML='<div class="empty-state">No quotes yet.<br>Ask the assistant to quote someone, or tap + New AI Quote.</div>';return}
+  el.innerHTML=quotes.map(q=>{
     const total=q.total?'£'+q.total:'';
     const st=(q.status||'draft').toLowerCase();
-    const badge=(st==='sent')?'<span class="bdg b-grn">Sent</span>'
-               :(st==='accepted')?'<span class="bdg b-grn">Accepted</span>'
-               :'<span class="bdg b-amb">Draft</span>';
-    const liEl=document.createElement('div');
-    liEl.className='li';liEl.style.cursor='pointer';
-    liEl.innerHTML=`<div class="li-ico" style="background:var(--amb-d);color:var(--amb)">${ICO.quote}</div><div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.quote_number||''} · ${q.job_description||''}</div></div><div class="li-right"><div class="li-amt">${total}</div>${badge}</div>`;
-    liEl.addEventListener('click',()=>viewQuotePdf(q.id));
-
-    // Long-press
-    let lp;
-    liEl.addEventListener('pointerdown',()=>{lp=setTimeout(()=>{
-      openCtx((q.client_name||'Quote'),[
-        {label:'View PDF',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>',fn:()=>viewQuotePdf(q.id)},
-        {label:'Resend to client',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px"><path d="M4 12l16-8-6 16-3-7-7-1z" stroke-linejoin="round"/></svg>',fn:()=>{haptic('light');showSentAnimation('Quote resent!',q.client_name+' — '+total);}},
-        {label:'Mark accepted',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px"><polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg>',fn:()=>haptic('success')}
-      ]);
-    },520);});
-    liEl.addEventListener('pointerup',()=>clearTimeout(lp));
-    liEl.addEventListener('pointercancel',()=>clearTimeout(lp));
-
-    el.appendChild(liEl);
-    makeSwipeable(el.lastElementChild,[
-      {label:'View',cls:'act-amb',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>',fn:()=>viewQuotePdf(q.id)},
-      {label:'Resend',cls:'act-grn',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M4 12l16-8-6 16-3-7-7-1z" stroke-linejoin="round"/></svg>',fn:()=>showSentAnimation('Quote resent!',q.client_name)}
-    ]);
-  });
+    const badge = (st==='sent')?'<span class="bdg b-grn">Sent</span>'
+                : (st==='accepted')?'<span class="bdg b-grn">Accepted</span>'
+                : '<span class="bdg b-amb">Draft</span>';
+    return`<div class="li" onclick="viewQuotePdf('${q.id}')" style="cursor:pointer"><div class="li-ico" style="background:var(--amb-d);color:var(--amb)">${ICO.quote}</div><div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.quote_number||''} · ${q.job_description||''}</div></div><div class="li-right"><div class="li-amt">${total}</div>${badge}</div></div>`;
+  }).join('');
 }
 function viewQuotePdf(id){
   if(!id||id==='undefined')return;
@@ -1857,66 +1668,34 @@ function renderInvoices(invoices,filter){
     const today=new Date().toISOString().split('T')[0];
     f=invoices.filter(i=>i.status==='unpaid'&&i.due_date&&i.due_date<today);
   }
-  if(!f||!f.length){el.innerHTML=emptyState('invoices');return}
-  el.innerHTML='';
-  f.forEach((inv,idx)=>{
+  if(!f||!f.length){el.innerHTML='<div class="empty-state">No invoices found.<br>Generate invoices via WhatsApp.</div>';return}
+  el.innerHTML=f.map(inv=>{
     const isPaid=inv.status==='paid';
     const isOverdue=inv.status==='unpaid'&&inv.due_date&&inv.due_date<new Date().toISOString().split('T')[0];
     const badge=isPaid?'<span class="bdg b-grn">Paid</span>':isOverdue?'<span class="bdg b-red">Overdue</span>':'<span class="bdg b-amb">Unpaid</span>';
     const ico=isPaid?'background:var(--grn-d);color:var(--grn)':isOverdue?'background:var(--red-d);color:var(--red)':'background:var(--amb-d);color:var(--amb)';
     const emoji=isPaid?ICO.check:isOverdue?ICO.clock:ICO.invoice;
     const dueStr=inv.due_date?new Date(inv.due_date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
-    const markPaidPill=!isPaid?`<button class="action-pill ap-grn" style="margin-top:6px" onclick="event.stopPropagation();markPaidPremium(${inv.id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px"><polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg>Mark paid</button>`:'';
-    const liEl=document.createElement('div');
-    liEl.className='li';
-    liEl.innerHTML=`<div class="li-ico" style="${ico}">${emoji}</div><div class="li-body"><div class="li-name">${inv.client_name||'Unknown'}</div><div class="li-detail">${inv.invoice_number||''} · ${inv.job_description||''}${dueStr?' · Due '+dueStr:''}</div></div><div class="li-right"><div class="li-amt">£${inv.total||'0'}</div>${badge}${markPaidPill}</div>`;
-
-    // Long-press
-    let lp;
-    liEl.addEventListener('pointerdown',()=>{lp=setTimeout(()=>{
-      openCtx((inv.client_name||'Invoice'),[
-        ...(isPaid?[]:[{label:'Mark as paid',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px"><polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg>',fn:()=>markPaidPremium(inv.id)}]),
-        {label:'View PDF',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>',fn:()=>window.open('/generate-invoice-pdf/'+inv.id,'_blank')},
-        {label:'Send reminder',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px"><path d="M4 12l16-8-6 16-3-7-7-1z" stroke-linejoin="round"/></svg>',fn:()=>haptic('light')}
-      ]);
-    },520);});
-    liEl.addEventListener('pointerup',()=>clearTimeout(lp));
-    liEl.addEventListener('pointercancel',()=>clearTimeout(lp));
-
-    el.appendChild(liEl);
-    if(!isPaid){
-      makeSwipeable(el.lastElementChild,[
-        {label:'Paid',cls:'act-grn',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:18px;height:18px"><polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg>',fn:()=>markPaidPremium(inv.id)}
-      ]);
-    }
-  });
+    const paidBtn=!isPaid?`<button onclick="markPaid(${inv.id},event)" style="margin-top:6px;padding:5px 10px;background:var(--grn-d);color:var(--grn);border:none;border-radius:8px;font-size:.6rem;font-weight:700;cursor:pointer;font-family:'Hanken Grotesk',sans-serif">Mark Paid</button>`:'';
+    return`<div class="li"><div class="li-ico" style="${ico}">${emoji}</div><div class="li-body"><div class="li-name">${inv.client_name||'Unknown'}</div><div class="li-detail">${inv.invoice_number||''} · ${inv.job_description||''}${dueStr?' · Due '+dueStr:''}</div></div><div class="li-right"><div class="li-amt">£${inv.total||'0'}</div>${badge}${paidBtn}</div></div>`;
+  }).join('');
 }
 
 async function markPaid(invoiceId,e){
-  if(e)e.stopPropagation();
-  return markPaidPremium(invoiceId);
-}
-
-async function markPaidPremium(invoiceId){
-  haptic('medium');
+  e.stopPropagation();
+  if(!confirm('Mark this invoice as paid?'))return;
   try{
     const res=await fetch('/api/invoices/'+invoiceId+'/mark-paid?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST'});
     const data=await res.json();
     if(data.ok){
       const inv=allInvoices.find(i=>i.id===invoiceId);
-      if(inv){
-        const name=inv.client_name||'Invoice';
-        const amt=inv.total?'£'+inv.total:'';
-        inv.status='paid';
-        showSentAnimation('Marked as paid!',name+(amt?' — '+amt:''));
-      }
+      if(inv)inv.status='paid';
       renderInvoices(allInvoices,currentInvFilter);
-      renderOverdueBanner();
     }else{
-      haptic('error');
+      alert('Error: '+(data.error||'Could not update invoice'));
     }
   }catch(e){
-    haptic('error');
+    alert('Connection error. Try again.');
   }
 }
 
@@ -2104,7 +1883,11 @@ async function sendChat(){
   messages.scrollTop=messages.scrollHeight;
 }
 
-// haptic() defined in premium engine above
+function haptic(style='light'){
+  if(navigator.vibrate){
+    navigator.vibrate(style==='heavy'?30:style==='medium'?15:8);
+  }
+}
 
 let _curIdx=0;
 const _navOrder={home:0,jobs:1,quotes:1,quotes:2,quotegen:2,invoices:3,calendar:3,designer:4,inbox:5,profile:6};
@@ -2122,14 +1905,14 @@ function go(name){
   const nb=document.getElementById('n-'+name);
   if(nb)nb.classList.add('on');
   const c=document.getElementById('content');if(c)c.scrollTop=0;
-  if(name==='jobs'){showSkeleton('jobsList',5);setTimeout(()=>renderJobs(allEnquiries,currentFilter),180);}
-  if(name==='quotes'){showSkeleton('quotesList',4);setTimeout(()=>{renderQuotesList(allQuotes);refreshQuotes();},200);}
+  if(name==='jobs')renderJobs(allEnquiries,currentFilter);
+  if(name==='quotes'){renderQuotesList(allQuotes);refreshQuotes();}
   if(name==='quotegen'){const qb=document.getElementById('n-quotes');if(qb)qb.classList.add('on');}
   if(name==='designer')initDesigner();
   if(name==='invoices')renderInvoices(allInvoices,currentInvFilter);
   if(name==='calendar'){renderBookings(allBookings);renderCal()}
   if(name==='inbox'){loadInbox();}
-  if(name==='profile'){loadAdminPanel();}
+  if(name==='profile'){loadAdminPanel();hfInitVoiceSettings();}
 }
 
 function animateListItems(container){
@@ -2303,8 +2086,7 @@ async function submitQuoteModal(){
     if(data.ok){
       allQuotes.unshift(data.quote);
       closeQuoteModal();
-      showSentAnimation('Quote created!','Opening PDF…');
-      setTimeout(()=>window.open('/generate-pdf/'+data.quote.id,'_blank'),600);
+      window.open('/generate-pdf/'+data.quote.id,'_blank');
       go('quotes');
     }else{
       document.getElementById('quModalErr').textContent=data.error||'Error creating quote';
@@ -2359,9 +2141,7 @@ async function submitInvoiceModal(){
     if(data.ok){
       allInvoices.unshift(data.invoice);
       closeInvoiceModal();
-      showSentAnimation('Invoice created!','Opening PDF…');
-      setTimeout(()=>window.open('/generate-invoice-pdf/'+data.invoice.id,'_blank'),600);
-      renderOverdueBanner();
+      window.open('/generate-invoice-pdf/'+data.invoice.id,'_blank');
       go('invoices');
     }else{
       document.getElementById('invModalErr').textContent=data.error||'Could not create invoice';
@@ -3379,9 +3159,9 @@ async function qgSend(){
 /* ════════ HANDS-FREE VOICE LOOP ════════ */
 let hfState='idle', hfRecog=null, hfRecogActive=false, hfFinal='', hfSttOK=true, hfWaveTimer=null, hfOpened=false, hfAudio=null, hfLastInterim='', hfSilence=null;
 const HF_LABELS={idle:['Tap to talk','Have a proper conversation \u2014 hands free.'],
-  listening:['Listening\u2026','Talk, then tap the orb when done.'],
-  thinking:['Thinking\u2026','Working it out.'],
-  speaking:['Speaking\u2026','Tap the orb to jump in.']};
+  listening:['Listening\u2026','Just talk \u2014 I\'ll know when you\'re done.'],
+  thinking:['Thinking\u2026','One sec.'],
+  speaking:['Speaking\u2026','Talk over me anytime to jump in.']};
 function hfSet(s){
   hfState=s; const o=document.getElementById('hfOverlay'); o.className='open '+s;
   document.getElementById('hfLabel').textContent=HF_LABELS[s][0];
@@ -3428,18 +3208,101 @@ async function hfSpeak(text){
       const url=URL.createObjectURL(blob);
       if(!hfPlayer){ hfPlayer=new Audio(); hfPlayer.setAttribute('playsinline',''); }
       hfPlayer.src=url; hfAudio=hfPlayer;
-      hfPlayer.onended=()=>{URL.revokeObjectURL(url);res();};
-      hfPlayer.onerror=()=>{URL.revokeObjectURL(url);res();};
+      hfPlayer.onended=()=>{URL.revokeObjectURL(url);hfStopBargeListen();res();};
+      hfPlayer.onerror=()=>{URL.revokeObjectURL(url);hfStopBargeListen();res();};
       await hfPlayer.play();
+      hfStartBargeListen();
     }catch(e){
       console.warn('ElevenLabs TTS failed, using browser voice:',e.message);
+      hfStartBargeListen();
       await hfBrowserSpeak(text);
+      hfStopBargeListen();
       res();
     }
   });
 }
 /* —— VOICE IN —— record audio + server-side Whisper STT (works on iPhone) —— */
 let hfStream=null, hfRec=null, hfChunks=[], hfMime='', hfAudioCtx=null, hfVadRAF=null, hfHeardSpeech=false, hfSilenceStart=0, hfRecStart=0, hfPlayer=null;
+// —— live-conversation tunables ——
+let hfSilenceMs = parseInt(localStorage.getItem('hf_silence_ms')||'2500');   // default Patient
+let hfBargeIn   = (localStorage.getItem('hf_barge_in')||'1')==='1';          // interrupt-by-talking on
+let hfGraceEl=false;
+// —— barge-in listener state ——
+let hfBargeStream=null, hfBargeCtx=null, hfBargeRAF=null, hfBargeHot=0;
+const HF_WAIT_MS=[1200,1800,2500];                 // Quick / Balanced / Patient
+const HF_WAIT_NAME=['Quick','Balanced','Patient'];
+const HF_WAIT_HINT=[
+  'Quick — replies fast, best for short back-and-forth.',
+  'Balanced — a natural everyday pace.',
+  "Patient — won't rush you, waits a good couple of seconds before replying."
+];
+function hfSetWaitLevel(lvl){
+  lvl=parseInt(lvl); hfSilenceMs=HF_WAIT_MS[lvl];
+  localStorage.setItem('hf_silence_ms', hfSilenceMs);
+  const v=document.getElementById('hfWaitVal'); if(v)v.textContent=HF_WAIT_NAME[lvl];
+  const h=document.getElementById('hfWaitHint'); if(h)h.textContent=HF_WAIT_HINT[lvl];
+  if(navigator.vibrate) navigator.vibrate(6);
+}
+function hfToggleBarge(){
+  hfBargeIn=!hfBargeIn;
+  localStorage.setItem('hf_barge_in', hfBargeIn?'1':'0');
+  const t=document.getElementById('hfBargeToggle'), k=document.getElementById('hfBargeKnob');
+  if(t)t.style.background=hfBargeIn?'var(--acc)':'var(--s3)';
+  if(k)k.style.left=hfBargeIn?'21px':'3px';
+  if(navigator.vibrate) navigator.vibrate(8);
+}
+function hfInitVoiceSettings(){
+  // reflect stored prefs in the UI when profile screen builds
+  const lvl=HF_WAIT_MS.indexOf(hfSilenceMs); const useLvl=lvl<0?2:lvl;
+  const s=document.getElementById('hfWaitSlider'); if(s)s.value=useLvl;
+  const v=document.getElementById('hfWaitVal'); if(v)v.textContent=HF_WAIT_NAME[useLvl];
+  const h=document.getElementById('hfWaitHint'); if(h)h.textContent=HF_WAIT_HINT[useLvl];
+  const t=document.getElementById('hfBargeToggle'), k=document.getElementById('hfBargeKnob');
+  if(t)t.style.background=hfBargeIn?'var(--acc)':'var(--s3)';
+  if(k)k.style.left=hfBargeIn?'21px':'3px';
+}
+
+async function hfStartBargeListen(){
+  if(!hfBargeIn) return;
+  if(hfState!=='speaking') return;
+  try{
+    if(!hfBargeStream || !hfBargeStream.active){
+      hfBargeStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+    }
+    if(!hfBargeCtx) hfBargeCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if(hfBargeCtx.state==='suspended') hfBargeCtx.resume();
+    const src=hfBargeCtx.createMediaStreamSource(hfBargeStream);
+    const an=hfBargeCtx.createAnalyser(); an.fftSize=512; src.connect(an);
+    const buf=new Uint8Array(an.fftSize);
+    hfBargeHot=0;
+    function tick(){
+      if(hfState!=='speaking'){ return; }
+      an.getByteTimeDomainData(buf);
+      let sum=0; for(let i=0;i<buf.length;i++){const v=(buf[i]-128)/128;sum+=v*v;}
+      const rms=Math.sqrt(sum/buf.length);
+      // Require a higher bar than normal listen (0.05) + sustained (~250ms) so the
+      // assistant's own audio bleed doesn't trigger it — only a real interruption does.
+      if(rms>0.05){ hfBargeHot++; } else { hfBargeHot=Math.max(0,hfBargeHot-1); }
+      if(hfBargeHot>=15){
+        // You started talking over it — cut the assistant off and listen for real.
+        hfStopBargeListen();
+        if(hfAudio){try{hfAudio.pause();}catch(e){} hfAudio=null;}
+        if(window.speechSynthesis) window.speechSynthesis.cancel();
+        if(navigator.vibrate) navigator.vibrate(8);
+        hfListen();
+        return;
+      }
+      hfBargeRAF=requestAnimationFrame(tick);
+    }
+    hfBargeRAF=requestAnimationFrame(tick);
+  }catch(e){ /* barge-in unavailable; normal tap still works */ }
+}
+function hfStopBargeListen(){
+  if(hfBargeRAF) cancelAnimationFrame(hfBargeRAF);
+  hfBargeRAF=null;
+  if(hfBargeStream){ try{hfBargeStream.getTracks().forEach(t=>t.stop());}catch(e){} hfBargeStream=null; }
+  if(hfBargeCtx && hfBargeCtx.state==='running'){ try{hfBargeCtx.suspend();}catch(e){} }
+}
 
 async function hfListen(){
   if(hfState==='idle' && !document.getElementById('hfOverlay').classList.contains('open')) return;
@@ -3479,12 +3342,24 @@ function hfStartVAD(){
       const rms = Math.sqrt(sum/buf.length);
       bars.forEach((b,i)=>{ b.style.height = Math.max(6, Math.min(34, 6 + rms*200*(0.6+Math.sin(Date.now()/110+i)*0.4)))+'px'; });
       const now = Date.now();
-      if(rms > 0.018){ hfHeardSpeech=true; hfSilenceStart=0; }
+      // Lower threshold = quiet/normal speech still counts, so we don't cut you off mid-sentence.
+      if(rms > 0.012){
+        hfHeardSpeech=true; hfSilenceStart=0;
+        if(hfGraceEl){ hfGraceEl=false; document.getElementById('hfSub').textContent=HF_LABELS.listening[1]; }
+      }
       else if(hfHeardSpeech){
         if(!hfSilenceStart) hfSilenceStart = now;
-        else if(now - hfSilenceStart > 3000){ hfStopRecording(); return; }
+        else {
+          const waited = now - hfSilenceStart;
+          // Soft grace: show "still there?" for the back third of the wait,
+          // but DO NOT send — gives you room to carry on a trailing thought.
+          if(waited > hfSilenceMs*0.6 && !hfGraceEl){
+            hfGraceEl=true; document.getElementById('hfSub').textContent='Still listening\u2026 take your time';
+          }
+          if(waited > hfSilenceMs){ hfStopRecording(); return; }
+        }
       }
-      if(now - hfRecStart > 40000){ hfStopRecording(); return; }
+      if(now - hfRecStart > 90000){ hfStopRecording(); return; }
       hfVadRAF = requestAnimationFrame(tick);
     }
     hfVadRAF = requestAnimationFrame(tick);
@@ -3495,6 +3370,9 @@ function hfStartVAD(){
 
 function hfStopRecording(){
   if(hfVadRAF) cancelAnimationFrame(hfVadRAF);
+  hfGraceEl=false;
+  // Instant feedback: flip the orb to 'thinking' the moment you stop, not after STT.
+  if(hfState==='listening'){ hfSet('thinking'); if(navigator.vibrate) navigator.vibrate(6); }
   if(hfRec && hfRec.state==='recording'){ try{ hfRec.stop(); }catch(e){} }
 }
 
@@ -3544,8 +3422,25 @@ async function hfTurn(text){
     if(typeof asstHistory!=='undefined'){ asstHistory.push({role:'assistant',content:say}); if(typeof asstAddBubble==='function') asstAddBubble('ai',say); }
     if(d.actions&&d.actions.length&&typeof asstRefreshStats==='function') asstRefreshStats();
   }catch(e){ say="Sorry, I didn't catch that — say it again?"; }
-  hfBub('ai',say); hfSet('speaking'); await hfSpeak(say);
+  hfBub('ai',say); hfSet('speaking'); await hfSpeakChunked(say);
   if(hfState==='speaking') hfListen();
+}
+
+// Speak a long reply as natural chunks so the first words come out fast.
+async function hfSpeakChunked(text){
+  const clean=String(text).replace(/[*_#]/g,'').trim();
+  // Split on sentence ends but keep chunks reasonably sized.
+  const parts=[]; let buf='';
+  clean.split(/(?<=[.!?])\s+/).forEach(s=>{
+    if((buf+' '+s).trim().length>180){ if(buf)parts.push(buf.trim()); buf=s; }
+    else { buf=(buf?buf+' ':'')+s; }
+  });
+  if(buf.trim()) parts.push(buf.trim());
+  if(!parts.length) parts.push(clean);
+  for(const p of parts){
+    if(hfState!=='speaking') break;   // user barged in
+    await hfSpeak(p);
+  }
 }
 
 async function hfOpen(){
@@ -4042,152 +3937,6 @@ function asstClearPhoto(){
   asstPendingPhoto=null;
   var st=document.getElementById('asstPhotoStage'); if(st)st.style.display='none';
   var ta=document.getElementById('asstInput'); if(ta)ta.placeholder='Tell me what you need...';
-}
-
-
-/* ─── PREMIUM INTERACTION ENGINE ─────────────────────── */
-
-/* 1. HAPTICS UPGRADE */
-function haptic(style='light'){
-  if(!navigator.vibrate)return;
-  const map={light:8,medium:15,heavy:28,success:[10,60,14],error:[15,40,15,40,20]};
-  navigator.vibrate(map[style]||8);
-}
-
-/* 2. SKELETON LOADERS */
-function skelRow(){
-  return`<div class="skel-li">
-    <div class="skel-ico skeleton"></div>
-    <div class="skel-body">
-      <div class="skel-line w80 skeleton"></div>
-      <div class="skel-line w60 skeleton"></div>
-    </div>
-    <div class="skel-right">
-      <div class="skel-line w40 skeleton"></div>
-      <div class="skel-tag skeleton"></div>
-    </div>
-  </div>`;
-}
-function showSkeleton(containerId, count=4){
-  const el=document.getElementById(containerId);
-  if(!el)return;
-  el.innerHTML='<div class="skel-list">'+Array(count).fill(skelRow()).join('')+'</div>';
-}
-
-/* 3. RICH EMPTY STATES */
-const _emptyDefs={
-  jobs:{icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 7l3-3 3 3-3 3M14 7l-9 9v3h3l9-9" stroke-linejoin="round" stroke-linecap="round"/></svg>`,title:'No jobs here yet',sub:"New enquiries from WhatsApp land here automatically.",cta:'Ask VanOffice',ctaFn:"go('home')"},
-  quotes:{icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" stroke-linejoin="round"/></svg>`,title:'No quotes yet',sub:"Describe a job to the assistant and I'll price it up for you.",cta:'New AI Quote',ctaFn:"go('quotegen')"},
-  invoices:{icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-linejoin="round"/><polyline points="14 2 14 8 20 8"/></svg>`,title:'No invoices yet',sub:"Once you mark a job done, raise an invoice in seconds.",cta:'Raise Invoice',ctaFn:"openInvoiceModal('','','',null)"},
-  bookings:{icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,title:'Nothing booked yet',sub:'Text "book in [client] [job] [date]" to add jobs.',cta:null}
-};
-function emptyState(type){
-  const e=_emptyDefs[type]||{icon:'',title:'Nothing here',sub:'',cta:null};
-  return`<div class="empty-state">
-    <div class="es-icon">${e.icon}</div>
-    <strong>${e.title}</strong>
-    <span>${e.sub}</span>
-    ${e.cta?`<button class="es-cta" onclick="${e.ctaFn}">${e.cta}</button>`:''}
-  </div>`;
-}
-
-/* 4. SWIPE-TO-ACTION ENGINE */
-function makeSwipeable(el, actions){
-  const actW=actions.length*68;
-  const wrap=document.createElement('div');
-  wrap.className='swipe-wrap';
-  const actRow=document.createElement('div');
-  actRow.className='swipe-actions';
-  actRow.style.width=actW+'px';
-  actions.forEach(a=>{
-    const btn=document.createElement('div');
-    btn.className='swipe-action '+a.cls;
-    btn.innerHTML=(a.icon||'')+`<span>${a.label}</span>`;
-    btn.addEventListener('pointerdown',ev=>{ev.stopPropagation();haptic('medium');a.fn();snap(0);});
-    actRow.appendChild(btn);
-  });
-  const inner=document.createElement('div');
-  inner.className='swipe-inner';
-  const clone=el.cloneNode(true);
-  // copy onclick if any
-  if(el.getAttribute('onclick'))clone.setAttribute('onclick',el.getAttribute('onclick'));
-  inner.appendChild(clone);
-  wrap.appendChild(actRow);
-  wrap.appendChild(inner);
-  el.replaceWith(wrap);
-  let startX=0,startY=0,curDx=0,tracking=false;
-  inner.addEventListener('pointerdown',e=>{startX=e.clientX;startY=e.clientY;curDx=0;tracking=true;});
-  window.addEventListener('pointermove',e=>{
-    if(!tracking)return;
-    const mx=startX-e.clientX,my=Math.abs(startY-e.clientY);
-    if(my>mx*1.2){tracking=false;snap(0);return;}
-    curDx=Math.max(0,Math.min(mx,actW+10));
-    inner.style.transition='none';
-    inner.style.transform='translateX(-'+curDx+'px)';
-  },{passive:true});
-  window.addEventListener('pointerup',()=>{if(!tracking)return;tracking=false;snap(curDx>actW*0.38?actW:0);});
-  function snap(to){inner.style.transition='';inner.style.transform='translateX(-'+to+'px)';wrap.classList.toggle('swiped',to>0);if(to>0)haptic('light');}
-  wrap._snap=snap;
-  return wrap;
-}
-
-/* 5. CONTEXT MENU ENGINE */
-(function(){
-  const _bd=document.createElement('div');_bd.className='ctx-backdrop';
-  const _mn=document.createElement('div');_mn.className='ctx-menu';
-  document.body.appendChild(_bd);document.body.appendChild(_mn);
-  _bd.addEventListener('click',closeCtx);
-  window._ctxBd=_bd;window._ctxMn=_mn;
-})();
-function openCtx(title,buttons){
-  haptic('medium');
-  window._ctxMn.innerHTML='<div class="ctx-title">'+title+'</div>'+
-    buttons.map(b=>`<button class="ctx-btn${b.danger?' danger':''}" onclick="(${b.fn.toString()})();closeCtx()">
-      ${b.icon?`<span style="width:28px;height:28px;border-radius:8px;background:var(--s3);display:flex;align-items:center;justify-content:center;flex-shrink:0">${b.icon}</span>`:''}
-      ${b.label}</button>`+
-      (b.sep?'<div class="ctx-sep"></div>':'')).join('');
-  window._ctxBd.classList.add('open');window._ctxMn.classList.add('open');
-}
-function closeCtx(){window._ctxBd.classList.remove('open');window._ctxMn.classList.remove('open');}
-
-/* 6. SENT ANIMATION */
-(function(){
-  const ov=document.createElement('div');
-  ov.className='sent-overlay';
-  ov.id='sentOverlay';
-  ov.innerHTML=`<div class="sent-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-    <div class="sent-label" id="sentLabel">Quote sent!</div>
-    <div class="sent-sub" id="sentSub">Check quotes for a copy</div>`;
-  ov.addEventListener('click',()=>ov.classList.remove('show'));
-  document.body.appendChild(ov);
-})();
-function showSentAnimation(label,sub){
-  haptic('success');
-  const ov=document.getElementById('sentOverlay');
-  if(!ov)return;
-  document.getElementById('sentLabel').textContent=label||'Quote sent!';
-  document.getElementById('sentSub').textContent=sub||'Check quotes for a copy';
-  ov.classList.add('show');
-  setTimeout(()=>ov.classList.remove('show'),2600);
-}
-
-/* 7. OVERDUE BANNER */
-function renderOverdueBanner(){
-  const today=new Date().toISOString().split('T')[0];
-  const overdue=(allInvoices||[]).filter(i=>i.status==='unpaid'&&i.due_date&&i.due_date<today);
-  const ex=document.getElementById('overdueBanner');if(ex)ex.remove();
-  if(!overdue.length)return;
-  const total=overdue.reduce((s,i)=>s+parseFloat(String(i.total||'0').replace(/[^0-9.]/g,'')),0);
-  const banner=document.createElement('div');
-  banner.id='overdueBanner';banner.className='overdue-banner';
-  banner.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke-linejoin="round"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-    <div class="overdue-banner-body">
-      <div class="overdue-banner-title">${overdue.length} invoice${overdue.length>1?'s':''} overdue — £${Math.round(total).toLocaleString('en-GB')} outstanding</div>
-      <div class="overdue-banner-sub">Tap to chase payment</div>
-    </div><span class="overdue-banner-arrow">›</span>`;
-  banner.addEventListener('click',()=>{haptic('light');go('invoices');});
-  const invScr=document.getElementById('s-invoices');
-  if(invScr){const ph=invScr.querySelector('.ph');if(ph)ph.after(banner);}
 }
 
 function _money(n){return '£'+(Math.round(n)).toLocaleString('en-GB');}
