@@ -1939,6 +1939,7 @@ def incoming_sms():
         system += "- Booking or changing appointments: propose times that are free, and when the customer agrees a specific date+time that does NOT clash with the diary above, confirm it warmly and record it.\n"
         system += "- Simple questions: opening hours, areas covered, what trade/work we do.\n"
         system += "- Gathering details for a quote: what the job is, where, rough timing.\n\n"
+        system += "GET THEIR NAME: early in a new conversation, if you don't already know who you're speaking to, politely ask for their name (e.g. 'Happy to help — can I take your name?'). Work it into the chat naturally, don't interrogate. The moment you know it, add the CONTACT: line described below.\n\n"
         system += "CRITICAL RULE ON TIMES & BOOKINGS:\n"
         system += "You must NEVER confirm, agree, or commit to a specific appointment time yourself. "
         system += owner_name + " has a personal life the work diary does not show, so ONLY " + owner_name + " can approve a time.\n"
