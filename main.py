@@ -2485,16 +2485,28 @@ ASSISTANT_TOOLS = [
     },
     {
         "name": "add_booking",
-        "description": "Add a job/booking to the diary.",
+        "description": "Add a job/booking to the diary. Resolve relative dates like 'next Wednesday' or 'tomorrow' to an absolute ISO date (YYYY-MM-DD) using today's date. If the user references an existing job/client, call find_quote first and pass that job's description here.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "client_name": {"type": "string"},
                 "date": {"type": "string", "description": "ISO date YYYY-MM-DD"},
                 "time": {"type": "string", "description": "e.g. '09:00'"},
-                "description": {"type": "string"}
+                "description": {"type": "string", "description": "What the job is (e.g. 'fit 4 oak doors'). If known from an existing quote, use that."},
+                "location": {"type": "string", "description": "Job address/area if known"},
+                "duration_days": {"type": "string", "description": "How many days the job will take, digits only e.g. '2'. Default '1'."}
             },
             "required": ["client_name", "date"]
+        }
+    },
+    {
+        "name": "find_quote",
+        "description": "Look up a quote the user has ALREADY created, by client name. Use this whenever the user refers to a job or client as if you should already know it — e.g. 'won the Smith job', 'book in Dave's job', 'how much was the Patel quote'. Returns the saved quote's client, job description and value so you don't make the user repeat details. Omit client_name to list the most recent quotes.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "client_name": {"type": "string", "description": "Client name to search for (partial is fine)"}
+            }
         }
     },
     {
@@ -2696,15 +2708,60 @@ def _assistant_execute_tool(name, ti, profile):
             return "Diary:\n" + "\n".join(lines)
 
         if name == "add_booking":
+            job_txt = ti.get("description", "") or ti.get("job_type", "")
+            location = ti.get("location", "")
+            # If no job text given, backfill from the latest matching quote so the
+            # diary entry is meaningful (user often says "book in the Smith job").
+            cn = (ti.get("client_name", "") or "").strip()
+            if not job_txt and cn:
+                try:
+                    fw = cn.split()[0]
+                    qz = (supabase.table("quotes").select("job_description,client_address")
+                          .eq("sender", sender).ilike("client_name", "%" + fw + "%")
+                          .order("created_at", desc=True).limit(1).execute().data or [])
+                    if qz:
+                        job_txt = qz[0].get("job_description", "") or job_txt
+                        if not location:
+                            location = qz[0].get("client_address", "") or ""
+                except Exception:
+                    pass
             supabase.table("bookings").insert({
                 "sender": sender, "client_name": ti.get("client_name", ""),
+                "job_type": job_txt, "location": location,
                 "date": ti.get("date", ""), "time": ti.get("time", ""),
-                "description": ti.get("description", ""), "status": "confirmed"
+                "duration_days": str(ti.get("duration_days", "1") or "1"),
+                "notes": "", "status": "booked"
             }).execute()
-            return "Booked " + ti.get("client_name", "") + " on " + ti.get("date", "") + (" at " + ti.get("time", "") if ti.get("time") else "") + "."
+            return ("Booked " + ti.get("client_name", "") + " on " + ti.get("date", "") +
+                    (" at " + ti.get("time", "") if ti.get("time") else "") +
+                    (" — " + job_txt if job_txt else "") + ".")
+
+        if name == "find_quote":
+            cn = (ti.get("client_name", "") or "").strip()
+            rows = []
+            if cn:
+                rows = (supabase.table("quotes").select("*").eq("sender", sender)
+                        .ilike("client_name", "%" + cn + "%")
+                        .order("created_at", desc=True).limit(5).execute().data or [])
+                if not rows and cn.split():
+                    rows = (supabase.table("quotes").select("*").eq("sender", sender)
+                            .ilike("client_name", "%" + cn.split()[0] + "%")
+                            .order("created_at", desc=True).limit(5).execute().data or [])
+            else:
+                rows = (supabase.table("quotes").select("*").eq("sender", sender)
+                        .order("created_at", desc=True).limit(5).execute().data or [])
+            if not rows:
+                return "No saved quote found for " + (cn or "that client") + "."
+            lines = []
+            for r in rows:
+                lines.append((r.get("client_name", "") or "Client") + " — " +
+                             (r.get("job_description", "") or "job") + " — \u00a3" +
+                             str(r.get("total", "0")) +
+                             (" (" + r.get("quote_number", "") + ")" if r.get("quote_number") else ""))
+            return "Matching quotes:\n" + "\n".join(lines)
 
         if name == "list_enquiries":
-            q = supabase.table("enquiries").select("*").order("created_at", desc=True).limit(10)
+            q = supabase.table("enquiries").select("*").eq("sender", sender).order("created_at", desc=True).limit(10)
             if ti.get("status"):
                 q = q.eq("status", ti.get("status"))
             enq = q.execute().data or []
@@ -3023,7 +3080,9 @@ def assistant():
             "MULTI-STEP REQUESTS: The user often asks for several things in one breath, e.g. 'just seen Mrs Patel about a fence, 6 panels, quote her about 900 and tell her I can start Tuesday'. "
             "When that happens, carry out ALL the steps by calling the matching tools in sequence in the SAME turn: log/quote the job (create_quote), add any booking they mention (add_booking), and draft the client message (draft_client_message). "
             "Do them all before you reply. Then give ONE short combined confirmation that lists what you did, like: 'Done — quoted Mrs Patel \u00a3900 for the fence, pencilled her in for Tuesday, and messaged her to confirm.' "
-            "If one detail is missing for ONE of the steps but the others are clear, do the steps you can and mention the one thing you still need. Never refuse the whole request because one part is fuzzy."
+            "If one detail is missing for ONE of the steps but the others are clear, do the steps you can and mention the one thing you still need. Never refuse the whole request because one part is fuzzy. "
+            "KNOWN JOBS: if the user refers to a client or job as though you already know it (e.g. 'won the Smith job', 'book Dave in for his job'), call find_quote to pull the existing job details rather than asking them to repeat anything, then act on it. "
+            "Resolve relative dates like 'next Wednesday' or 'tomorrow' into an absolute YYYY-MM-DD yourself from today's date — don't ask the user for the exact date when you can work it out."
         )
 
         messages = []
@@ -3161,6 +3220,8 @@ def assistant_stream():
         "You can create quotes and invoices, check and add diary bookings, read enquiries, and mark invoices paid using your tools. "
         "Be brief, warm and practical — like a sharp office manager. Confirm actions in one short sentence. "
         "This reply will be spoken aloud, so keep it conversational and short, and don't narrate that you are about to use a tool — just use it and confirm the result. "
+        "KNOWN JOBS: if the user refers to a client or job as though you already know it (e.g. 'won the Smith job', 'book Dave in'), call find_quote to pull the existing job details rather than asking them to repeat anything, then act on it. "
+        "Resolve relative dates like 'next Wednesday' or 'tomorrow' into an absolute YYYY-MM-DD yourself from today's date — don't ask for the exact date when you can work it out. "
         "If you need a key detail (like an amount or client name) ask one quick question rather than guessing. "
         "Amounts are in pounds. "
         "CRITICAL: To DO anything — create a quote or invoice, book a job, mark something paid — you MUST call the matching tool. "
