@@ -569,6 +569,10 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
     </div>
     <div class="err-msg" id="pinErr"></div>
+    <button id="faceIdBtn" onclick="bioUnlock()" style="display:none;margin:0 auto 16px;align-items:center;gap:8px;padding:12px 20px;background:var(--acc-d);color:var(--acc2);border:1px solid rgba(31,184,136,.3);border-radius:13px;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:1.1em;height:1.1em"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" stroke-linecap="round"/><path d="M9 10v1M15 10v1M12 10v3l-1 1M9 15c1.5 1 4.5 1 6 0" stroke-linecap="round"/></svg>
+      Unlock with Face ID
+    </button>
     <div class="pin-keypad">
       <button class="pk-btn" onclick="pinKey('1')">1</button>
       <button class="pk-btn" onclick="pinKey('2')">2</button>
@@ -583,7 +587,10 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <button class="pk-btn" onclick="pinKey('0')">0</button>
       <button class="pk-btn del" onclick="pinDel()">⌫</button>
     </div>
-    <div style="text-align:center;margin-top:24px">
+    <label style="display:flex;align-items:center;justify-content:center;gap:9px;margin-top:20px;font-size:.74rem;color:var(--t2);cursor:pointer">
+      <input type="checkbox" id="keepSignedIn" checked style="width:17px;height:17px;accent-color:var(--acc);cursor:pointer"> Keep me signed in
+    </label>
+    <div style="text-align:center;margin-top:14px">
       <span style="font-size:.75rem;color:var(--t3);cursor:pointer" onclick="showForgotPin()">Forgot PIN?</span>
     </div>
   </div>
@@ -1186,6 +1193,19 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       </div>
 
       <div class="sg">
+        <div class="sg-lbl">Security</div>
+        <div class="sg-list">
+          <div class="sg-row" id="bioRow" style="cursor:pointer;display:none" onclick="bioRowTap()">
+            <div class="sg-row-label">Face ID unlock
+              <div id="bioStatus" style="font-size:.62rem;color:var(--t3);margin-top:3px;line-height:1.45">Use Face ID to unlock instead of typing your PIN each time.</div>
+            </div>
+            <div id="bioAction" style="color:var(--acc2);font-weight:700;font-size:.78rem;white-space:nowrap;margin-left:10px">Enable</div>
+          </div>
+        </div>
+        <div style="font-size:.62rem;color:var(--t4);margin-top:10px;line-height:1.5">Face ID unlocks this device only and always falls back to your PIN. Signing out turns it off.</div>
+      </div>
+
+      <div class="sg">
         <div class="sg-lbl">Account</div>
         <div class="sg-list">
           <div class="sg-row" style="cursor:pointer" onclick="showForgotPin()"><div class="sg-row-label">Change PIN</div><div style="color:var(--t4)">›</div></div>
@@ -1528,6 +1548,7 @@ async function submitPin(){
       pinBuffer='';updatePinDots();return;
     }
     showApp(data);
+    try{ var keep=document.getElementById('keepSignedIn'); if(!keep||keep.checked){ saveCreds(userPhone,userPin); } else { clearCreds(); } }catch(e){}
   }catch(e){
     document.getElementById('pinErr').textContent='Connection error. Try again.';
     pinBuffer='';updatePinDots();
@@ -1663,6 +1684,7 @@ async function refreshApp(){
 }
 
 function doLogout(){
+  try{ clearCreds(); localStorage.removeItem('vo_bio'); localStorage.removeItem('vo_bio_id'); }catch(e){}
   document.getElementById('chatBtn').style.display='none';
   document.getElementById('chatWindow').style.display='none';
   document.getElementById('chatOverlay').style.display='none';
@@ -1896,6 +1918,89 @@ async function enablePush(){
     else { pushStatus(d.error||'Couldn\u2019t turn on notifications.'); }
   }catch(e){ console.warn('enablePush',e); pushStatus('Couldn\u2019t enable notifications \u2014 try again.'); }
 }
+
+/* ════════ STAY SIGNED IN + FACE ID UNLOCK ════════
+   "Keep me signed in" stores the login on this device so the PIN screen is
+   skipped next time. Face ID (WebAuthn) is an optional unlock gate on top —
+   it always falls back to the PIN, so it can never lock you out. */
+function saveCreds(phone,pin){ try{ if(phone&&pin) localStorage.setItem('vo_creds', JSON.stringify({phone:phone,pin:pin})); }catch(e){} }
+function getCreds(){ try{ var s=localStorage.getItem('vo_creds'); return s?JSON.parse(s):null; }catch(e){ return null; } }
+function clearCreds(){ try{ localStorage.removeItem('vo_creds'); }catch(e){} }
+function bioEnabled(){ try{ return localStorage.getItem('vo_bio')==='1' && !!localStorage.getItem('vo_bio_id'); }catch(e){ return false; } }
+function webauthnSupported(){ return !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create && window.isSecureContext); }
+function _rand(n){ var a=new Uint8Array(n); window.crypto.getRandomValues(a); return a; }
+function _bufToB64(buf){ var b=new Uint8Array(buf),s=''; for(var i=0;i<b.length;i++)s+=String.fromCharCode(b[i]); return btoa(s); }
+function _b64ToBuf(b64){ var s=atob(b64),a=new Uint8Array(s.length); for(var i=0;i<s.length;i++)a[i]=s.charCodeAt(i); return a.buffer; }
+
+async function autoLogin(creds){
+  userPhone=creds.phone; userPin=creds.pin;
+  try{
+    var res=await fetch('/api/stats?phone='+encodeURIComponent(creds.phone)+'&pin='+encodeURIComponent(creds.pin));
+    var data=await res.json();
+    if(res.status===401||data.error){ clearCreds(); try{localStorage.removeItem('vo_bio');localStorage.removeItem('vo_bio_id');}catch(e){} userPin=''; return; }
+    showApp(data);
+  }catch(e){ console.warn('autoLogin',e); }   // offline: leave the phone screen up for manual sign-in
+}
+
+function initAuth(){
+  try{
+    var creds=getCreds();
+    if(!creds||!creds.phone||!creds.pin) return;        // not remembered — normal phone screen
+    userPhone=creds.phone;
+    try{ var fp=document.getElementById('forgotPhone'); if(fp)fp.value=creds.phone; }catch(e){}
+    if(bioEnabled() && webauthnSupported()){
+      // show the PIN screen as an unlock screen with a Face ID button (PIN still works)
+      showPinScreen();
+      var b=document.getElementById('faceIdBtn'); if(b) b.style.display='inline-flex';
+    } else {
+      autoLogin(creds);                                 // remember-me: straight in
+    }
+  }catch(e){ console.warn('initAuth',e); }
+}
+window.addEventListener('load', initAuth);
+
+async function bioUnlock(){
+  if(!webauthnSupported()||!bioEnabled()) return;
+  try{
+    await navigator.credentials.get({publicKey:{
+      challenge:_rand(32),
+      allowCredentials:[{type:'public-key', id:_b64ToBuf(localStorage.getItem('vo_bio_id'))}],
+      userVerification:'required', timeout:60000
+    }});
+    var creds=getCreds(); if(creds) autoLogin(creds);
+  }catch(e){ console.warn('bioUnlock',e); var pe=document.getElementById('pinErr'); if(pe) pe.textContent='Face ID didn\u2019t work \u2014 enter your PIN.'; }
+}
+
+function bioStatus(t){ var e=document.getElementById('bioStatus'); if(e)e.textContent=t; }
+function updateBioBtn(on){ var e=document.getElementById('bioAction'); if(e){ e.textContent=on?'Turn off':'Enable'; e.style.color=on?'var(--t3)':'var(--acc2)'; } window._bioOn=!!on; }
+function refreshBioState(){
+  var row=document.getElementById('bioRow');
+  if(!webauthnSupported()){ if(row)row.style.display='none'; return; }
+  if(row)row.style.display='';
+  if(bioEnabled()){ bioStatus('Unlock the app with Face ID on this device.'); updateBioBtn(true); }
+  else { bioStatus('Use Face ID to unlock instead of typing your PIN each time.'); updateBioBtn(false); }
+}
+function bioRowTap(){ if(window._bioOn) disableFaceId(); else enableFaceId(); }
+async function enableFaceId(){
+  if(!webauthnSupported()){ bioStatus('This device doesn\u2019t support Face ID / biometric unlock.'); return; }
+  if(!userPhone||!userPin){ bioStatus('Sign in with your PIN first, then enable Face ID.'); return; }
+  try{
+    var cred=await navigator.credentials.create({publicKey:{
+      challenge:_rand(32),
+      rp:{name:'VanOffice'},
+      user:{id:_rand(16), name:userPhone, displayName:'VanOffice'},
+      pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+      authenticatorSelection:{authenticatorAttachment:'platform', userVerification:'required'},
+      timeout:60000
+    }});
+    localStorage.setItem('vo_bio_id', _bufToB64(cred.rawId));
+    localStorage.setItem('vo_bio','1');
+    saveCreds(userPhone,userPin);   // Face ID unlock needs remembered creds to sign back in
+    bioStatus('Face ID unlock is on for this device \u2713'); updateBioBtn(true);
+    if(navigator.vibrate)navigator.vibrate(8);
+  }catch(e){ console.warn('enableFaceId',e); bioStatus('Couldn\u2019t set up Face ID \u2014 '+((e&&e.name)?e.name:'cancelled')+'.'); }
+}
+function disableFaceId(){ try{ localStorage.removeItem('vo_bio'); localStorage.removeItem('vo_bio_id'); }catch(e){} bioStatus('Face ID unlock turned off.'); updateBioBtn(false); }
 
 function renderBookings(bookings){
   const el=document.getElementById('bookingsList');
@@ -2171,7 +2276,7 @@ function go(name){
   if(name==='invoices')renderInvoices(allInvoices,currentInvFilter);
   if(name==='calendar'){renderBookings(allBookings);renderCal()}
   if(name==='inbox'){ loadInbox(inboxConvs.length>0); loadPending(); }
-  if(name==='profile'){loadAdminPanel();hfInitVoiceSettings();loadUsage();if(typeof refreshPushState==='function')refreshPushState();}
+  if(name==='profile'){loadAdminPanel();hfInitVoiceSettings();loadUsage();if(typeof refreshPushState==='function')refreshPushState();if(typeof refreshBioState==='function')refreshBioState();}
 }
 
 function animateListItems(container){
