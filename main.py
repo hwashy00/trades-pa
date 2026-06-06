@@ -252,6 +252,69 @@ def format_phone(phone):
     return phone
 
 
+# ── CLIENT CONTACTS: name <-> number directory, per owner ──
+# Lets us show client names in the inbox and resolve "message Dave" to a number.
+_CONTACT_NONAMES = {"", "unknown", "client", "customer", "there", "mate", "hi", "hello"}
+
+
+def upsert_contact(owner_sender, client_number, name=None):
+    """Remember a client's number, and their name once we learn it."""
+    if not owner_sender or not client_number:
+        return
+    try:
+        nm = (name or "").strip()
+        if nm.lower() in _CONTACT_NONAMES:
+            nm = ""
+        existing = (supabase.table("client_contacts").select("id,name")
+                    .eq("sender", owner_sender).eq("client_number", client_number)
+                    .limit(1).execute().data or [])
+        if existing:
+            cur = (existing[0].get("name") or "").strip()
+            if nm and nm != cur:
+                supabase.table("client_contacts").update(
+                    {"name": nm, "updated_at": datetime.datetime.utcnow().isoformat()}
+                ).eq("id", existing[0]["id"]).execute()
+        else:
+            supabase.table("client_contacts").insert(
+                {"sender": owner_sender, "client_number": client_number, "name": (nm or None)}
+            ).execute()
+    except Exception as e:
+        print("upsert_contact error:", e)
+
+
+def contact_name_for(owner_sender, client_number):
+    """Return the saved name for a client number, or '' if none known."""
+    try:
+        r = (supabase.table("client_contacts").select("name")
+             .eq("sender", owner_sender).eq("client_number", client_number)
+             .limit(1).execute().data or [])
+        if r and (r[0].get("name") or "").strip():
+            return r[0]["name"].strip()
+    except Exception as e:
+        print("contact_name_for error:", e)
+    return ""
+
+
+def contact_number_for(owner_sender, name):
+    """Resolve a client name to their saved number (partial match, owner-scoped)."""
+    name = (name or "").strip()
+    if not name:
+        return ""
+    try:
+        r = (supabase.table("client_contacts").select("client_number,name")
+             .eq("sender", owner_sender).ilike("name", "%" + name + "%")
+             .limit(1).execute().data or [])
+        if not r and name.split():
+            r = (supabase.table("client_contacts").select("client_number,name")
+                 .eq("sender", owner_sender).ilike("name", "%" + name.split()[0] + "%")
+                 .limit(1).execute().data or [])
+        if r:
+            return r[0].get("client_number", "")
+    except Exception as e:
+        print("contact_number_for error:", e)
+    return ""
+
+
 def get_user_profile(sender):
     try:
         result = supabase.table("profiles").select("*").eq("sender", sender).execute()
@@ -1845,6 +1908,8 @@ def incoming_sms():
             "sender_profile": sender,
             "channel": "sms"
         }).execute()
+        # Remember this client's number (name filled in when we learn it)
+        upsert_contact(sender, client_number)
 
         # Get conversation history with this client
         history = supabase.table("client_chats").select("*").eq("twilio_number", twilio_number).eq("client_number", client_number).order("created_at").execute().data
@@ -1890,6 +1955,9 @@ def incoming_sms():
         system += "Always make the LAST option a sensible catch-all. Never invent the answer yourself \u2014 the options are for " + owner_name + " to choose from.\n\n"
         system += "WHEN YOU HAVE ENOUGH JOB DETAIL for a quote (job, location, rough timing) and it is NOT a timing/price/booking moment, end with:\n"
         system += "NEWJOB:name=<name or Unknown>|job=<job type>|location=<location>\n\n"
+        system += "IF THE CUSTOMER TELLS YOU THEIR NAME at any point (e.g. 'it's Dave', 'this is Sarah Jones'), add on its OWN FINAL LINE:\n"
+        system += "CONTACT:name=<their name>\n"
+        system += "Always include CONTACT: once you know their name, even on a later message. The customer NEVER sees it.\n\n"
         system += "Keep replies short and human (SMS). Put any tag (NEEDYOU/NEWJOB) on its own final line; the customer NEVER sees the tags."
 
         ai_response = client.messages.create(model="claude-sonnet-4-5", max_tokens=400, system=system, messages=chat_messages)
@@ -1918,20 +1986,38 @@ def incoming_sms():
             try:
                 job_line = reply.split("NEWJOB:")[1].strip().split("\n")[0]
                 parts = dict(p.split("=") for p in job_line.split("|"))
+                _nm = (parts.get("name", "") or "").strip()
+                # prefer a name we already have on file for this number
+                _known = contact_name_for(sender, client_number)
+                if _known and (not _nm or _nm.lower() in _CONTACT_NONAMES):
+                    _nm = _known
                 supabase.table("enquiries").insert({
                     "sender": sender,
                     "message": "Client SMS from " + client_number,
                     "summary": "New enquiry via text from " + client_number,
-                    "client_name": parts.get("name", "Unknown"),
+                    "client_name": _nm or "Unknown",
                     "job_type": parts.get("job", ""),
                     "location": parts.get("location", ""),
                     "status": "new"
                 }).execute()
+                if _nm:
+                    upsert_contact(sender, client_number, _nm)
 
                 # Notify tradesperson (SMS-first)
                 notify_owner(profile, "New enquiry: " + parts.get("name", "Unknown") + " - " + parts.get("job", "") + " - " + parts.get("location", "") + " (from " + client_number + "). Logged in VanOffice.")
             except Exception as e:
                 print("Job extraction error: " + str(e))
+
+        # ── CONTACT: customer told us their name — save it against their number ──
+        if "CONTACT:" in reply:
+            try:
+                cl = reply.split("CONTACT:")[1].strip().split("\n")[0]
+                cp = dict(p.split("=", 1) for p in cl.split("|") if "=" in p)
+                nm = (cp.get("name", "") or "").strip()
+                if nm:
+                    upsert_contact(sender, client_number, nm)
+            except Exception as e:
+                print("CONTACT parse error:", e)
 
         # ── NEEDYOU: bot is handing a decision to the owner — park it + nudge, never auto-commit ──
         if "NEEDYOU:" in reply:
@@ -1968,7 +2054,7 @@ def incoming_sms():
         # Strip ALL control tags so the customer only sees the human-readable reply.
         # Cut at the EARLIEST tag so nothing leaks if several are present.
         _cut = len(reply)
-        for _tag in ("NEWJOB:", "NEEDYOU:", "BOOKED:", "ESCALATE:"):
+        for _tag in ("NEWJOB:", "NEEDYOU:", "BOOKED:", "ESCALATE:", "CONTACT:"):
             _i = reply.find(_tag)
             if _i != -1:
                 _cut = min(_cut, _i)
@@ -2790,16 +2876,17 @@ def _assistant_execute_tool(name, ti, profile):
             body_msg = ti.get("message", "").strip()
             if not body_msg:
                 return "I need the message text to send."
-            # Find the client's number from a recent enquiry matching the name
-            client_number = ""
-            try:
-                fw = client_name.split()[0] if client_name.split() else client_name
-                if fw:
-                    enq = supabase.table("enquiries").select("sender").ilike("client_name", "%" + fw + "%").order("created_at", desc=True).limit(1).execute()
-                    if enq.data:
-                        client_number = enq.data[0].get("sender", "")
-            except Exception as le:
-                print("client lookup:", le)
+            # Find the client's number: contacts directory first, then recent enquiry/chat
+            client_number = contact_number_for(sender, client_name)
+            if not client_number:
+                try:
+                    fw = client_name.split()[0] if client_name.split() else client_name
+                    if fw:
+                        enq = supabase.table("enquiries").select("sender").ilike("client_name", "%" + fw + "%").order("created_at", desc=True).limit(1).execute()
+                        if enq.data:
+                            client_number = enq.data[0].get("sender", "")
+                except Exception as le:
+                    print("client lookup:", le)
             if not client_number:
                 return ("DRAFTED (not sent - no number on file for " + (client_name or "this client") +
                         "). Here is the message I would send: \"" + body_msg + "\". "
@@ -3766,16 +3853,11 @@ def conversations():
             cn = msg.get("client_number","")
             if cn and cn not in threads:
                 threads[cn] = msg
-        # look up client names from enquiries
+        # look up client names from the contacts directory
+        owner_sender = profile.get("sender", "")
         convs = []
         for cn, last in threads.items():
-            name = cn
-            try:
-                enq = supabase.table("enquiries").select("client_name").eq("sender",cn).order("created_at",desc=True).limit(1).execute()
-                if enq.data and enq.data[0].get("client_name"):
-                    name = enq.data[0]["client_name"]
-            except Exception:
-                pass
+            name = contact_name_for(owner_sender, cn) or cn
             convs.append({"client_number":cn,"client_name":name,"last_message":last.get("message",""),"direction":last.get("direction",""),"created_at":last.get("created_at","")})
         convs.sort(key=lambda x:x.get("created_at",""),reverse=True)
         return jsonify({"conversations":convs})
