@@ -1175,7 +1175,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div class="sg">
         <div class="sg-lbl">Notifications</div>
         <div class="sg-list">
-          <div class="sg-row" style="cursor:pointer" onclick="enablePush()">
+          <div class="sg-row" style="cursor:pointer" onclick="pushRowTap()">
             <div class="sg-row-label">Push notifications
               <div id="pushStatus" style="font-size:.62rem;color:var(--t3);margin-top:3px;line-height:1.45">Get alerts on this device for new enquiries, replies and things that need you.</div>
             </div>
@@ -1851,7 +1851,17 @@ if('serviceWorker' in navigator){
 function pwaIsStandalone(){ return (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone===true; }
 function pwaIsIOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent); }
 function pushStatus(t){ var e=document.getElementById('pushStatus'); if(e)e.textContent=t; }
-function updatePushBtn(on){ var e=document.getElementById('pushAction'); if(e){ e.textContent=on?'On \u2713':'Enable'; e.style.color=on?'var(--grn)':'var(--acc2)'; } }
+function updatePushBtn(on){ var e=document.getElementById('pushAction'); if(e){ e.textContent=on?'Test':'Enable'; e.style.color=on?'var(--grn)':'var(--acc2)'; } window._pushOn=!!on; }
+function pushRowTap(){ if(window._pushOn) sendTestPush(); else enablePush(); }
+async function sendTestPush(){
+  pushStatus('Sending a test\u2026');
+  try{
+    var res=await fetch('/api/push/test?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST'});
+    var d=await res.json();
+    if(d.ok){ pushStatus('Test sent \u2014 you should see a notification in a second. (If the app is open in front, iOS may not show it.)'); }
+    else { pushStatus(d.error||'Couldn\u2019t send a test.'); }
+  }catch(e){ console.warn('sendTestPush',e); pushStatus('Couldn\u2019t send a test \u2014 try again.'); }
+}
 function _urlB64ToUint8Array(b64){
   var pad='='.repeat((4-b64.length%4)%4); var base=(b64+pad).replace(/-/g,'+').replace(/_/g,'/');
   var raw=atob(base); var arr=new Uint8Array(raw.length);
