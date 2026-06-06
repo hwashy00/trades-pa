@@ -2535,15 +2535,15 @@ def api_chat():
 ASSISTANT_TOOLS = [
     {
         "name": "create_invoice",
-        "description": "Create an invoice for a client. Use when the user wants to invoice or bill someone for completed work.",
+        "description": "Create an invoice for a client. If the job was already quoted, you do NOT need an amount — leave total out and it will be taken from the client's saved quote (with the same line items). Only pass total if the user states a specific figure or there is no quote on file.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "client_name": {"type": "string", "description": "Customer's name"},
-                "total": {"type": "string", "description": "Total amount in pounds, digits only e.g. '450'"},
+                "total": {"type": "string", "description": "Total amount in pounds, digits only e.g. '450'. Omit to use the saved quote's figure."},
                 "job_description": {"type": "string", "description": "Short description of the work"}
             },
-            "required": ["client_name", "total"]
+            "required": ["client_name"]
         }
     },
     {
@@ -2769,16 +2769,46 @@ def _assistant_execute_tool(name, ti, profile):
     sender = profile.get("sender", "")
     try:
         if name == "create_invoice":
+            client_name = ti.get("client_name", "")
+            job_desc = ti.get("job_description", "")
+            total_in = str(ti.get("total", "") or "").replace("\u00a3", "").replace(",", "").strip()
+            line_items, subtotal = [], ""
+            client_address, client_number = "", ""
+            # If no amount given, build it from the client's most recent saved quote.
+            if (not total_in or total_in in ("0", "0.0", "0.00")):
+                try:
+                    fw = client_name.split()[0] if client_name.split() else client_name
+                    qz = (supabase.table("quotes").select("*").eq("sender", sender)
+                          .ilike("client_name", "%" + (fw or client_name) + "%")
+                          .order("created_at", desc=True).limit(1).execute().data or [])
+                    if qz:
+                        qt = qz[0]
+                        total_in = str(qt.get("total", "") or "").replace("\u00a3", "").replace(",", "").strip()
+                        subtotal = str(qt.get("subtotal", "") or total_in)
+                        line_items = qt.get("line_items", []) or []
+                        if not job_desc:
+                            job_desc = qt.get("job_description", "") or job_desc
+                        client_address = qt.get("client_address", "") or ""
+                        client_number = qt.get("client_number", "") or ""
+                except Exception as qe:
+                    print("invoice-from-quote lookup:", qe)
+            # Still no figure and no quote to draw from — ask rather than invent one.
+            if not total_in or total_in in ("0", "0.0", "0.00"):
+                return ("I couldn't find a saved quote for " + (client_name or "that client") +
+                        " to take the amount from. How much should the invoice be for?")
+            if not subtotal:
+                subtotal = total_in
             cnt = supabase.table("invoices").select("id").eq("sender", sender).execute()
             num = "INV-" + str(len(cnt.data) + 1).zfill(3)
-            total = str(ti.get("total", "0"))
+            due = (datetime.date.today() + datetime.timedelta(days=30)).isoformat()
             supabase.table("invoices").insert({
-                "sender": sender, "client_name": ti.get("client_name", ""),
-                "job_description": ti.get("job_description", ""), "total": total,
-                "subtotal": total, "vat": "0", "line_items": [], "status": "unpaid",
-                "invoice_number": num, "due_date": "", "client_number": "", "invoice_text": ""
+                "sender": sender, "client_name": client_name,
+                "job_description": job_desc, "total": total_in,
+                "subtotal": subtotal, "vat": "0", "line_items": line_items, "status": "unpaid",
+                "invoice_number": num, "due_date": due, "client_number": client_number, "invoice_text": ""
             }).execute()
-            return "Created invoice " + num + " for " + ti.get("client_name", "") + ", total \u00a3" + total + "."
+            src = " (from the saved quote)" if line_items else ""
+            return "Created invoice " + num + " for " + client_name + ", total \u00a3" + total_in + src + ", due in 30 days."
 
         if name == "create_quote":
             return _assistant_create_quote(profile, sender, ti.get("job_description", ""),
@@ -3171,6 +3201,7 @@ def assistant():
             "If one detail is missing for ONE of the steps but the others are clear, do the steps you can and mention the one thing you still need. Never refuse the whole request because one part is fuzzy. "
             "KNOWN JOBS: if the user refers to a client or job as though you already know it (e.g. 'won the Smith job', 'book Dave in for his job'), call find_quote to pull the existing job details rather than asking them to repeat anything, then act on it. "
             "Resolve relative dates like 'next Wednesday' or 'tomorrow' into an absolute YYYY-MM-DD yourself from today's date — don't ask the user for the exact date when you can work it out."
+            " INVOICING A QUOTED JOB: if the user asks to invoice a job that was already quoted, call create_invoice with just the client name and leave the amount out — it pulls the figure and line items from the saved quote. Only ask for an amount if there is no quote on file."
         )
 
         messages = []
@@ -3310,6 +3341,7 @@ def assistant_stream():
         "This reply will be spoken aloud, so keep it conversational and short, and don't narrate that you are about to use a tool — just use it and confirm the result. "
         "KNOWN JOBS: if the user refers to a client or job as though you already know it (e.g. 'won the Smith job', 'book Dave in'), call find_quote to pull the existing job details rather than asking them to repeat anything, then act on it. "
         "Resolve relative dates like 'next Wednesday' or 'tomorrow' into an absolute YYYY-MM-DD yourself from today's date — don't ask for the exact date when you can work it out. "
+        "INVOICING A QUOTED JOB: if asked to invoice a job that was already quoted, call create_invoice with just the client name and no amount — it pulls the figure from the saved quote. Only ask for an amount if there's no quote. "
         "If you need a key detail (like an amount or client name) ask one quick question rather than guessing. "
         "Amounts are in pounds. "
         "CRITICAL: To DO anything — create a quote or invoice, book a job, mark something paid — you MUST call the matching tool. "
