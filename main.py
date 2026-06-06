@@ -1959,13 +1959,15 @@ def incoming_sms():
         system += "Speak as 'we', warm and concise (this is SMS). Never pretend to BE " + owner_name + " personally.\n\n"
         system += "THE DIARY (upcoming jobs):\n" + diary_text + "\n\n"
         system += "YOU CAN HANDLE THESE YOURSELF:\n"
-        system += "- Booking or changing appointments: propose times that are free, and when the customer agrees a specific date+time that does NOT clash with the diary above, confirm it warmly and record it.\n"
         system += "- Simple questions: opening hours, areas covered, what trade/work we do.\n"
-        system += "- Gathering details for a quote: what the job is, where, rough timing.\n\n"
+        system += "- Gathering details for a quote: what the job is, where, rough timing.\n"
+        system += "- You do NOT book, confirm or agree appointment times yourself \u2014 anything about timing always goes to " + owner_name + " (see the critical rule below), even if a slot looks free in the diary.\n\n"
         system += "GET THEIR NAME: early in a new conversation, if you don't already know who you're speaking to, politely ask for their name (e.g. 'Happy to help — can I take your name?'). Work it into the chat naturally, don't interrogate. The moment you know it, add the CONTACT: line described below.\n\n"
         system += "CRITICAL RULE ON TIMES & BOOKINGS:\n"
         system += "You must NEVER confirm, agree, or commit to a specific appointment time yourself. "
         system += owner_name + " has a personal life the work diary does not show, so ONLY " + owner_name + " can approve a time.\n"
+        system += "This applies EVERY time, on EVERY message \u2014 including when the customer proposes a specific slot, replies with more timing detail, or you have already said you'd check the diary. Never decide it's fine just because the slot looks free.\n"
+        system += "NEVER send a confirmation. Do NOT say things like 'I'll pop you in', 'you're booked', 'booked you in', 'I'll put you down for', 'see you then', 'see you Wednesday', 'all set' or state a confirmed time. If the customer proposes a time, you HAND IT OVER \u2014 you do not accept it.\n"
         system += "Whenever the conversation reaches ANY of these, you hand the decision to " + owner_name + ":\n"
         system += "- the customer asks when you can come / proposes or asks about timing / wants to book or rearrange;\n"
         system += "- ANYTHING about price, cost, money, deposits, or discounts;\n"
@@ -1986,6 +1988,21 @@ def incoming_sms():
 
         ai_response = client.messages.create(model="claude-sonnet-4-5", max_tokens=400, system=system, messages=chat_messages)
         reply = ai_response.content[0].text.strip()
+
+        # SAFETY NET: the bot must never tell a customer a time is booked. If a
+        # commitment phrase slips through and it didn't already hand over, swap it
+        # for a holding line and force the decision to the owner.
+        import re as _re_commit
+        _COMMIT = _re_commit.compile(
+            r"\b(i'?ll pop you in|pop you in|booked you in|you'?re booked|all booked|"
+            r"i'?ll put you down|put you down for|confirmed for|i'?ve booked|i'?ll book you|"
+            r"you'?re all set|pencill?ed you in|locked in|see you (then|on |at |mon|tue|wed|thu|fri|sat|sun))",
+            _re_commit.I)
+        if _COMMIT.search(reply) and "NEEDYOU:" not in reply:
+            reply = ("Thanks \u2014 let me just check " + (owner_name or "the diary") +
+                     "'s diary and I'll come right back to you to confirm.\n"
+                     "NEEDYOU:reason=customer proposed a time, confirm it or suggest another"
+                     "|options=Confirm the time,Suggest another time,I\u2019ll reply myself")
 
         # Check if client is confirming payment
         overdue = supabase.table("invoices").select("*").eq("sender", sender).in_("status", ["unpaid", "overdue"]).execute()
