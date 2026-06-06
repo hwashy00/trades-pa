@@ -904,7 +904,12 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       </div>
     </div>
     <div id="s-invoices" class="scr">
-      <div class="ph"><div class="ph-title">Invoices</div></div>
+      <div class="ph" style="display:flex;align-items:center;justify-content:space-between">
+        <div class="ph-title">Invoices</div>
+        <button onclick="openInvoiceModal()" style="display:flex;align-items:center;gap:6px;padding:9px 15px;background:var(--acc);border:none;border-radius:11px;font-family:'Archivo',sans-serif;font-weight:700;font-size:.78rem;color:#04231a;cursor:pointer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>New invoice
+        </button>
+      </div>
       <div class="filters">
         <button class="fp on" onclick="filtInv(this,'all')">All</button>
         <button class="fp" onclick="filtInv(this,'unpaid')">Unpaid</button>
