@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>VanOffice</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0b0c0e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VanOffice">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<link rel="icon" type="image/png" href="/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1165,6 +1173,19 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       </div>
 
       <div class="sg">
+        <div class="sg-lbl">Notifications</div>
+        <div class="sg-list">
+          <div class="sg-row" style="cursor:pointer" onclick="enablePush()">
+            <div class="sg-row-label">Push notifications
+              <div id="pushStatus" style="font-size:.62rem;color:var(--t3);margin-top:3px;line-height:1.45">Get alerts on this device for new enquiries, replies and things that need you.</div>
+            </div>
+            <div id="pushAction" style="color:var(--acc2);font-weight:700;font-size:.78rem;white-space:nowrap;margin-left:10px">Enable</div>
+          </div>
+        </div>
+        <div style="font-size:.62rem;color:var(--t4);margin-top:10px;line-height:1.5">On iPhone, first add VanOffice to your Home Screen (Share \u2192 Add to Home Screen), then open it from there and tap Enable.</div>
+      </div>
+
+      <div class="sg">
         <div class="sg-lbl">Account</div>
         <div class="sg-list">
           <div class="sg-row" style="cursor:pointer" onclick="showForgotPin()"><div class="sg-row-label">Change PIN</div><div style="color:var(--t4)">›</div></div>
@@ -1823,6 +1844,49 @@ function viewInvoice(id){
   window.open('/invoice-view/'+id,'_blank');
 }
 
+/* ════════ PWA / PUSH NOTIFICATIONS ════════ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){ navigator.serviceWorker.register('/sw.js').catch(function(e){console.warn('sw reg',e);}); });
+}
+function pwaIsStandalone(){ return (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone===true; }
+function pwaIsIOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent); }
+function pushStatus(t){ var e=document.getElementById('pushStatus'); if(e)e.textContent=t; }
+function updatePushBtn(on){ var e=document.getElementById('pushAction'); if(e){ e.textContent=on?'On \u2713':'Enable'; e.style.color=on?'var(--grn)':'var(--acc2)'; } }
+function _urlB64ToUint8Array(b64){
+  var pad='='.repeat((4-b64.length%4)%4); var base=(b64+pad).replace(/-/g,'+').replace(/_/g,'/');
+  var raw=atob(base); var arr=new Uint8Array(raw.length);
+  for(var i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i); return arr;
+}
+async function refreshPushState(){
+  try{
+    if(!('serviceWorker' in navigator)||!('PushManager' in window)){ pushStatus('This browser doesn\u2019t support push notifications.'); updatePushBtn(false); return; }
+    if(pwaIsIOS() && !pwaIsStandalone()){ pushStatus('Add VanOffice to your Home Screen first, then open it from there to switch notifications on.'); updatePushBtn(false); return; }
+    if(typeof Notification!=='undefined' && Notification.permission==='denied'){ pushStatus('Notifications are blocked in your device settings.'); updatePushBtn(false); return; }
+    var reg=await navigator.serviceWorker.ready;
+    var sub=await reg.pushManager.getSubscription();
+    if(sub){ pushStatus('Notifications are on for this device.'); updatePushBtn(true); }
+    else { pushStatus('Get alerts on this device for new enquiries, replies and things that need you.'); updatePushBtn(false); }
+  }catch(e){ console.warn('refreshPushState',e); }
+}
+async function enablePush(){
+  try{
+    if(!('serviceWorker' in navigator)||!('PushManager' in window)){ pushStatus('This device doesn\u2019t support notifications.'); return; }
+    if(pwaIsIOS() && !pwaIsStandalone()){ pushStatus('On iPhone: tap Share \u2192 Add to Home Screen, then open VanOffice from your Home Screen and tap Enable.'); return; }
+    var perm=await Notification.requestPermission();
+    if(perm!=='granted'){ pushStatus('Permission needed \u2014 allow notifications to get alerts.'); return; }
+    var reg=await navigator.serviceWorker.ready;
+    var kr=await fetch('/api/push/public-key'); var kd=await kr.json();
+    if(!kd.key){ pushStatus('Push isn\u2019t set up on the server yet (VAPID keys missing).'); return; }
+    var sub=await reg.pushManager.getSubscription();
+    if(!sub){ sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:_urlB64ToUint8Array(kd.key)}); }
+    var res=await fetch('/api/push/subscribe?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sub)});
+    var d=await res.json();
+    if(d.ok){ pushStatus('Notifications are on for this device \u2713'); updatePushBtn(true); if(navigator.vibrate)navigator.vibrate(8); }
+    else { pushStatus(d.error||'Couldn\u2019t turn on notifications.'); }
+  }catch(e){ console.warn('enablePush',e); pushStatus('Couldn\u2019t enable notifications \u2014 try again.'); }
+}
+
 function renderBookings(bookings){
   const el=document.getElementById('bookingsList');
   if(!bookings||!bookings.length){el.innerHTML='<div class="empty-state">No jobs booked yet.<br>Text "book in [client] [job] [date]"</div>';return}
@@ -2097,7 +2161,7 @@ function go(name){
   if(name==='invoices')renderInvoices(allInvoices,currentInvFilter);
   if(name==='calendar'){renderBookings(allBookings);renderCal()}
   if(name==='inbox'){ loadInbox(inboxConvs.length>0); loadPending(); }
-  if(name==='profile'){loadAdminPanel();hfInitVoiceSettings();loadUsage();}
+  if(name==='profile'){loadAdminPanel();hfInitVoiceSettings();loadUsage();if(typeof refreshPushState==='function')refreshPushState();}
 }
 
 function animateListItems(container){
