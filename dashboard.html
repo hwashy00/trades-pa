@@ -1344,6 +1344,34 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     </div>
   </div>
 
+  <!-- QUOTE EDITOR / EXTRAS DRAWER -->
+  <div id="quoteDrawerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeQuoteDrawer()"></div>
+  <div id="quoteDrawer" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px;max-height:88vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+      <div style="font-size:1rem;font-weight:800" id="qdClient">Quote</div>
+      <button onclick="closeQuoteDrawer()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+    <div id="qdSub" style="font-size:.74rem;color:var(--t3);margin-bottom:16px"></div>
+    <div style="background:var(--s2);border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="font-size:.6rem;font-weight:700;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">Line items</div>
+      <div id="qdItems" style="display:flex;flex-direction:column;gap:9px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--br);margin-top:13px;padding-top:12px">
+        <span style="font-size:.8rem;font-weight:700;color:var(--t2)">Total</span>
+        <span style="font-size:1.05rem;font-weight:900;color:var(--acc2)" id="qdTotal">£0</span>
+      </div>
+    </div>
+    <div style="background:var(--s2);border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="font-size:.6rem;font-weight:700;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">Add an extra</div>
+      <div style="display:flex;gap:8px">
+        <input class="inp" id="qd-extra-desc" placeholder="e.g. extra socket" style="flex:2;margin-bottom:0">
+        <input class="inp" id="qd-extra-amt" type="number" inputmode="decimal" placeholder="£" style="flex:1;margin-bottom:0">
+      </div>
+      <div id="qdExtraErr" style="color:var(--red);font-size:.72rem;min-height:14px;margin-top:6px"></div>
+      <button onclick="addQuoteExtra()" id="qdExtraBtn" style="width:100%;padding:12px;background:var(--acc);border:none;border-radius:11px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:700;color:#04231a;cursor:pointer">+ Add extra</button>
+    </div>
+    <button onclick="viewQuotePdf(_qdId)" style="width:100%;padding:13px;background:var(--s3);color:var(--t2);border:none;border-radius:12px;font-family:'Hanken Grotesk',sans-serif;font-size:.84rem;font-weight:700;cursor:pointer">View / send PDF</button>
+  </div>
+
   <!-- CREATE QUOTE MODAL -->
   <div id="quoteModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeQuoteModal()"></div>
   <div id="quoteModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px;max-height:90vh;overflow-y:auto">
@@ -1923,7 +1951,7 @@ function renderQuotesList(quotes){
     const badge = (st==='sent')?'<span class="bdg b-grn">Sent</span>'
                 : (st==='accepted')?'<span class="bdg b-grn">Accepted</span>'
                 : '<span class="bdg b-amb">Draft</span>';
-    return`<div class="li" onclick="viewQuotePdf('${q.id}')" style="cursor:pointer"><div class="li-ico" style="background:var(--amb-d);color:var(--amb)">${ICO.quote}</div><div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.quote_number||''} · ${q.job_description||''}</div></div><div class="li-right"><div class="li-amt">${total}</div>${badge}</div></div>`;
+    return`<div class="li" onclick="openQuoteDrawer('${q.id}')" style="cursor:pointer"><div class="li-ico" style="background:var(--amb-d);color:var(--amb)">${ICO.quote}</div><div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.quote_number||''} · ${q.job_description||''}</div></div><div class="li-right"><div class="li-amt">${total}</div>${badge}</div></div>`;
   }).join('');
 }
 function viewQuotePdf(id){
@@ -2494,6 +2522,60 @@ async function deleteExpense(id){
     await fetch('/api/expense/delete?'+_acctAuth(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})});
     haptic('light'); loadAccounts();
   }catch(e){}
+}
+
+/* ════════ QUOTE EDITOR / EXTRAS ════════ */
+let _qdId=null;
+function openQuoteDrawer(id){
+  const q=(allQuotes||[]).find(x=>String(x.id)===String(id));
+  if(!q){ viewQuotePdf(id); return; }
+  _qdId=id; haptic('light');
+  renderQuoteDrawer(q);
+  document.getElementById('quoteDrawerOverlay').style.display='block';
+  document.getElementById('quoteDrawer').style.display='block';
+}
+function closeQuoteDrawer(){
+  document.getElementById('quoteDrawerOverlay').style.display='none';
+  document.getElementById('quoteDrawer').style.display='none';
+}
+function renderQuoteDrawer(q){
+  document.getElementById('qdClient').textContent=q.client_name||'Quote';
+  document.getElementById('qdSub').textContent=(q.quote_number?q.quote_number+' · ':'')+(q.job_description||'');
+  document.getElementById('qdTotal').textContent='£'+(q.total||'0');
+  const items=Array.isArray(q.line_items)?q.line_items:[];
+  const el=document.getElementById('qdItems');
+  if(!items.length){ el.innerHTML='<div style="font-size:.78rem;color:var(--t3)">No itemised breakdown saved on this quote — extras you add will still update the total.</div>'; return; }
+  el.innerHTML=items.map(it=>{
+    const d=(it&&it.description)||'';
+    const a=(it&&String(it.amount||'').trim())?('£'+it.amount):'';
+    const isX=/^extra\b/i.test(d);
+    return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:.8rem;line-height:1.4">'+
+      '<span style="color:'+(isX?'var(--acc2)':'var(--t2)')+';'+(isX?'font-weight:700':'')+'">'+_esc(d)+'</span>'+
+      '<span style="color:var(--t1);font-weight:700;flex-shrink:0">'+a+'</span></div>';
+  }).join('');
+}
+async function addQuoteExtra(){
+  const desc=document.getElementById('qd-extra-desc').value.trim();
+  const amt=document.getElementById('qd-extra-amt').value;
+  const err=document.getElementById('qdExtraErr'); err.textContent='';
+  if(!desc){ err.textContent='What\'s the extra?'; return; }
+  if(!amt||Number(amt)<=0){ err.textContent='Add an amount.'; return; }
+  const btn=document.getElementById('qdExtraBtn'); btn.disabled=true; btn.textContent='Adding…';
+  try{
+    const r=await fetch('/api/quote/'+_qdId+'/add-extra?'+_acctAuth(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({description:desc,amount:amt})});
+    const d=await r.json();
+    if(d.error){ err.textContent=d.error; }
+    else{
+      haptic('light');
+      const i=(allQuotes||[]).findIndex(x=>String(x.id)===String(_qdId));
+      if(i>=0)allQuotes[i]=d.quote;
+      renderQuoteDrawer(d.quote);
+      if(typeof renderQuotesList==='function')renderQuotesList(allQuotes);
+      document.getElementById('qd-extra-desc').value='';
+      document.getElementById('qd-extra-amt').value='';
+    }
+  }catch(e){ err.textContent='Something went wrong.'; }
+  btn.disabled=false; btn.textContent='+ Add extra';
 }
 
 function animateListItems(container){
