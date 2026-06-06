@@ -1738,6 +1738,19 @@ function renderRecent(items){
   }).join('');
 }
 
+// Derive a booking's live state from its date + duration (no DB change needed):
+// finished jobs stop showing as "Booked" and go muted; today's job shows "On now".
+function bookingState(b){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const start=new Date((b.date||'')+'T00:00:00');
+  if(isNaN(start.getTime())) return {key:'booked',label:'Booked',badge:'b-grn',ico:'background:var(--grn-d);color:var(--grn)'};
+  const dur=Math.max(1,parseInt(b.duration_days||1)||1);
+  const end=new Date(start); end.setDate(end.getDate()+dur-1);
+  if(end<today) return {key:'done',label:'Done',badge:'b-muted',ico:'background:var(--s3);color:var(--t3)'};
+  if(start<=today && today<=end) return {key:'today',label:'On now',badge:'b-amb',ico:'background:var(--amb-d);color:var(--amb)'};
+  return {key:'booked',label:'Booked',badge:'b-grn',ico:'background:var(--grn-d);color:var(--grn)'};
+}
+
 function renderUpcoming(bookings){
   const el=document.getElementById('upcomingList');
   if(!bookings||!bookings.length){el.innerHTML='<div class="empty-state">No jobs booked yet.<br>Text "book in [client] [job] [date]"</div>';return}
@@ -1803,10 +1816,19 @@ function viewQuotePdf(id){
 function renderBookings(bookings){
   const el=document.getElementById('bookingsList');
   if(!bookings||!bookings.length){el.innerHTML='<div class="empty-state">No jobs booked yet.<br>Text "book in [client] [job] [date]"</div>';return}
-  el.innerHTML=bookings.map(b=>{
+  const order={today:0,booked:1,done:2};
+  const list=bookings.slice().sort((a,b)=>{
+    const ka=bookingState(a).key, kb=bookingState(b).key;
+    if(order[ka]!==order[kb]) return order[ka]-order[kb];
+    // upcoming: soonest first; done: most recent first
+    return ka==='done' ? (b.date||'').localeCompare(a.date||'') : (a.date||'').localeCompare(b.date||'');
+  });
+  el.innerHTML=list.map(b=>{
+    const st=bookingState(b);
     const d=new Date(b.date);
-    const dateStr=d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
-    return`<div class="li"><div class="li-ico" style="background:var(--grn-d);color:var(--grn)">${ICO.diary}</div><div class="li-body"><div class="li-name">${b.client_name||'Unknown'}</div><div class="li-detail">${b.job_type||''}${b.location?' · '+b.location:''}<br>${dateStr} at ${b.time||'TBC'} · ${b.duration_days||1} day(s)</div></div><div class="li-right"><span class="bdg b-grn">Booked</span></div></div>`;
+    const dateStr=isNaN(d.getTime())?(b.date||'TBC'):d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+    const dim=st.key==='done'?'opacity:.6;':'';
+    return`<div class="li" style="${dim}"><div class="li-ico" style="${st.ico}">${ICO.diary}</div><div class="li-body"><div class="li-name">${b.client_name||'Unknown'}</div><div class="li-detail">${b.job_type||''}${b.location?' · '+b.location:''}<br>${dateStr} at ${b.time||'TBC'} · ${b.duration_days||1} day(s)</div></div><div class="li-right"><span class="bdg ${st.badge}">${st.label}</span></div></div>`;
   }).join('');
 }
 
