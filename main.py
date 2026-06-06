@@ -4508,5 +4508,217 @@ def send_web_push(sender, message, title="VanOffice"):
             print("webpush error:", e)
 
 
+
+# ───────────────────────── ACCOUNTS: EXPENSES, MILEAGE, TAX SET-ASIDE ─────────────────────────
+# Lightweight bookkeeping for sole-trader users: log expenses (incl. snapping a
+# receipt), track mileage, and see income vs expenses with a ROUGH tax set-aside.
+# This is a guide to keep records tidy for an accountant / MTD tool — not advice,
+# and it does NOT file anything with HMRC.
+
+EXPENSE_CATEGORIES = ["Materials", "Tools", "Fuel", "Vehicle", "Travel",
+                      "Phone/Internet", "Insurance", "Subcontractor",
+                      "Office/Admin", "Other"]
+
+# HMRC simplified mileage rate (first 10,000 business miles/yr). Update if HMRC changes it.
+MILEAGE_RATE = 0.45
+
+# --- Rough self-employed tax estimate (England/Wales/NI bands). CLEARLY an estimate;
+#     update these constants each tax year. Ignores the personal-allowance taper above
+#     £100k and any other income, so it's a "set aside roughly this" guide only. ---
+TAX_PERSONAL_ALLOWANCE = 12570
+TAX_BASIC_LIMIT = 50270      # taxable income (after allowance) ceiling for 20%
+TAX_HIGHER_LIMIT = 125140    # ceiling for 40%; above is 45%
+NIC4_LOWER = 12570
+NIC4_UPPER = 50270
+NIC4_MAIN_RATE = 0.06        # Class 4 main rate
+NIC4_UPPER_RATE = 0.02
+
+
+def uk_tax_year_bounds(d=None):
+    """Return (start_iso, end_iso, label) for the UK tax year containing date d (6 Apr - 5 Apr)."""
+    d = d or datetime.date.today()
+    start_year = d.year if (d.month > 4 or (d.month == 4 and d.day >= 6)) else d.year - 1
+    start = datetime.date(start_year, 4, 6)
+    end = datetime.date(start_year + 1, 4, 5)
+    label = str(start_year) + "/" + str((start_year + 1) % 100).zfill(2)
+    return start.isoformat(), end.isoformat(), label
+
+
+def estimate_self_employed_tax(profit):
+    """Rough Income Tax + Class 4 NIC on a year's profit. A guide, not advice."""
+    profit = max(0.0, float(profit or 0))
+    taxable = max(0.0, profit - TAX_PERSONAL_ALLOWANCE)
+    tax = 0.0
+    basic_band = max(0.0, TAX_BASIC_LIMIT - TAX_PERSONAL_ALLOWANCE)
+    higher_band = max(0.0, TAX_HIGHER_LIMIT - TAX_BASIC_LIMIT)
+    tax += min(taxable, basic_band) * 0.20
+    if taxable > basic_band:
+        tax += min(taxable - basic_band, higher_band) * 0.40
+    if taxable > basic_band + higher_band:
+        tax += (taxable - basic_band - higher_band) * 0.45
+    nic = 0.0
+    if profit > NIC4_LOWER:
+        nic += (min(profit, NIC4_UPPER) - NIC4_LOWER) * NIC4_MAIN_RATE
+    if profit > NIC4_UPPER:
+        nic += (profit - NIC4_UPPER) * NIC4_UPPER_RATE
+    return round(tax + nic)
+
+
+def _money_f(v):
+    try:
+        return float(str(v).replace("\u00a3", "").replace(",", "").strip() or 0)
+    except Exception:
+        return 0.0
+
+
+def _expense_auth():
+    phone = format_phone(request.args.get("phone", "").strip())
+    pin = request.args.get("pin", "").strip()
+    result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+    if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+        return None
+    return result.data[0]
+
+
+@app.route("/api/expense/scan", methods=["POST"])
+def expense_scan():
+    """Read a receipt photo with Claude vision and return the fields to confirm."""
+    profile = _expense_auth()
+    if not profile:
+        return jsonify({"error": "Unauthorised"}), 401
+    data = request.json or {}
+    img = data.get("image", "")
+    img_type = data.get("imageType", "image/jpeg")
+    if not img:
+        return jsonify({"error": "No image"}), 400
+    if img.startswith("data:"):
+        try:
+            img_type = img.split(";")[0].split(":")[1]
+            img = img.split(",", 1)[1]
+        except Exception:
+            pass
+    prompt = ("This is a photo of a receipt or invoice for a UK tradesperson's business expense. "
+              "Extract these fields: the total amount paid (digits only, in GBP), the date (YYYY-MM-DD if shown, else empty), "
+              "the supplier/shop name, the single best category from this exact list "
+              "[" + ", ".join(EXPENSE_CATEGORIES) + "], and the VAT amount if shown (digits only, else empty). "
+              "Reply with ONLY a JSON object, no other text: "
+              '{"amount":"","date":"","supplier":"","category":"","vat":""}')
+    try:
+        resp = client.messages.create(
+            model="claude-sonnet-4-5", max_tokens=400,
+            messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": img_type, "data": img}},
+                {"type": "text", "text": prompt}
+            ]}])
+        raw = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text").strip()
+        raw = raw.replace("```json", "").replace("```", "").strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        out = json.loads(raw[s:e + 1]) if s != -1 and e != -1 else {}
+        cat = out.get("category", "")
+        if cat not in EXPENSE_CATEGORIES:
+            cat = "Materials"
+        return jsonify({
+            "amount": str(out.get("amount", "") or "").replace("\u00a3", "").replace(",", "").strip(),
+            "date": out.get("date", "") or "",
+            "supplier": out.get("supplier", "") or "",
+            "category": cat,
+            "vat": str(out.get("vat", "") or "").replace("\u00a3", "").strip()
+        })
+    except Exception as ex:
+        print("expense_scan error:", ex)
+        return jsonify({"error": "Couldn't read that receipt - add the details by hand."}), 200
+
+
+@app.route("/api/expense", methods=["POST"])
+def expense_create():
+    profile = _expense_auth()
+    if not profile:
+        return jsonify({"error": "Unauthorised"}), 401
+    sender = profile.get("sender", "")
+    d = request.json or {}
+    kind = d.get("kind", "manual")
+    date = d.get("date", "") or datetime.date.today().isoformat()
+    if kind == "mileage":
+        miles = int(_money_f(d.get("miles", 0)))
+        amount = round(miles * MILEAGE_RATE, 2)
+        row = {"sender": sender, "date": date, "amount": str(amount), "category": "Vehicle",
+               "supplier": "Mileage (" + str(miles) + " miles)", "notes": d.get("notes", ""),
+               "vat": "", "kind": "mileage", "miles": miles}
+    else:
+        amount = round(_money_f(d.get("amount", 0)), 2)
+        if amount <= 0:
+            return jsonify({"error": "Enter an amount"}), 400
+        cat = d.get("category", "Other")
+        if cat not in EXPENSE_CATEGORIES:
+            cat = "Other"
+        row = {"sender": sender, "date": date, "amount": str(amount), "category": cat,
+               "supplier": d.get("supplier", ""), "notes": d.get("notes", ""),
+               "vat": str(d.get("vat", "") or ""), "kind": "manual", "miles": 0}
+    try:
+        res = supabase.table("expenses").insert(row).execute()
+        return jsonify({"ok": True, "expense": (res.data[0] if res.data else row)})
+    except Exception as ex:
+        print("expense_create error:", ex)
+        return jsonify({"error": str(ex)}), 500
+
+
+@app.route("/api/expense/delete", methods=["POST"])
+def expense_delete():
+    profile = _expense_auth()
+    if not profile:
+        return jsonify({"error": "Unauthorised"}), 401
+    sender = profile.get("sender", "")
+    d = request.json or {}
+    eid = d.get("id")
+    if not eid:
+        return jsonify({"error": "No id"}), 400
+    try:
+        supabase.table("expenses").delete().eq("id", eid).eq("sender", sender).execute()
+        return jsonify({"ok": True})
+    except Exception as ex:
+        print("expense_delete error:", ex)
+        return jsonify({"error": str(ex)}), 500
+
+
+@app.route("/api/expenses", methods=["GET"])
+def expenses_list():
+    profile = _expense_auth()
+    if not profile:
+        return jsonify({"error": "Unauthorised"}), 401
+    sender = profile.get("sender", "")
+    start_iso, end_iso, label = uk_tax_year_bounds()
+    try:
+        rows = (supabase.table("expenses").select("*").eq("sender", sender)
+                .order("date", desc=True).limit(500).execute().data or [])
+    except Exception as ex:
+        print("expenses_list error:", ex)
+        rows = []
+    # income from paid invoices in this tax year (by created date)
+    try:
+        invs = supabase.table("invoices").select("*").eq("sender", sender).execute().data or []
+    except Exception:
+        invs = []
+    def _in_year(iso):
+        return bool(iso) and start_iso <= iso[:10] <= end_iso
+    income_paid = sum(_money_f(i.get("total")) for i in invs
+                      if i.get("status") == "paid" and _in_year(i.get("created_at", "")))
+    income_invoiced = sum(_money_f(i.get("total")) for i in invs
+                          if _in_year(i.get("created_at", "")))
+    exp_year = [r for r in rows if _in_year(r.get("date", ""))]
+    expenses_total = sum(_money_f(r.get("amount")) for r in exp_year)
+    profit = income_paid - expenses_total
+    set_aside = estimate_self_employed_tax(profit)
+    summary = {
+        "tax_year": label,
+        "income_paid": round(income_paid, 2),
+        "income_invoiced": round(income_invoiced, 2),
+        "expenses": round(expenses_total, 2),
+        "profit": round(profit, 2),
+        "set_aside": set_aside,
+        "mileage_rate": MILEAGE_RATE
+    }
+    return jsonify({"expenses": rows, "summary": summary, "categories": EXPENSE_CATEGORIES})
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=os.environ.get("FLASK_DEBUG") == "1")
