@@ -4429,6 +4429,30 @@ def push_subscribe():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/push/test", methods=["POST"])
+def push_test():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        sender = result.data[0].get("sender", "")
+        if not os.environ.get("VAPID_PUBLIC_KEY") or not os.environ.get("VAPID_PRIVATE_KEY"):
+            return jsonify({"ok": False, "error": "Push not configured on the server (VAPID keys missing)."})
+        try:
+            subs = supabase.table("push_subscriptions").select("id").eq("sender", sender).execute().data or []
+        except Exception:
+            subs = []
+        if not subs:
+            return jsonify({"ok": False, "error": "No device registered yet — tap Enable first."})
+        send_web_push(sender, "Test notification \u2014 push is working \u2713", title="VanOffice")
+        return jsonify({"ok": True, "devices": len(subs)})
+    except Exception as e:
+        print("push_test error:", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 def send_web_push(sender, message, title="VanOffice"):
     """Best-effort web push to the owner's installed devices. Never raises."""
     pub = os.environ.get("VAPID_PUBLIC_KEY", "")
