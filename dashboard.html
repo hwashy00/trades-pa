@@ -727,6 +727,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div class="topbar">
         <div class="topbar-logo">Van<b>Office</b></div>
         <div class="topbar-right">
+          <button class="ib" onclick="go('expenses')" title="Accounts" aria-label="Accounts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:18px;height:18px;display:block"><rect x="3" y="4" width="14" height="17" rx="2"/><path d="M7 8h6M7 12h6M7 16h3" stroke-linecap="round"/><circle cx="18.5" cy="15.5" r="3.2"/><path d="M18.5 14v3M17.2 15.5h2.6" stroke-linecap="round"/></svg></button>
           <button class="ib" onclick="go('calendar')" title="Diary" aria-label="Diary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:18px;height:18px;display:block"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke-linecap="round"/></svg></button>
           <button class="ib" id="refreshBtn" onclick="refreshApp()" title="Refresh" aria-label="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:18px;height:18px;display:block"><path d="M20 11a8 8 0 1 0-.6 4" stroke-linecap="round"/><path d="M20 4v6h-6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:18px;height:18px;display:block"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6zM10 20a2 2 0 0 0 4 0" stroke-linejoin="round"/></svg><div class="ndot" id="notifDot"></div></button>
@@ -932,6 +933,26 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
         <button class="fp" onclick="filtInv(this,'overdue')">Overdue</button>
       </div>
       <div class="sec"><div class="list" id="invoicesList"><div class="loading">Loading...</div></div></div>
+    </div>
+
+    <div id="s-expenses" class="scr">
+      <div class="ph"><div class="ph-title">Accounts</div></div>
+      <div class="sec">
+        <div id="acctSummary" style="background:var(--s1);border-radius:16px;padding:18px"><div class="loading">Loading...</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px">
+          <button onclick="document.getElementById('rcptInput').click()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:13px 6px;background:var(--acc);border:none;border-radius:13px;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.72rem;color:#04231a;cursor:pointer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="width:19px;height:19px"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" stroke-linecap="round"/><circle cx="12" cy="12" r="3"/></svg>Scan receipt</button>
+          <button onclick="openExpenseModal()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:13px 6px;background:var(--s3);border:none;border-radius:13px;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.72rem;color:var(--t2);cursor:pointer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" style="width:19px;height:19px"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Add expense</button>
+          <button onclick="openMileageModal()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:13px 6px;background:var(--s3);border:none;border-radius:13px;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.72rem;color:var(--t2);cursor:pointer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="width:19px;height:19px"><path d="M5 17h14M6 17l1-5a2 2 0 0 1 2-1.6h6A2 2 0 0 1 17 12l1 5M8 17v2M16 17v2" stroke-linecap="round" stroke-linejoin="round"/></svg>Log mileage</button>
+        </div>
+        <input type="file" id="rcptInput" accept="image/*" capture="environment" style="display:none" onchange="scanReceipt(this)">
+      </div>
+      <div class="sec">
+        <div class="sec-head"><div class="sec-title">Expenses this tax year</div></div>
+        <div class="list" id="expensesList"><div class="loading">Loading...</div></div>
+      </div>
     </div>
 
     <div id="s-calendar" class="scr">
@@ -1248,6 +1269,56 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <input type="hidden" id="inv-client-number">
       <div id="invModalErr" style="color:var(--red);font-size:.75rem;min-height:18px"></div>
       <button onclick="submitInvoiceModal()" style="width:100%;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Hanken Grotesk',sans-serif;font-size:.9rem;font-weight:700;color:#fff;cursor:pointer" id="invModalBtn">Create Invoice & View PDF</button>
+    </div>
+  </div>
+
+  <!-- EXPENSE MODAL -->
+  <div id="expenseModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeExpenseModal()"></div>
+  <div id="expenseModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div style="font-size:1rem;font-weight:800" id="expModalTitle">Add expense</div>
+      <button onclick="closeExpenseModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+    <div id="expScanNote" style="display:none;background:var(--acc-d);color:var(--acc2);border-radius:10px;padding:10px 12px;font-size:.74rem;margin-bottom:12px">Read from your receipt — check it's right before saving.</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px">
+        <div style="flex:1"><div class="lbl">Amount (£)</div><input class="inp" id="exp-amount" type="number" inputmode="decimal" placeholder="0.00" style="margin-bottom:0"></div>
+        <div style="flex:1"><div class="lbl">Date</div><input class="inp" id="exp-date" type="date" style="margin-bottom:0"></div>
+      </div>
+      <div><div class="lbl">Category</div>
+        <select class="inp" id="exp-category" style="margin-bottom:0">
+          <option>Materials</option><option>Tools</option><option>Fuel</option><option>Vehicle</option><option>Travel</option><option>Phone/Internet</option><option>Insurance</option><option>Subcontractor</option><option>Office/Admin</option><option>Other</option>
+        </select></div>
+      <div><div class="lbl">Supplier</div><input class="inp" id="exp-supplier" placeholder="e.g. Travis Perkins" style="margin-bottom:0"></div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:2"><div class="lbl">Notes (optional)</div><input class="inp" id="exp-notes" placeholder="e.g. timber for Smith job" style="margin-bottom:0"></div>
+        <div style="flex:1"><div class="lbl">VAT (£, opt.)</div><input class="inp" id="exp-vat" type="number" inputmode="decimal" placeholder="0.00" style="margin-bottom:0"></div>
+      </div>
+      <div id="expModalErr" style="color:var(--red);font-size:.75rem;min-height:16px"></div>
+      <button onclick="saveExpense()" style="width:100%;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Hanken Grotesk',sans-serif;font-size:.9rem;font-weight:700;color:#04231a;cursor:pointer" id="expModalBtn">Save expense</button>
+    </div>
+  </div>
+
+  <!-- MILEAGE MODAL -->
+  <div id="mileageModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300" onclick="closeMileageModal()"></div>
+  <div id="mileageModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:301;padding:24px 20px 40px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div style="font-size:1rem;font-weight:800">Log mileage</div>
+      <button onclick="closeMileageModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px">
+        <div style="flex:1"><div class="lbl">Business miles</div><input class="inp" id="mil-miles" type="number" inputmode="numeric" placeholder="0" oninput="milCalc()" style="margin-bottom:0"></div>
+        <div style="flex:1"><div class="lbl">Date</div><input class="inp" id="mil-date" type="date" style="margin-bottom:0"></div>
+      </div>
+      <div><div class="lbl">Journey (optional)</div><input class="inp" id="mil-notes" placeholder="e.g. Exeter to Plymouth site" style="margin-bottom:0"></div>
+      <div style="background:var(--s2);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:.74rem;color:var(--t3)" id="mil-rate-lbl">at 45p/mile</span>
+        <span style="font-size:1rem;font-weight:900;color:var(--acc2)" id="mil-calc">£0.00</span>
+      </div>
+      <div style="font-size:.68rem;color:var(--t4);line-height:1.5">45p/mile covers the first 10,000 business miles a year, then 25p. This logs it as a Vehicle expense.</div>
+      <div id="milModalErr" style="color:var(--red);font-size:.75rem;min-height:16px"></div>
+      <button onclick="saveMileage()" style="width:100%;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Hanken Grotesk',sans-serif;font-size:.9rem;font-weight:700;color:#04231a;cursor:pointer" id="milModalBtn">Save mileage</button>
     </div>
   </div>
 
@@ -2254,7 +2325,7 @@ function haptic(style='light'){
 }
 
 let _curIdx=0;
-const _navOrder={home:0,jobs:1,quotes:1,quotes:2,quotegen:2,invoices:3,calendar:3,designer:4,inbox:5,profile:6};
+const _navOrder={home:0,jobs:1,quotes:1,quotes:2,quotegen:2,invoices:3,expenses:3,calendar:3,designer:4,inbox:5,profile:6};
 function go(name){
   haptic('light');
   const next=document.getElementById('s-'+name);
@@ -2274,9 +2345,155 @@ function go(name){
   if(name==='quotegen'){const qb=document.getElementById('n-quotes');if(qb)qb.classList.add('on');}
   if(name==='designer')initDesigner();
   if(name==='invoices')renderInvoices(allInvoices,currentInvFilter);
+  if(name==='expenses')loadAccounts();
   if(name==='calendar'){renderBookings(allBookings);renderCal()}
   if(name==='inbox'){ loadInbox(inboxConvs.length>0); loadPending(); }
   if(name==='profile'){loadAdminPanel();hfInitVoiceSettings();loadUsage();if(typeof refreshPushState==='function')refreshPushState();if(typeof refreshBioState==='function')refreshBioState();}
+}
+
+/* ════════ ACCOUNTS: EXPENSES, MILEAGE, TAX SET-ASIDE ════════ */
+let acctData=null;
+const _acctAuth=()=>'phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin);
+function _gbp(n){ n=Number(n)||0; return '£'+n.toLocaleString('en-GB',{minimumFractionDigits:(n%1?2:0),maximumFractionDigits:2}); }
+
+async function loadAccounts(){
+  try{
+    const r=await fetch('/api/expenses?'+_acctAuth());
+    const d=await r.json();
+    if(d.error){ document.getElementById('acctSummary').innerHTML='<div style="color:var(--t3);font-size:.8rem">Couldn\'t load accounts.</div>'; return; }
+    acctData=d;
+    renderAccountsSummary(d.summary);
+    renderExpensesList(d.expenses||[]);
+  }catch(e){ document.getElementById('acctSummary').innerHTML='<div style="color:var(--t3);font-size:.8rem">Couldn\'t load accounts.</div>'; }
+}
+
+function renderAccountsSummary(s){
+  if(!s)return;
+  const el=document.getElementById('acctSummary');
+  el.innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">'+
+      '<div style="font-size:.62rem;font-weight:700;color:var(--t4);letter-spacing:.08em;text-transform:uppercase">Tax year '+s.tax_year+'</div>'+
+    '</div>'+
+    '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-bottom:16px">'+
+      '<div style="font-size:.66rem;color:var(--t3)">Set aside for tax (rough)</div>'+
+      '<div style="font-size:2rem;font-weight:900;color:var(--acc2);line-height:1.1">'+_gbp(s.set_aside)+'</div>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'+
+      '<div style="background:var(--s2);border-radius:11px;padding:11px 8px;text-align:center"><div style="font-size:.6rem;color:var(--t4);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Income</div><div style="font-size:.92rem;font-weight:800;color:var(--t1)">'+_gbp(s.income_paid)+'</div></div>'+
+      '<div style="background:var(--s2);border-radius:11px;padding:11px 8px;text-align:center"><div style="font-size:.6rem;color:var(--t4);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Expenses</div><div style="font-size:.92rem;font-weight:800;color:var(--t1)">'+_gbp(s.expenses)+'</div></div>'+
+      '<div style="background:var(--s2);border-radius:11px;padding:11px 8px;text-align:center"><div style="font-size:.6rem;color:var(--t4);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Profit</div><div style="font-size:.92rem;font-weight:800;color:'+(s.profit>=0?'var(--acc2)':'var(--red)')+'">'+_gbp(s.profit)+'</div></div>'+
+    '</div>'+
+    '<div style="font-size:.64rem;color:var(--t4);line-height:1.5;margin-top:12px">Income = invoices marked paid this tax year. The set-aside is a rough Income Tax + National Insurance guide on your profit — not advice, and it doesn\'t file anything. Keep it for your accountant.</div>';
+}
+
+function renderExpensesList(list){
+  const el=document.getElementById('expensesList');
+  if(!list.length){ el.innerHTML='<div style="text-align:center;color:var(--t3);font-size:.82rem;padding:30px 10px">No expenses yet. Scan a receipt or add one.</div>'; return; }
+  el.innerHTML=list.map(x=>{
+    const amt=_gbp(x.amount);
+    const sub=(x.category||'Other')+(x.date?(' · '+_fmtD(x.date)):'');
+    const ttl=(x.supplier||x.category||'Expense');
+    return '<div class="li" style="display:flex;align-items:center;gap:12px">'+
+      '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_esc(ttl)+'</div>'+
+      '<div style="font-size:.7rem;color:var(--t3);margin-top:2px">'+_esc(sub)+(x.notes?(' · '+_esc(x.notes)):'')+'</div></div>'+
+      '<div style="font-weight:800;font-size:.9rem">'+amt+'</div>'+
+      '<button onclick="deleteExpense(\''+x.id+'\')" style="background:none;border:none;color:var(--t4);cursor:pointer;padding:4px;font-size:1rem" aria-label="Delete">✕</button>'+
+    '</div>';
+  }).join('');
+  if(typeof animateListItems==='function')animateListItems(el);
+}
+function _fmtD(iso){ try{ return new Date(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }catch(e){ return iso; } }
+function _esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function openExpenseModal(prefill){
+  document.getElementById('expModalErr').textContent='';
+  const p=prefill||{};
+  document.getElementById('exp-amount').value=p.amount||'';
+  document.getElementById('exp-date').value=p.date||new Date().toISOString().slice(0,10);
+  document.getElementById('exp-category').value=p.category||'Materials';
+  document.getElementById('exp-supplier').value=p.supplier||'';
+  document.getElementById('exp-notes').value=p.notes||'';
+  document.getElementById('exp-vat').value=p.vat||'';
+  document.getElementById('expModalTitle').textContent=p._scan?'Check receipt':'Add expense';
+  document.getElementById('expScanNote').style.display=p._scan?'block':'none';
+  document.getElementById('expenseModalOverlay').style.display='block';
+  document.getElementById('expenseModal').style.display='block';
+}
+function closeExpenseModal(){ document.getElementById('expenseModalOverlay').style.display='none'; document.getElementById('expenseModal').style.display='none'; }
+
+async function saveExpense(){
+  const amount=document.getElementById('exp-amount').value;
+  if(!amount||Number(amount)<=0){ document.getElementById('expModalErr').textContent='Enter an amount.'; return; }
+  const btn=document.getElementById('expModalBtn'); btn.disabled=true; btn.textContent='Saving…';
+  try{
+    const r=await fetch('/api/expense?'+_acctAuth(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      kind:'manual', amount:amount, date:document.getElementById('exp-date').value,
+      category:document.getElementById('exp-category').value, supplier:document.getElementById('exp-supplier').value,
+      notes:document.getElementById('exp-notes').value, vat:document.getElementById('exp-vat').value })});
+    const d=await r.json();
+    if(d.error){ document.getElementById('expModalErr').textContent=d.error; }
+    else{ haptic('light'); closeExpenseModal(); loadAccounts(); }
+  }catch(e){ document.getElementById('expModalErr').textContent='Something went wrong.'; }
+  btn.disabled=false; btn.textContent='Save expense';
+}
+
+function openMileageModal(){
+  document.getElementById('milModalErr').textContent='';
+  document.getElementById('mil-miles').value='';
+  document.getElementById('mil-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('mil-notes').value='';
+  const rate=(acctData&&acctData.summary&&acctData.summary.mileage_rate)||0.45;
+  document.getElementById('mil-rate-lbl').textContent='at '+Math.round(rate*100)+'p/mile';
+  milCalc();
+  document.getElementById('mileageModalOverlay').style.display='block';
+  document.getElementById('mileageModal').style.display='block';
+}
+function closeMileageModal(){ document.getElementById('mileageModalOverlay').style.display='none'; document.getElementById('mileageModal').style.display='none'; }
+function milCalc(){
+  const rate=(acctData&&acctData.summary&&acctData.summary.mileage_rate)||0.45;
+  const m=Number(document.getElementById('mil-miles').value)||0;
+  document.getElementById('mil-calc').textContent=_gbp(Math.round(m*rate*100)/100);
+}
+async function saveMileage(){
+  const miles=Number(document.getElementById('mil-miles').value)||0;
+  if(miles<=0){ document.getElementById('milModalErr').textContent='Enter your miles.'; return; }
+  const btn=document.getElementById('milModalBtn'); btn.disabled=true; btn.textContent='Saving…';
+  try{
+    const r=await fetch('/api/expense?'+_acctAuth(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      kind:'mileage', miles:miles, date:document.getElementById('mil-date').value, notes:document.getElementById('mil-notes').value })});
+    const d=await r.json();
+    if(d.error){ document.getElementById('milModalErr').textContent=d.error; }
+    else{ haptic('light'); closeMileageModal(); loadAccounts(); }
+  }catch(e){ document.getElementById('milModalErr').textContent='Something went wrong.'; }
+  btn.disabled=false; btn.textContent='Save mileage';
+}
+
+async function scanReceipt(input){
+  const f=input.files&&input.files[0]; if(!f)return;
+  input.value='';
+  const sum=document.getElementById('acctSummary');
+  const prev=sum.innerHTML;
+  sum.innerHTML='<div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;color:var(--t2);font-size:.82rem">Reading your receipt…</div>';
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    try{
+      const r=await fetch('/api/expense/scan?'+_acctAuth(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ image:reader.result, imageType:f.type||'image/jpeg' })});
+      const d=await r.json();
+      if(acctData)renderAccountsSummary(acctData.summary); else sum.innerHTML=prev;
+      if(d.error){ openExpenseModal({_scan:true}); document.getElementById('expModalErr').textContent=d.error; return; }
+      openExpenseModal({amount:d.amount,date:d.date,supplier:d.supplier,category:d.category,vat:d.vat,_scan:true});
+    }catch(e){ if(acctData)renderAccountsSummary(acctData.summary); else sum.innerHTML=prev; openExpenseModal({_scan:true}); }
+  };
+  reader.onerror=()=>{ if(acctData)renderAccountsSummary(acctData.summary); else sum.innerHTML=prev; };
+  reader.readAsDataURL(f);
+}
+
+async function deleteExpense(id){
+  if(!confirm('Delete this expense?'))return;
+  try{
+    await fetch('/api/expense/delete?'+_acctAuth(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})});
+    haptic('light'); loadAccounts();
+  }catch(e){}
 }
 
 function animateListItems(container){
