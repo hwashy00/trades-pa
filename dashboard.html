@@ -3698,6 +3698,7 @@ async function hfTurn(text){
           const f=(ev.full||'').replace(/[*_#`>]/g,'').trim();
           if(typeof asstHistory!=='undefined'){ asstHistory.push({role:'assistant',content:f||full}); if(typeof asstAddBubble==='function') asstAddBubble('ai',f||full); }
           if(ev.actions&&ev.actions.length&&typeof asstRefreshStats==='function') asstRefreshStats();
+          if(ev.actions&&ev.actions.length&&typeof refreshApp==='function') refreshApp();
         } else if(ev.type==='error'){
           throw new Error(ev.error||'stream error');
         }
@@ -3723,6 +3724,7 @@ async function hfTurn(text){
       say=d.reply||d.error||"Sorry, I didn't catch that — say it again?";
       if(typeof asstHistory!=='undefined'){ asstHistory.push({role:'assistant',content:say}); if(typeof asstAddBubble==='function') asstAddBubble('ai',say); }
       if(d.actions&&d.actions.length&&typeof asstRefreshStats==='function') asstRefreshStats();
+      if(d.actions&&d.actions.length&&typeof refreshApp==='function') refreshApp();
     }catch(e2){ say="Sorry, I didn't catch that — say it again?"; }
     updateBubble(say); hfSet('speaking'); await hfSpeakChunked(say);
     if(hfState==='speaking') hfListen();
@@ -4423,7 +4425,7 @@ async function asstSend(preset){
     } else {
       asstHistory.push({role:'assistant',content:reply});
     }
-    if(d.actions&&d.actions.length){asstRefreshStats();refreshQuotes();}
+    if(d.actions&&d.actions.length){asstRefreshStats();refreshQuotes();if(typeof refreshApp==='function')refreshApp();}
   }catch(e){
     asstTyping(false);
     asstAddBubble('ai','Connection problem — try again in a moment.');
