@@ -150,7 +150,12 @@ def notify_owner(profile, message):
     """
     Send a notification to the tradesperson's own mobile.
     SMS-first so it works today without WhatsApp setup; never raises.
+    Also fires a web push to any installed PWA devices (best-effort).
     """
+    try:
+        send_web_push(profile.get("sender", ""), message)
+    except Exception as e:
+        print("notify_owner push error:", e)
     try:
         owner_mobile = profile.get("phone", "")
         biz_from = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER", "")
@@ -4337,6 +4342,129 @@ def tts():
     except Exception as e:
         print("TTS error:", e)
         return jsonify({"error": str(e)}), 500
+
+
+
+# ───────────────────────── PWA + WEB PUSH ─────────────────────────
+PWA_ICON_180 = "iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAAH1ElEQVR42u2d2XLUVhqAtS9tO16xMdjGe9vs4AWeYWreYG6nah5iXmAqt3mK3OUyzxBMIAkBbIwN2EBYbAy2W71JmoupmapkIJjzS+qW+vuuKKrkPpI+/f/ROec/0s99/y8N4GMYXAJADkAOQA5ADkAOQA5ADkAOQA5ADgDkAOQA5ADkAOQA5ADkAOQA5ADkAEAOQA5ADkAOQA5ADkAOQA5ADkAOAOQA5ADkAOQA5ADkAOQA5ADkAOQA5ABADjg5Vlu1pvbw2dtvvlM+3Ls8PfiPv7aw/W++/rb+9JXy4cP//Jt9ZpDI8XHc8rjZ163u1q9PouNqqxrffH0gMcMeH24rM9ovreh6aXVB+eg4jIIfH7Wq7ZUfHkoOL91cpM+R7jUS3iEJwa119YfCNErL88jxuU7QSL9zbkT58PrWy+bb99k3u74t+l33wqTR7SPHCYLHjcVWPcGCiLXewlPuIDn85XndMtXvU/ZyRKK+jtHleRcnkePEF+uC+sVqvnoneWtQoHr/aXQUqD8MS6KHobPkkHdLg2y7pYXMKe0rh7CDVrm9oUVRNk2Na43qz1uiDvjkCHJk92oXHQbVBzsZvcHe2YwbzeKFDa2d51bE7ywZZZaK5Id0vbRaRo4vxp4YtkfVh5ODnx7HtUbajQzfH9c2dtWzZ3nM7O9Bjqy7pXG9Gfz0OPWcsrahRXEhc0q7y+GvlDVDF7xEpJ5ZJDlFd23/6ixyKGL2dnnlCeXDa+s70WElveY1f9tv7LxRV//arO5YyNGiAY8orqxttO/wxs3FNr/47S6Hd2Va95x2zCyxVllTl8Mc6HFnx5BDNuBhW/71OeXDG89eN1+9S6Nh9a0X4d4H9bCxuqDpGnJI6brRjis8pEt7biy2/5XPgRzOzBlrqFfwQrGuxQk3KW6GwZ1N9TOaHrWG+5AjkdSi+YK1g+Heh/rWi2RbVLv/VLJYNRdhQ8tLaULphihDJ55ZJH9Qt0x/aQ45EsMa6nVmzigfHtzZjJthUo2Jgnr13rb6+9flacN3kSPZ4KEeiqPjau3XJ0m1pHp3M26ELTkR5PjENb0+p9vq44nCAaukcorRU/LOTyBH0r1Sz/GuTKs/7ve2o6Aub0Z4cFR79FwwvFHWDAM5UggekknaZhjcSaDeKVjb0OLCTsPmWA6vPGH2dqnf1yTeWSQ5xT47ZJ8dQo6UGqv7K+rrpmqbz8N3h5Lfb7zYazx/25LIhxwpX99Yq9wSTdKKlh4aRmmljBwpYo8O2uPDrbm7sSZZAOCdnzB6SsjRvsFDkhdqm7vhvnpWyldXNLdyLM/rpnqzlXuUgWCkxPBd7/I0cqTf4m7fFRRLqr2LCqdhhdW/yJFRiA4PjhSKCar3tqOgJmjwQh6vcy7l8C5OGl1elplFklOs4T5nahQ5MkK3TF9QLBncffxFBYxRUKsK5u3y2BXNsRyappVWBUPp1foXlT4Htx+pz/jrmmSXM+RQwZkcsU4PCDLLF6QJyVZB7tyYOdCDHNl3S9WfyNqDk263Eu4f1h4LpmFzm1NyLsfqgqYrLh6Mwyi4faJJWsn6ZN2x/WuzyNECzL5ut6xeF3TCMldJTvGvzuiujRz5G/Cob//22c0hG7tvGi/31Jt3czHXlzffcvhXZyXFkp9d4SFZXGj297jzY8jRugEPx/Kvzggyy5/e+zgObqtPw5ZWy8pdIuRIKLMIQnfz9UH9ySc3paxt7IYHR535nlIQOdzZMXPwK/XM8uluqWRFoDN52hrpR46WpxbREGRl7eObUsaNMLirvmtU3ruiRZFDNhoWHQXVB8/+//+rv2zFVcVSBt0yJdtGIEeSWKf6nGn1ac+Ppg9JTvEuTkkmjZEj8eChHsarP2/9YVPK6Lhau/+0w3NKceTwl+Z0W3GpVVxvBnd/t8or+PFRHCrujm10+96Fc8jRTqfhu94l9UWafxjskuSU0kqeCh47Qg5hMK9t7ITvj//z73DvQ33rZScPbxRQDm/xnPmVamFIFAf/rUmRfMvHPjNoj59CjjY8FVGx5P8maUU5pUBhQyvYF6kl96ax86b5cl+0NaXMznYcIyjSydhnh+yxU41dxS2nK7cexnX1L6d4i6JNAJAjg+Cx8F5djnWt2RH7OXViWtE0rbSyoPwmGe4fhh8UN9I3fMe7PIMc7X0+Pb53vgVjUP71eeVROOTIMHi0YvS6MEPmBZfDuzRllDLd6NMa6pXM/CFHduiW6S/NZ/mLxeuKFlaOrO+Wntci+g6Vw5k6ndlnCdyZs5J1ishR5OBRyK5o0eXI5FNIumPluuCxQ+UwB7KoKfKvzEiqqpCjhcEj9YBf1PeU4svhX5vVnRTrmM2+bndhHDlyie6muwNCAQoeO1cOLeVt/DJIW8iRIu78mNmfyq5LzsSwNTqAHLlOLXpK+7UVeHijY+RI5y7qpuEvl5Ej91jDfc7k6YSzVVEKHjtdjjSCR1dBZ9o6UQ5/Kcl96Y0uz704hRxFOcmS611K7Hb6y2XJNz3ylJG1zmDg73/RgMgByAHIAcgByAHIAcgByAHIAYAcgByAHIAcgByAHIAcgByAHIAcAMgByAHIAcgByAHIAcgByAHIAcgByAGAHIAcgByAHIAcgByAHIAcgByAHADIAcgByAHIAcgByAHIAcgByAHIAYAcgByAHIAckCH/BptyTpHC1QUKAAAAAElFTkSuQmCC"
+PWA_ICON_192 = "iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAIJElEQVR42u2dWVoc1xWAax66wSBAgBCi1UzdWEhGZrDWkOcsIRvIEvLmt+whz1mA12CQTTxggxBIwpLRZCEsdXX1UJWHDJ/i2BZwaq7/f4MPbk1/3XPuPbeq1NpnnyoAF0XjFAACAQIBAgECASAQIBAgECAQAAIBAgECAQIBIBAgECAQIBAAAgECAQIBAgECASAQIBAgECAQAAIBAgECAQIBIBAgECAQIBAAAgECAQIBAgECASAQIBAgECAQAAIBAgECQeExsrlbnf0nz//6d2Ejl//8R2t+KvVj6T07efqXvwkbGfnTH9zb8/RAZ8WamzLGhoSNtDa/z8KxyHdDq9jOzToh7DyoirvRFLbhfXEv7PVTPxTv811hC+7qomroCHQ+Kp80FVXUQtDy/W8fpByLD497L16LT8USSfT5s7OxIWtWmsG0xHd/6vHLGB+26pMIdKE77470zmt/cxh4fmoHEATe3XsF7n4yL9DHC6opGieGvb735X5a+9/eeRS88YS5YEWcC5ZXINWxnFuzqeewKcYve2FaHxlEoDSjmL//Q//Vz8nveeh3218dFDt+5UAgpzmjD1VlV1Jpbe6lMHr/x/2w0xN1wJaRzcnDPAmkaKq73pBeyzRmFFufSzfqrsyrtolA4igm7sa7T152H79IdPj1c8vfPSp8/MqHQObUqHntcur9wfk2t7WnBKGkBX14wG5MI1BWOiFva08Jw8R22BP7WtloKqqKQBEJtN5QNNGu9k/e+HuPk9nb3tNXnUfPxPdMMxeXJh8CaQOuc6MmDStJpdKtTenMk1WbMCZHEChbUay9vR92kyjOe2KB8tL95Ekg52Zdq9iikZHXaX99EPd+dg5/FJbfVV1z1xoIFDGqoburi6kHlzMM96SbcJbrWtVBoCxGMf/bB8Hbdoy7GATeF/LyezNHFyVPAln1SWN8WNJC2I/gAv9emrXzUFh+16qOvVxHoOx2QrHOKMrjl7vWUHUNgWITaEO6zrVz+GP/5Wkc+xb6XXmSLl99gEC/hz4yaC/IJvjDuFJpb3tfWH43JkesmXEEKmkUk8evXFRPcy+Qe3tetUSLHHpPX3XFpYZf0D9t+Xuy8ruqVjYaCBQ7qm26K3NZ64S8rV1h+d1uXNOHBxAokSgmzjS9u9LlFr80skzli9wLZC9O65dES837pxEs+IowJqq26a7MI1BiYSyCdCHCKBbB6tXb86plIFCexmLyRe/vJEDSRfu5m/7JvUDGxCXr+oSkhUgeu1EUpXMgLb/rI4P2/DQCJd4JbWRiQqgVzepVBYGSxl2TvvSk/Z300eNIqrN5nD8sgkBa1XGWr4uaCIKWLH3xdx4K14dY9SvCJQYIlGoqLZu/iWD6585Sri9BvgWyb1zXBlxRCvzguPf85ILxq90RpuGqoburCwiUGqquVdbE61wvWgT1tu+HXdFEgHNrVnNtBCppFJM/J5TT8kWhBDJnxs0ro5IWes9POg+Oz/tf/ddv/d0fRKd+0HU+rCFQFjoh6X18gSgmf1a6siZ93BaBosHdaCqaaCbOu7unBAHjr5IKpA9V7cY1SQvBG6+98+gcUe/pq+6RqPxuTo2a05cRqDip9Lky4gjKF4XofoojkLsypzqWpIX2Vweh3z3Tn8qX5Wuqu95EoAyhmtLXCYadnrd9phcCyx8McpZm9A8qCJSxKHZHXpzfPdufyad/lgpz2osjkD13VR/9QNKCv3fUP229p6MSl98113JuzSFQBsOYeEIoCL2t93RC8tczuLcXVFNHoIKOxd4XxZj+KbJAxtiQNXtF0kL36Fnv+KffjF/tTvvrQ+kezk0hUKE7od/uY+Tl9wJUTwsukLu6KMwwWpu7ShjP+CuKzzAiUMzHIx7j9F+edg6e/MrvX7/190Tl90g+BItACUQxeXH+V3oab2tXWH6vfrJUvLNdQIGcpZpwntf7cv//v9YrHH+ppuF+vIBAuTgm6Qd+grdtf+fhu7/pHf/UPXou0vqjWWG1DoFyNRb73yhWzpdHlVcg8+qYeXVM0kL7m8PA6/z7h1BpbYkE0oeqTnMGgXLVCckmfMNuv/2f4nzn4Imw/O6uN4RrJhEocYHWm8IVx/+NYpTfyyiQNug6H4qihn/vcf/kTdgPhB8ON69dNqdGEah8qXQYepu78vJ7gbsfRVGMAh/bv577DDz/4lFsc9eYuCS7Q7XKWqPAJ7nIPZD8yfPu4xfe9n2RxDdq2qCLQGWNYopy3ufFShW/ii+QNZvm23e0iu3crCNQ6Tuhi+KuSt+hhkAZECi9NxAWPn6VQqC03oFqjA9b9UkEKkYUa6ax0aUynNtSCJTCe+BVpVK41avlFUh1LPejRJ/lsxem9ZFBBCpQFEv2aaySxK8SCZTk17hUyxS+6QGBMhjGkvseoLsyp9omAhVvLLZUsA0hUKIk801kfXjAbkwjEKn0RTex0VRUFYGKibvWUPV4D7l4T78j0DtHW3Xs5RjL41ZtwpgcQaAiU42zhyhV+lxSgezlulZ1YpkoMHRX/OUXBMo6qq658SxSdm5cj0lNBMrYWCyeKFa29Lm8Alm1CeNKxKmuNuDGmp4jUMY6oY2Is113dTHuCYKMpgS1zz5VAOiBAIEAgQCBABAIEAgQCBAIAIEAgQCBAIEAEAgQCBAIEAgAgQCBAIEAgQCBABAIEAgQCBAIAIEAgQCBAIEAEAgQCBAIEAgAgQCBAIEAgQCBABAIEAgQCBAIAIEAgQCBAIEAEAgQCBAIEAgAgQCBAIEAgQCBABAIEAhyyD8BL1504PrO3SAAAAAASUVORK5CYII="
+PWA_ICON_512 = "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"
+
+
+def _png_response(b64):
+    import base64 as _b64
+    return Response(_b64.b64decode(b64), mimetype="image/png",
+                    headers={"Cache-Control": "public, max-age=604800"})
+
+
+@app.route("/icons/icon-180.png")
+def _icon_180():
+    return _png_response(PWA_ICON_180)
+
+
+@app.route("/icons/icon-192.png")
+def _icon_192():
+    return _png_response(PWA_ICON_192)
+
+
+@app.route("/icons/icon-512.png")
+def _icon_512():
+    return _png_response(PWA_ICON_512)
+
+
+@app.route("/manifest.webmanifest")
+def web_manifest():
+    m = {
+        "name": "VanOffice", "short_name": "VanOffice",
+        "description": "Your van office \u2014 quotes, invoices, diary and enquiries.",
+        "start_url": "/dashboard", "scope": "/",
+        "display": "standalone", "orientation": "portrait",
+        "background_color": "#0b0c0e", "theme_color": "#0b0c0e",
+        "icons": [
+            {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+            {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+        ]
+    }
+    return Response(json.dumps(m), mimetype="application/manifest+json",
+                    headers={"Cache-Control": "no-cache"})
+
+
+_SERVICE_WORKER_JS = "self.addEventListener('install', function(e){ self.skipWaiting(); });\nself.addEventListener('activate', function(e){ e.waitUntil(self.clients.claim()); });\nself.addEventListener('push', function(e){\n  var d={title:'VanOffice', body:'You have a new notification', url:'/dashboard'};\n  try{ if(e.data){ d=Object.assign(d, e.data.json()); } }catch(_){ try{ if(e.data) d.body=e.data.text(); }catch(__){} }\n  e.waitUntil(self.registration.showNotification(d.title,{\n    body:d.body, icon:'/icons/icon-192.png', badge:'/icons/icon-192.png',\n    data:{url:d.url||'/dashboard'}, vibrate:[60,30,60]\n  }));\n});\nself.addEventListener('notificationclick', function(e){\n  e.notification.close();\n  var url=(e.notification.data&&e.notification.data.url)||'/dashboard';\n  e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(function(ws){\n    for(var i=0;i<ws.length;i++){ if(ws[i].url.indexOf('/dashboard')>-1 && 'focus' in ws[i]) return ws[i].focus(); }\n    if(clients.openWindow) return clients.openWindow(url);\n  }));\n});\n"
+
+
+@app.route("/sw.js")
+def service_worker():
+    return Response(_SERVICE_WORKER_JS, mimetype="application/javascript",
+                    headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
+
+
+@app.route("/api/push/public-key")
+def push_public_key():
+    return jsonify({"key": os.environ.get("VAPID_PUBLIC_KEY", "")})
+
+
+@app.route("/api/push/subscribe", methods=["POST"])
+def push_subscribe():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        sender = result.data[0].get("sender", "")
+        sub = request.json or {}
+        endpoint = sub.get("endpoint") or ""
+        if not endpoint:
+            return jsonify({"error": "No subscription"}), 400
+        existing = (supabase.table("push_subscriptions").select("id")
+                    .eq("sender", sender).eq("endpoint", endpoint).limit(1).execute().data or [])
+        row = {"sender": sender, "endpoint": endpoint, "subscription": sub}
+        if existing:
+            supabase.table("push_subscriptions").update(row).eq("id", existing[0]["id"]).execute()
+        else:
+            supabase.table("push_subscriptions").insert(row).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        print("push_subscribe error:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+def send_web_push(sender, message, title="VanOffice"):
+    """Best-effort web push to the owner's installed devices. Never raises."""
+    pub = os.environ.get("VAPID_PUBLIC_KEY", "")
+    priv = os.environ.get("VAPID_PRIVATE_KEY", "")
+    subj = os.environ.get("VAPID_SUBJECT", "mailto:hello@vanoffice.app")
+    if not pub or not priv or not sender:
+        return
+    try:
+        from pywebpush import webpush, WebPushException
+    except Exception as e:
+        print("pywebpush not installed:", e)
+        return
+    try:
+        subs = supabase.table("push_subscriptions").select("*").eq("sender", sender).execute().data or []
+    except Exception as e:
+        print("push subs lookup:", e)
+        return
+    payload = json.dumps({"title": title, "body": message, "url": "/dashboard"})
+    for s in subs:
+        sub = s.get("subscription")
+        if not sub:
+            continue
+        try:
+            webpush(subscription_info=sub, data=payload,
+                    vapid_private_key=priv, vapid_claims={"sub": subj})
+        except WebPushException as we:
+            code = getattr(getattr(we, "response", None), "status_code", None)
+            if code in (404, 410):
+                try:
+                    supabase.table("push_subscriptions").delete().eq("id", s["id"]).execute()
+                except Exception:
+                    pass
+            else:
+                print("webpush error:", we)
+        except Exception as e:
+            print("webpush error:", e)
 
 
 if __name__ == "__main__":
