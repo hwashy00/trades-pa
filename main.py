@@ -1859,6 +1859,24 @@ def serve_pdf(quote_id):
         return "Error generating PDF: " + str(e), 500
 
 
+@app.route("/invoice-view/<invoice_id>")
+def invoice_view(invoice_id):
+    try:
+        inv_result = supabase.table("invoices").select("*").eq("id", invoice_id).execute()
+        if not inv_result.data:
+            return "Invoice not found", 404
+        invoice = inv_result.data[0]
+        profile_result = supabase.table("profiles").select("*").eq("sender", invoice["sender"]).execute()
+        profile = profile_result.data[0] if profile_result.data else {}
+        template_result = supabase.table("quote_templates").select("*").eq("sender", invoice["sender"]).execute()
+        template = template_result.data[0] if template_result.data else None
+        html = build_quote_html(invoice, profile, template, is_invoice=True)
+        return Response(html, mimetype="text/html")
+    except Exception as e:
+        print("Invoice view error: " + str(e))
+        return "Error generating invoice: " + str(e), 500
+
+
 @app.route("/generate-invoice-pdf/<invoice_id>")
 def serve_invoice_pdf(invoice_id):
     try:
