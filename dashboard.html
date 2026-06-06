@@ -4023,6 +4023,15 @@ function loadInbox(silent){
     empty.style.display='none';
     inboxConvs.forEach(c=>list.appendChild(renderConvRow(c)));
     updateInboxBadge();
+    // one-time per session: fill in names for threads still showing a bare number
+    if(!window._contactSyncDone){
+      window._contactSyncDone=true;
+      const anyUnnamed=inboxConvs.some(c=>(c.client_name||'')===(c.client_number||''));
+      if(anyUnnamed){
+        fetch('/api/backfill-contacts?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST'})
+          .then(r=>r.json()).then(res=>{ if(res&&res.filled>0) loadInbox(true); }).catch(()=>{});
+      }
+    }
     const sv=document.getElementById('inboxSearch'); if(sv&&sv.value) filterInbox(sv.value);
   }).catch(e=>console.warn('inbox',e));
 }
