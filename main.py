@@ -3065,6 +3065,190 @@ def assistant():
         return jsonify({"error": str(e)}), 500
 
 
+import re as _re_sent
+# Boundary = sentence punctuation followed by real whitespace/closing mark, or a newline.
+# Note: no end-of-string ($) match — mid-stream the buffer end just means "more is coming",
+# so we only split on a confirmed whitespace boundary and flush the tail on force.
+_SENT_BOUNDARY = _re_sent.compile(r'[.!?\u2026](?=[\s"\'\)\]])|\n')
+_ABBREV = {"mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "no", "vs", "etc",
+           "eg", "ie", "approx", "dept", "co", "ltd", "inc", "rd", "ave", "min", "max", "ft"}
+
+
+def _clean_for_speech(s):
+    """Strip markdown so the spoken sentence reads cleanly. Keep £ and numbers."""
+    s = s.replace("**", "").replace("__", "")
+    s = _re_sent.sub(r'[*_#`>]', '', s)
+    s = _re_sent.sub(r'\s+', ' ', s).strip()
+    return s
+
+
+def _pop_sentences(buf, force=False, max_len=220):
+    """Pull complete sentences out of a growing buffer for fast TTS.
+    Returns (list_of_sentences, remainder). Skips abbreviation/decimal periods
+    (so 'Mrs. Patel' and '£3.50' aren't chopped). On a long run-on with no
+    punctuation, flushes at a word break so speech can start promptly."""
+    out = []
+    last_cut = 0
+    search_from = 0
+    while True:
+        m = _SENT_BOUNDARY.search(buf, search_from)
+        if not m:
+            break
+        start, end = m.start(), m.end()
+        if buf[start] == '.':
+            # word immediately before the dot
+            k = start - 1
+            while k >= 0 and buf[k].isalpha():
+                k -= 1
+            word = buf[k + 1:start].lower()
+            prev = buf[start - 1] if start > 0 else ''
+            if word in _ABBREV or prev.isdigit():   # abbreviation or decimal/number → not a real stop
+                search_from = end
+                continue
+        sent = buf[last_cut:end].strip()
+        if sent:
+            out.append(sent)
+        last_cut = end
+        search_from = end
+    buf = buf[last_cut:].lstrip()
+    if len(buf) > max_len:
+        cut = buf.rfind(' ', 0, max_len)
+        if cut > 40:
+            out.append(buf[:cut].strip())
+            buf = buf[cut:].lstrip()
+    if force and buf.strip():
+        out.append(buf.strip())
+        buf = ''
+    return out, buf
+
+
+@app.route("/api/assistant_stream", methods=["POST"])
+def assistant_stream():
+    """Streaming sibling of /api/assistant for the hands-free voice loop.
+    Streams the reply as newline-delimited JSON events so the client can fire
+    each sentence to TTS the moment its boundary lands, instead of waiting for
+    the whole reply. Event shapes:
+      {"type":"status","value":"thinking"}
+      {"type":"sentence","text":"..."}
+      {"type":"done","actions":[...],"usage":{...},"full":"..."}
+      {"type":"error","error":"..."}
+    Tool calls run exactly as in /api/assistant (propose-and-approve, usage
+    metering, etc. all unchanged)."""
+    # Auth + profile up front so failures return a clean HTTP error, not a stream.
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+        data = request.json or {}
+        user_msg = (data.get("message") or "").strip()
+        history = data.get("history", [])
+        if not user_msg:
+            return jsonify({"error": "No message"}), 400
+    except Exception as e:
+        print("Assistant stream auth error:", e)
+        return jsonify({"error": str(e)}), 500
+
+    biz = profile.get("business_name") or profile.get("owner_name") or "the business"
+    trade = profile.get("trade", "tradesperson")
+    today = datetime.datetime.now().strftime("%A %d %B %Y")
+    system_prompt = (
+        "You are the personal assistant for " + biz + ", a " + trade + " business. "
+        "Today is " + today + ". You help them stay on top of admin hands-free while they work. "
+        "You can create quotes and invoices, check and add diary bookings, read enquiries, and mark invoices paid using your tools. "
+        "Be brief, warm and practical — like a sharp office manager. Confirm actions in one short sentence. "
+        "This reply will be spoken aloud, so keep it conversational and short, and don't narrate that you are about to use a tool — just use it and confirm the result. "
+        "If you need a key detail (like an amount or client name) ask one quick question rather than guessing. "
+        "Amounts are in pounds. "
+        "CRITICAL: To DO anything — create a quote or invoice, book a job, mark something paid — you MUST call the matching tool. "
+        "NEVER say you have created, saved, sent or booked something unless you have actually called the tool and seen its result. "
+        "When the user clearly asks for an action and you have enough detail, call the tool straight away rather than just describing what you will do. "
+        "When a quote is created, relay the materials and labour breakdown the tool returns. "
+        "Before creating a quote, if the job involves a material choice that affects price and the user has not said what they will use, ask which materials first. "
+        "MULTI-STEP REQUESTS: if the user asks for several things in one breath, carry out ALL the steps by calling the matching tools in sequence in the SAME turn, then give ONE short combined confirmation. "
+        "If one detail is missing for one step but the others are clear, do the steps you can and mention the one thing you still need."
+    )
+
+    messages = []
+    for h in history[-10:]:
+        if h.get("role") in ("user", "assistant") and h.get("content"):
+            messages.append({"role": h["role"], "content": h["content"]})
+    messages.append({"role": "user", "content": user_msg})
+
+    def _ev(obj):
+        return json.dumps(obj) + "\n"
+
+    def generate():
+        actions = []
+        full_text = ""
+        buf = ""
+        try:
+            yield _ev({"type": "status", "value": "thinking"})
+            for _ in range(6):
+                with client.messages.stream(
+                    model="claude-sonnet-4-5", max_tokens=2048,
+                    system=system_prompt, tools=ASSISTANT_TOOLS, messages=messages
+                ) as stream:
+                    for text in stream.text_stream:
+                        full_text += text
+                        buf += text
+                        sents, buf = _pop_sentences(buf)
+                        for s in sents:
+                            cs = _clean_for_speech(s)
+                            if cs:
+                                yield _ev({"type": "sentence", "text": cs})
+                    final = stream.get_final_message()
+
+                if final.stop_reason == "tool_use":
+                    # Flush any spoken preamble before the tool runs.
+                    sents, buf = _pop_sentences(buf, force=True)
+                    for s in sents:
+                        cs = _clean_for_speech(s)
+                        if cs:
+                            yield _ev({"type": "sentence", "text": cs})
+                    buf = ""
+                    messages.append({"role": "assistant", "content": final.content})
+                    tool_results = []
+                    for block in final.content:
+                        if block.type == "tool_use":
+                            out = _assistant_execute_tool(block.name, block.input, profile)
+                            actions.append(block.name)
+                            tool_results.append({
+                                "type": "tool_result", "tool_use_id": block.id, "content": out
+                            })
+                    messages.append({"role": "user", "content": tool_results})
+                    yield _ev({"type": "status", "value": "thinking"})
+                    continue
+                else:
+                    sents, buf = _pop_sentences(buf, force=True)
+                    for s in sents:
+                        cs = _clean_for_speech(s)
+                        if cs:
+                            yield _ev({"type": "sentence", "text": cs})
+                    break
+
+            try:
+                track_usage(sender, "text")
+            except Exception:
+                pass
+            usage = {}
+            try:
+                usage = get_usage_summary(sender)
+            except Exception:
+                pass
+            yield _ev({"type": "done", "actions": actions, "usage": usage, "full": full_text})
+        except Exception as e:
+            print("Assistant stream error:", e)
+            yield _ev({"type": "error", "error": str(e)})
+
+    return Response(generate(), mimetype="application/x-ndjson",
+                    headers={"Cache-Control": "no-cache",
+                             "X-Accel-Buffering": "no"})
+
+
 def _normalise_job_type(text):
     """Reduce a free-text job description to a stable key for pricing memory."""
     if not text:
