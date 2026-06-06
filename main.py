@@ -3904,6 +3904,72 @@ def reply_client():
         print("reply error:", repr(e)); print(traceback.format_exc()); return jsonify({"ok":False,"error":str(e)}),200
 
 
+@app.route("/api/backfill-contacts", methods=["POST"])
+def backfill_contacts():
+    """One-off: read existing client threads and pull out any name the client
+    already stated, so the inbox shows names for past conversations too."""
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        owner_sender = profile.get("sender", "")
+        twilio_num = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER", "")
+
+        msgs = (supabase.table("client_chats").select("*")
+                .eq("twilio_number", twilio_num).order("created_at")
+                .limit(800).execute().data or [])
+        # group inbound text per client number
+        threads = {}
+        for m in msgs:
+            if m.get("direction") != "inbound":
+                continue
+            cn = m.get("client_number", "")
+            if not cn:
+                continue
+            threads.setdefault(cn, []).append((m.get("message", "") or "")[:300])
+
+        # only the ones we don't already have a name for
+        unnamed = [(cn, txt) for cn, txt in threads.items() if not contact_name_for(owner_sender, cn)]
+        unnamed = unnamed[:40]
+        if not unnamed:
+            return jsonify({"filled": 0, "unnamed": 0})
+
+        blocks = []
+        for i, (cn, txts) in enumerate(unnamed):
+            joined = " | ".join(txts[:6])[:600]
+            blocks.append(str(i) + ": " + joined)
+        prompt = (
+            "Each line below is one customer's text messages to a tradesperson, numbered. "
+            "If the customer clearly states their own name, return it. Ignore other people's names "
+            "and place names. Return ONLY a JSON array like [{\"i\":0,\"name\":\"Dave Smith\"}], "
+            "including only lines where you are confident of the customer's name.\n\n" + "\n".join(blocks)
+        )
+        filled = 0
+        try:
+            r = client.messages.create(model="claude-sonnet-4-5", max_tokens=600,
+                                       messages=[{"role": "user", "content": prompt}])
+            raw = "".join(b.text for b in r.content if getattr(b, "type", "") == "text").strip()
+            raw = raw.replace("```json", "").replace("```", "").strip()
+            start, end = raw.find("["), raw.rfind("]")
+            if start != -1 and end != -1:
+                arr = json.loads(raw[start:end + 1])
+                for item in arr:
+                    idx = item.get("i")
+                    nm = (item.get("name") or "").strip()
+                    if isinstance(idx, int) and 0 <= idx < len(unnamed) and nm:
+                        upsert_contact(owner_sender, unnamed[idx][0], nm)
+                        filled += 1
+        except Exception as le:
+            print("backfill LLM error:", le)
+        return jsonify({"filled": filled, "unnamed": len(unnamed)})
+    except Exception as e:
+        print("backfill_contacts error:", e)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/check-phone", methods=["GET"])
 def check_phone():
     try:
