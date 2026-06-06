@@ -2627,6 +2627,19 @@ ASSISTANT_TOOLS = [
         }
     },
     {
+        "name": "add_quote_extra",
+        "description": "Add an agreed EXTRA (variation) to a client's existing saved quote — e.g. 'add an extra socket for £45 to Dave's quote', 'put £120 of extra tiling on the Patel job', 'stick another day's labour on the Smith quote at £220'. Finds the most recent quote for that client, adds the extra as a line item and increases the quote total. Use this whenever the user wants to add work or cost to a quote that ALREADY exists, rather than creating a new quote.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "client_name": {"type": "string", "description": "Client whose quote to add the extra to"},
+                "description": {"type": "string", "description": "What the extra is, e.g. 'fit additional socket'"},
+                "amount": {"type": "string", "description": "Cost of the extra in pounds, digits only e.g. '45'"}
+            },
+            "required": ["client_name", "description", "amount"]
+        }
+    },
+    {
         "name": "find_quote",
         "description": "Look up a quote the user has ALREADY created, by client name. Use this whenever the user refers to a job or client as if you should already know it — e.g. 'won the Smith job', 'book in Dave's job', 'how much was the Patel quote'. Returns the saved quote's client, job description and value so you don't make the user repeat details. Omit client_name to list the most recent quotes.",
         "input_schema": {
@@ -2916,6 +2929,28 @@ def _assistant_execute_tool(name, ti, profile):
                              str(r.get("total", "0")) +
                              (" (" + r.get("quote_number", "") + ")" if r.get("quote_number") else ""))
             return "Matching quotes:\n" + "\n".join(lines)
+
+        if name == "add_quote_extra":
+            cn = (ti.get("client_name", "") or "").strip()
+            desc = ti.get("description", "") or "Extra"
+            amount = ti.get("amount", 0)
+            rows = []
+            if cn:
+                rows = (supabase.table("quotes").select("*").eq("sender", sender)
+                        .ilike("client_name", "%" + cn + "%")
+                        .order("created_at", desc=True).limit(1).execute().data or [])
+                if not rows and cn.split():
+                    rows = (supabase.table("quotes").select("*").eq("sender", sender)
+                            .ilike("client_name", "%" + cn.split()[0] + "%")
+                            .order("created_at", desc=True).limit(1).execute().data or [])
+            if not rows:
+                return "No saved quote found for " + (cn or "that client") + " to add an extra to. Want me to create a new quote instead?"
+            q, err = _apply_quote_extra(sender, rows[0]["id"], desc, amount)
+            if err:
+                return err
+            return ("Added \u201c" + desc + "\u201d (\u00a3" + _num_str(amount) + ") to " +
+                    (q.get("client_name", "") or "the") + "'s quote. New total \u00a3" + str(q.get("total", "")) +
+                    (" (" + q.get("quote_number", "") + ")" if q.get("quote_number") else "") + ".")
 
         if name == "list_enquiries":
             q = supabase.table("enquiries").select("*").eq("sender", sender).order("created_at", desc=True).limit(10)
@@ -4718,6 +4753,58 @@ def expenses_list():
         "mileage_rate": MILEAGE_RATE
     }
     return jsonify({"expenses": rows, "summary": summary, "categories": EXPENSE_CATEGORIES})
+
+
+
+# ───────────────────────── QUOTE EXTRAS (variations on an existing quote) ─────────────────────────
+def _num_str(x):
+    try:
+        x = round(float(str(x).replace("\u00a3", "").replace(",", "").strip()), 2)
+    except Exception:
+        return "0"
+    return str(int(x)) if x == int(x) else ("%.2f" % x)
+
+
+def _apply_quote_extra(sender, quote_id, description, amount):
+    """Append an agreed extra to an existing quote and bump its total. Returns (quote, error)."""
+    try:
+        amt = float(str(amount).replace("\u00a3", "").replace(",", "").strip() or 0)
+    except Exception:
+        amt = 0.0
+    if amt <= 0:
+        return None, "I need an amount for the extra."
+    rows = (supabase.table("quotes").select("*").eq("id", quote_id)
+            .eq("sender", sender).limit(1).execute().data or [])
+    if not rows:
+        return None, "Couldn't find that quote."
+    q = rows[0]
+    items = q.get("line_items") or []
+    if not isinstance(items, list):
+        items = []
+    desc = (description or "Extra").strip()
+    disp = desc if desc.lower().startswith("extra") else ("Extra: " + desc)
+    items.append({"description": disp, "amount": _num_str(amt)})
+    old_total = float(str(q.get("total", "0")).replace("\u00a3", "").replace(",", "").strip() or 0)
+    old_sub = float(str(q.get("subtotal", q.get("total", "0"))).replace("\u00a3", "").replace(",", "").strip() or old_total)
+    new_total = _num_str(old_total + amt)
+    new_sub = _num_str(old_sub + amt)
+    supabase.table("quotes").update({"line_items": items, "total": new_total, "subtotal": new_sub}) \
+        .eq("id", quote_id).eq("sender", sender).execute()
+    q["line_items"], q["total"], q["subtotal"] = items, new_total, new_sub
+    return q, None
+
+
+@app.route("/api/quote/<quote_id>/add-extra", methods=["POST"])
+def quote_add_extra(quote_id):
+    profile = _expense_auth()
+    if not profile:
+        return jsonify({"error": "Unauthorised"}), 401
+    sender = profile.get("sender", "")
+    d = request.json or {}
+    q, err = _apply_quote_extra(sender, quote_id, d.get("description", ""), d.get("amount", 0))
+    if err:
+        return jsonify({"error": err}), 400
+    return jsonify({"ok": True, "quote": q})
 
 
 if __name__ == "__main__":
