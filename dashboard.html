@@ -83,6 +83,8 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .ib{width:38px;height:38px;border-radius:12px;background:var(--s1);border:1.5px solid var(--br);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1rem;position:relative;color:var(--t2);transition:background .15s,transform .1s var(--spring)}
 .ib:active{transform:scale(.96);background:var(--s4)}
 .ib svg{width:18px;height:18px}
+.ib.spin svg{animation:ibspin .7s linear infinite}
+@keyframes ibspin{to{transform:rotate(360deg)}}
 .ndot{width:7px;height:7px;background:var(--acc);border-radius:50%;position:absolute;top:5px;right:5px;border:2px solid var(--bg);display:none;box-shadow:0 0 6px var(--acc)}
 .av{width:38px;height:38px;border-radius:12px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Archivo',sans-serif;font-size:.78rem;font-weight:800;color:#04231a;cursor:pointer;box-shadow:0 4px 14px -4px var(--acc-glow);transition:transform .1s var(--spring)}
 .av:active{transform:scale(.96)}
@@ -710,6 +712,8 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div class="topbar">
         <div class="topbar-logo">Van<b>Office</b></div>
         <div class="topbar-right">
+          <button class="ib" onclick="go('calendar')" title="Diary" aria-label="Diary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:18px;height:18px;display:block"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke-linecap="round"/></svg></button>
+          <button class="ib" id="refreshBtn" onclick="refreshApp()" title="Refresh" aria-label="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:18px;height:18px;display:block"><path d="M20 11a8 8 0 1 0-.6 4" stroke-linecap="round"/><path d="M20 4v6h-6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:18px;height:18px;display:block"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6zM10 20a2 2 0 0 0 4 0" stroke-linejoin="round"/></svg><div class="ndot" id="notifDot"></div></button>
           <div class="av" id="avInit">H</div>
         </div>
@@ -1597,6 +1601,39 @@ function _launchApp(data){
   const _nav=document.querySelector('.nav');if(_nav){_nav.classList.add('slideup');}
   // Inbox: preload conversations for unread badge + start live polling
   try{ loadInbox(true); loadPending(); startInboxPolling(); }catch(e){ console.warn('inbox init',e); }
+}
+
+// Manual refresh — re-pull the dashboard data and re-render the lists/counters.
+// Deliberately does NOT re-run asstInit, template load, animations or inbox polling
+// (the inbox already updates itself), so it won't disturb an open chat.
+let _refreshing=false;
+async function refreshApp(){
+  if(_refreshing || !userPhone || !userPin) return;
+  _refreshing=true;
+  const btn=document.getElementById('refreshBtn'); if(btn) btn.classList.add('spin');
+  try{
+    const res=await fetch('/api/stats?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin));
+    const data=await res.json();
+    if(!data || data.error) throw new Error((data&&data.error)||'refresh failed');
+    allEnquiries=data.recent||[];
+    allBookings=data.bookings||[];
+    allInvoices=data.invoices||[];
+    allQuotes=data.quotes||[];
+    const safe=fn=>{try{fn();}catch(e){}};
+    safe(()=>updateStats(data));
+    safe(()=>renderRecent(allEnquiries));
+    safe(()=>renderUpcoming(allBookings));
+    safe(()=>renderJobs(allEnquiries,'all'));
+    safe(()=>renderQuotes(allEnquiries));
+    safe(()=>renderBookings(allBookings));
+    safe(()=>renderInvoices(allInvoices,'all'));
+    safe(()=>renderQuotesList(allQuotes));
+    safe(()=>renderPulse());
+    safe(()=>renderCal());
+    const nd=document.getElementById('notifDot'); if(nd) nd.style.display=(data.missed>0)?'block':'none';
+    if(navigator.vibrate) navigator.vibrate(6);
+  }catch(e){ console.warn('refresh failed',e); }
+  finally{ _refreshing=false; if(btn) setTimeout(()=>btn.classList.remove('spin'),350); }
 }
 
 function doLogout(){
