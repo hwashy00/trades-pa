@@ -495,6 +495,8 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .asst-send{width:44px;height:44px;border-radius:13px;background:var(--acc);border:none;color:#04231a;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform .12s}
 .asst-send:active{transform:scale(.94)}
 .asst-mic svg,.asst-send svg{width:19px;height:19px}
+.asst-mic.rec{background:var(--acc);color:#04231a;border-color:var(--acc);animation:asstPulse 1.1s ease-in-out infinite}
+@keyframes asstPulse{0%,100%{box-shadow:0 0 0 0 rgba(31,184,136,.45)}50%{box-shadow:0 0 0 7px rgba(31,184,136,0)}}
 .asst-typing{align-self:flex-start;display:flex;gap:4px;padding:13px 15px;background:var(--s2);border:1px solid var(--br2);border-radius:16px;border-bottom-left-radius:5px}
 .asst-typing span{width:7px;height:7px;border-radius:50%;background:var(--t3);animation:asstdot 1.2s infinite}
 .asst-typing span:nth-child(2){animation-delay:.2s}
@@ -740,6 +742,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
           <input type="file" accept="image/*" onchange="asstHandlePhoto(this)" style="display:none">
         </label>
         <button class="asst-mic" onclick="hfOpen()" title="Hands-free voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg></button>
+        <button class="asst-mic" id="asstDictBtn" onclick="asstMicToggle()" title="Voice note → text (replies in text)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 9v6M9 5v14M13 8v8M17 6v12M21 10v4"/></svg></button>
         <textarea class="asst-ta" id="asstInput" rows="1" placeholder="Tell me what you need..." oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'" onkeydown="asstHandleEnter(event)"></textarea>
         <button class="asst-send" onclick="asstSend()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 12l16-8-6 16-3-7-7-1z" stroke-linejoin="round"/></svg></button>
       </div>
@@ -4449,6 +4452,86 @@ function asstClearPhoto(){
   asstPendingPhoto=null;
   var st=document.getElementById('asstPhotoStage'); if(st)st.style.display='none';
   var ta=document.getElementById('asstInput'); if(ta)ta.placeholder='Tell me what you need...';
+}
+
+/* ── VOICE NOTE → TEXT (dictation) ──
+   Record a voice note, transcribe it via Whisper (/api/stt), drop the text into
+   the composer for a quick glance, then you tap send and the assistant replies in
+   text as normal. No spoken reply — separate from the hands-free loop. */
+let asstRec=null, asstDictStream=null, asstDictChunks=[], asstDictMime='', asstRecording=false, asstDictCtx=null, asstDictRAF=null, asstDictHeard=false, asstDictSil=0, asstDictStart=0;
+function asstMicBtn(rec){
+  const b=document.getElementById('asstDictBtn'); if(b) b.classList.toggle('rec', rec);
+}
+function asstDictPlaceholder(t){ const ta=document.getElementById('asstInput'); if(ta) ta.placeholder=t; }
+async function asstMicToggle(){
+  if(asstRecording){ asstMicStop(); return; }
+  try{ if(!asstDictStream || !asstDictStream.active) asstDictStream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ asstDictPlaceholder('Allow mic access to dictate'); setTimeout(()=>asstDictPlaceholder('Tell me what you need...'),2500); return; }
+  asstDictMime = (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm')) ? 'audio/webm'
+              : (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/mp4')) ? 'audio/mp4' : '';
+  try{ asstRec = asstDictMime ? new MediaRecorder(asstDictStream,{mimeType:asstDictMime}) : new MediaRecorder(asstDictStream); }
+  catch(e){ try{ asstRec = new MediaRecorder(asstDictStream); }catch(e2){ asstDictPlaceholder('Recording not supported here'); setTimeout(()=>asstDictPlaceholder('Tell me what you need...'),2500); return; } }
+  if(!asstDictMime && asstRec.mimeType) asstDictMime = asstRec.mimeType;
+  asstDictChunks=[]; asstDictHeard=false; asstDictSil=0; asstDictStart=Date.now();
+  asstRec.ondataavailable = ev=>{ if(ev.data && ev.data.size>0) asstDictChunks.push(ev.data); };
+  asstRec.onstop = asstMicProcess;
+  try{ asstRec.start(); }catch(e){ return; }
+  asstRecording=true; asstMicBtn(true); asstDictPlaceholder('Listening\u2026 tap the mic to stop');
+  if(navigator.vibrate) navigator.vibrate(6);
+  asstDictVAD();
+}
+function asstDictVAD(){
+  // auto-stop after ~1.5s of silence once you've spoken; tap-to-stop and a 60s cap also apply
+  try{
+    if(!asstDictCtx) asstDictCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if(asstDictCtx.state==='suspended') asstDictCtx.resume();
+    const src=asstDictCtx.createMediaStreamSource(asstDictStream);
+    const an=asstDictCtx.createAnalyser(); an.fftSize=512; src.connect(an);
+    const buf=new Uint8Array(an.fftSize); const SIL=1500;
+    function tick(){
+      if(!asstRec || asstRec.state!=='recording'){ return; }
+      an.getByteTimeDomainData(buf);
+      let sum=0; for(let i=0;i<buf.length;i++){ const v=(buf[i]-128)/128; sum+=v*v; }
+      const rms=Math.sqrt(sum/buf.length); const now=Date.now();
+      if(rms>0.012){ asstDictHeard=true; asstDictSil=0; }
+      else if(asstDictHeard){ if(!asstDictSil) asstDictSil=now; else if(now-asstDictSil>SIL){ asstMicStop(); return; } }
+      if(now-asstDictStart>60000){ asstMicStop(); return; }
+      asstDictRAF=requestAnimationFrame(tick);
+    }
+    asstDictRAF=requestAnimationFrame(tick);
+  }catch(e){ setTimeout(()=>{ if(asstRecording) asstMicStop(); }, 60000); }
+}
+function asstMicStop(){
+  if(!asstRecording) return;
+  asstRecording=false;
+  if(asstDictRAF) cancelAnimationFrame(asstDictRAF);
+  if(asstRec && asstRec.state==='recording'){ try{ asstRec.stop(); }catch(e){} }
+  asstMicBtn(false); asstDictPlaceholder('Transcribing\u2026');
+  if(asstDictStream){ try{ asstDictStream.getTracks().forEach(t=>t.stop()); }catch(e){} asstDictStream=null; }
+  if(asstDictCtx && asstDictCtx.state==='running'){ try{ asstDictCtx.suspend(); }catch(e){} }
+}
+async function asstMicProcess(){
+  const dur=Date.now()-asstDictStart;
+  const ta=document.getElementById('asstInput');
+  if(!asstDictChunks.length || dur<400){ asstDictPlaceholder('Tell me what you need...'); return; }
+  const blob=new Blob(asstDictChunks,{type:asstDictMime||'audio/webm'});
+  const ext=(asstDictMime.indexOf('mp4')>=0 || asstDictMime.indexOf('mpeg')>=0) ? 'mp4' : 'webm';
+  const fd=new FormData(); fd.append('audio',blob,'note.'+ext);
+  let text='';
+  try{
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),20000);
+    const r=await fetch('/api/stt?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST',body:fd,signal:ctrl.signal});
+    clearTimeout(to);
+    if(r.ok){ const j=await r.json(); text=(j.text||'').trim(); }
+  }catch(e){}
+  asstDictPlaceholder('Tell me what you need...');
+  if(!text){ asstDictPlaceholder("Didn't catch that \u2014 try again"); setTimeout(()=>asstDictPlaceholder('Tell me what you need...'),2500); return; }
+  if(ta){
+    ta.value = ta.value.trim() ? (ta.value.replace(/\s+$/,'')+' '+text) : text;   // append if you'd already typed something
+    ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px';
+    ta.focus();
+  }
+  if(navigator.vibrate) navigator.vibrate(6);
 }
 
 function _money(n){return '£'+(Math.round(n)).toLocaleString('en-GB');}
