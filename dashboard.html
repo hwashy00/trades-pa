@@ -2216,7 +2216,7 @@ function _voNumberRow(tw){
 }
 function renderProfile(p){
   document.getElementById('profName').textContent=p.owner_name||'Unknown';
-  document.getElementById('profTrade').textContent=(p.trade||'Tradesperson')+' · Devon';
+  document.getElementById('profTrade').textContent=(p.trade||'Tradesperson')+(p.location?(' · '+p.location):'');
   document.getElementById('profAv').textContent=(p.owner_name||'?')[0].toUpperCase();
   if(p.logo){
     currentLogo=p.logo;
@@ -2227,6 +2227,7 @@ function renderProfile(p){
   document.getElementById('profDetails').innerHTML=`
     <div class="sg-row"><div class="sg-row-label">Business</div><input class="sg-val" id="p-business" value="${p.business_name||''}"></div>
     <div class="sg-row"><div class="sg-row-label">Trade</div><input class="sg-val" id="p-trade" value="${p.trade||''}"></div>
+    <div class="sg-row"><div class="sg-row-label">Area</div><input class="sg-val" id="p-location" value="${p.location||''}"></div>
     <div class="sg-row"><div class="sg-row-label">Your number</div><input class="sg-val" id="p-phone" value="${p.phone||''}"></div>
     ${_voNumberRow(p.twilio_number)}`;
   document.getElementById('profRates').innerHTML=`
@@ -2323,6 +2324,7 @@ async function saveProfile(){
       body:JSON.stringify({
         business_name:document.getElementById('p-business').value,
         trade:document.getElementById('p-trade').value,
+        location:document.getElementById('p-location').value,
         day_rate:document.getElementById('p-dayrate').value.replace('£','').replace(',','').trim(),
         half_day_rate:document.getElementById('p-halfday').value.replace('£','').replace(',','').trim(),
         hourly_rate:document.getElementById('p-hourly').value.replace('£','').replace(',','').trim(),
