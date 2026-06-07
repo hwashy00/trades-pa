@@ -2448,7 +2448,7 @@ def design_template():
         system = data.get("system", "")
         response = client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=1000,
+            max_tokens=3000,
             system=system,
             messages=messages
         )
