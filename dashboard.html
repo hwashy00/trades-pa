@@ -3108,6 +3108,7 @@ function clearPdfUpload(){
 
 function openPreview(){
   const modal = document.getElementById('previewModal');
+  if(modal.parentNode !== document.body) document.body.appendChild(modal);  // escape #app (hidden during onboarding)
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
