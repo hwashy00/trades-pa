@@ -4740,14 +4740,14 @@ function renderSetupWizard(profile){
 
   var sub=document.createElement('div');
   sub.style.cssText='font-size:.78rem;color:var(--t3);line-height:1.5';
-  sub.textContent='Your bot needs a number so customers can text you. A brand new number is the easiest option — no existing accounts affected.';
+  sub.textContent='We\u2019ll set you up with a dedicated number for your bot, so customers can text you for quotes and bookings. Your personal number and WhatsApp stay exactly as they are.';
   card.appendChild(sub);
 
   var steps=document.createElement('div');
   steps.className='setup-steps';
   [
-    ['1','Get a number','A new dedicated number is simplest. Or a number not already on WhatsApp.'],
-    ['2','We configure','We register it with WhatsApp Business API and set up your bot.'],
+    ['1','We supply a number','You get a brand-new dedicated number for your bot — nothing to buy or change.'],
+    ['2','We configure','We register it on WhatsApp and connect your bot for you.'],
     ['3','Go live','You get a text when your bot is active — usually within a few hours.']
   ].forEach(function(s){
     var st=document.createElement('div'); st.className='setup-step';
@@ -4761,31 +4761,21 @@ function renderSetupWizard(profile){
 
   if(tw.startsWith('pending')){
     var pend=document.createElement('div'); pend.className='setup-pending';
-    pend.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round"/></svg><div><div style="font-weight:700;color:var(--grn);font-size:.86rem">Setup requested</div><div style="font-size:.75rem;color:var(--t3);margin-top:3px">We\'re registering your number. You\'ll get a WhatsApp when your bot is live \u2014 usually within a few hours.</div></div>';
+    pend.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round"/></svg><div><div style="font-weight:700;color:var(--grn);font-size:.86rem">Setup requested</div><div style="font-size:.75rem;color:var(--t3);margin-top:3px">We\'re sorting your dedicated number. You\'ll get a text when your bot is live \u2014 usually within a few hours.</div></div>';
     card.appendChild(pend);
   } else {
-    var lbl=document.createElement('div');
-    lbl.className='lbl'; lbl.style.marginTop='14px';
-    lbl.textContent='Want to use a specific number?';
-    card.appendChild(lbl);
-
     var note=document.createElement('div');
-    note.style.cssText='font-size:.72rem;color:var(--t3);margin-bottom:8px;line-height:1.5';
-    note.textContent='Enter a number below, or leave blank and we\'ll allocate you one. Important: if you use your own number, it must not already be active on WhatsApp — if it is, you\'d need to delete that account first.';
+    note.style.cssText='font-size:.74rem;color:var(--t3);margin:14px 0 4px;line-height:1.5';
+    note.textContent='Tap below and we\u2019ll set up your dedicated number. We\u2019ll text you the moment your bot is live.';
     card.appendChild(note);
-
-    var inp=document.createElement('input');
-    inp.className='inp'; inp.id='setupNumInput'; inp.type='tel';
-    inp.placeholder='+44 7700 000000 — or leave blank for a new number';
-    card.appendChild(inp);
 
     var err=document.createElement('div');
     err.id='setupErr'; err.style.cssText='color:var(--red);font-size:.75rem;min-height:16px;margin-top:4px';
     card.appendChild(err);
 
     var btn=document.createElement('button');
-    btn.id='setupBtn'; btn.className='btn-cta'; btn.style.marginTop='12px';
-    btn.textContent='Request setup \u2192';
+    btn.id='setupBtn'; btn.className='btn-cta'; btn.style.marginTop='10px';
+    btn.textContent='Request my number \u2192';
     btn.onclick=submitSetupRequest;
     card.appendChild(btn);
   }
@@ -4795,28 +4785,26 @@ function renderSetupWizard(profile){
 }
 
 async function submitSetupRequest(){
-  var inp=document.getElementById('setupNumInput');
   var btn=document.getElementById('setupBtn');
   var err=document.getElementById('setupErr');
-  var num=(inp?inp.value.trim():'');
   if(err)err.textContent='';
   if(btn){btn.textContent='Requesting...';btn.disabled=true;}
   try{
     var r=await fetch('/api/request-setup?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({requested_number:num,want_new:!num})
+      body:JSON.stringify({want_new:true})
     });
     var d=await r.json();
     if(!r.ok||d.error){
       if(err)err.textContent=d.error||'Something went wrong';
-      if(btn){btn.textContent='Request setup \u2192';btn.disabled=false;}
+      if(btn){btn.textContent='Request my number \u2192';btn.disabled=false;}
       return;
     }
-    if(window._vanofficeProfile) window._vanofficeProfile.twilio_number='pending:'+num;
-    renderSetupWizard(window._vanofficeProfile||{twilio_number:'pending:'+num});
+    if(window._vanofficeProfile) window._vanofficeProfile.twilio_number='pending:new';
+    renderSetupWizard(window._vanofficeProfile||{twilio_number:'pending:new'});
   }catch(e){
     if(err)err.textContent='Connection error. Please try again.';
-    if(btn){btn.textContent='Request setup \u2192';btn.disabled=false;}
+    if(btn){btn.textContent='Request my number \u2192';btn.disabled=false;}
   }
 }
 
