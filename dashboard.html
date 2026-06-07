@@ -4678,6 +4678,10 @@ function resolvePending(id, choice, verbatim, btn){
       pendingItems=pendingItems.filter(p=>String(p.id)!==String(id));
       renderPending();
       loadInbox(true);
+      if(d.booked){
+        if(typeof refreshApp==='function') refreshApp();
+        if(typeof showSentAnimation==='function') setTimeout(function(){ showSentAnimation('Added to your diary', d.booked); }, 1500);
+      }
     } else {
       haptic('error');
       if(btn){ btn.style.opacity='1'; btn.disabled=false; }
