@@ -3279,24 +3279,39 @@ Copy their real text exactly where present \u2014 matching their wording and col
       }
       const reply = data.content?.[0]?.text || '';
 
-      const m = reply.match(/TMPL_JSON:\s*(\{[\s\S]+?\})\s*(?:\n|$)/m);
-      if(m){
-        try{
-          const changes = JSON.parse(m[1]);
-          const detectedStyle = changes.detectedStyle || 'gold';
+      // Robustly pull the JSON out of the reply (handles code fences, trailing prose, multi-line, trailing commas)
+      let applied = false, parsedBiz = '';
+      try{
+        const afterTag = reply.split(/TMPL_JSON:/i)[1];
+        const src = afterTag || reply;
+        const first = src.indexOf('{'), last = src.lastIndexOf('}');
+        if(first !== -1 && last > first){
+          const jsonStr = src.slice(first, last+1).replace(/```/g,'').trim();
+          let changes;
+          try{ changes = JSON.parse(jsonStr); }
+          catch(_){ changes = JSON.parse(jsonStr.replace(/,\s*([}\]])/g,'$1')); }
+          const detectedStyle = changes.detectedStyle || designerStyle || 'gold';
           delete changes.detectedStyle;
           if(changes.scopeItems) designerTemplate.scopeItems = changes.scopeItems;
           if(changes.inclusionItems) designerTemplate.inclusionItems = changes.inclusionItems;
           Object.assign(designerTemplate, changes);
           pickDesignStyle(detectedStyle);
-        }catch(e){}
-      }
+          parsedBiz = changes.bizName || '';
+          applied = true;
+          console.log('Template applied:', changes);
+        }
+      }catch(e){ console.warn('Template JSON parse failed:', e); }
 
-      const display = reply.replace(/TMPL_JSON:[\s\S]+$/m,'').trim();
       document.getElementById('pdfUploadArea').style.display = 'none';
       document.getElementById('pdfUploadedBar').style.display = 'flex';
       document.getElementById('pdfFileName').textContent = file.name || 'template.pdf';
-      document.getElementById('pdfUploadMsg').textContent = display ? display.slice(0,100) : '✓ Style matched! Hit Preview to see your quote.';
+
+      if(applied){
+        document.getElementById('pdfUploadMsg').textContent = '\u2713 Matched' + (parsedBiz ? ' \u2014 ' + parsedBiz : '') + '. Loading preview\u2026';
+        try{ await generateAndPreview(); }catch(_){}
+      } else {
+        document.getElementById('pdfUploadMsg').textContent = 'I read your file but couldn\u2019t auto-apply the style \u2014 try a clearer PDF or a screenshot of your quote.';
+      }
     }catch(err){
       console.error('PDF analysis error:', err);
       document.getElementById('pdfUploadMsg').textContent = 'Error: ' + (err.message || 'Could not analyse file. Try a PDF or image.');
