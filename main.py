@@ -2051,6 +2051,30 @@ def incoming_sms():
             resp.message(owner_msg)
             return str(resp)
 
+        # Customer sent a photo (MMS)? Fetch it so the bot can actually see the job.
+        cust_image_data = None
+        cust_image_type = "image/jpeg"
+        try:
+            num_media = int(request.form.get("NumMedia", 0) or 0)
+        except Exception:
+            num_media = 0
+        if num_media > 0:
+            mtype = request.form.get("MediaContentType0", "") or ""
+            murl = request.form.get("MediaUrl0", "") or ""
+            if "image" in mtype and murl:
+                try:
+                    import requests as req, base64 as _b64
+                    sid = os.environ.get("TWILIO_ACCOUNT_SID")
+                    tok = os.environ.get("TWILIO_AUTH_TOKEN")
+                    ir = req.get(murl, auth=(sid, tok), timeout=20)
+                    if ir.ok and ir.content:
+                        cust_image_data = _b64.b64encode(ir.content).decode()
+                        cust_image_type = mtype
+                except Exception as e:
+                    print("customer image fetch error:", e)
+            if not incoming_msg:
+                incoming_msg = "[Photo of the job]" if cust_image_data else "[Sent an attachment]"
+
         # Save incoming message
         supabase.table("client_chats").insert({
             "twilio_number": twilio_number,
@@ -2072,6 +2096,14 @@ def incoming_sms():
             else:
                 chat_messages.append({"role": "assistant", "content": h.get("message", "")})
 
+        # If a photo came in with this message, attach it to the latest turn so the bot can see it.
+        if cust_image_data and chat_messages and chat_messages[-1]["role"] == "user":
+            _txt = chat_messages[-1]["content"] or "Here's a photo of the job."
+            chat_messages[-1] = {"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": cust_image_type, "data": cust_image_data}},
+                {"type": "text", "text": _txt}
+            ]}
+
         # Pull the diary so the bot can propose / confirm real times.
         today_iso = datetime.date.today().isoformat()
         upcoming = supabase.table("bookings").select("*").eq("sender", sender).gte("date", today_iso).order("date").limit(20).execute().data or []
@@ -2087,6 +2119,7 @@ def incoming_sms():
         system += "Never give robotic brush-offs like 'I'll get " + owner_name + " to call you' unless you genuinely need to escalate (see below). "
         system += "Speak as 'we', warm and concise (this is SMS). Never pretend to BE " + owner_name + " personally.\n\n"
         system += "THE DIARY (upcoming jobs):\n" + diary_text + "\n\n"
+        system += "PHOTOS: customers often send a photo of the job. If one comes in, look at it and refer naturally to what you can see (so they know you've taken it in), and use it to ask sharper questions \u2014 but you still arrange a quote VISIT and NEVER give a price from a photo.\n\n"
         system += "WHAT WE'RE DOING: for almost every enquiry the next step is a QUOTE VISIT \u2014 we come round to look at the work and give a price. We do NOT agree to carry out the job over text, and you must NEVER imply the work itself is booked or that we're turning up to do it. Everything you arrange is a visit to take a look and quote (unless it's something tiny we could clearly price right away). Always get the FULL ADDRESS of where the work is, since we need it to come and quote.\n\n"
         system += "YOU CAN HANDLE THESE YOURSELF:\n"
         system += "- Simple questions: opening hours, areas covered, what trade/work we do.\n"
