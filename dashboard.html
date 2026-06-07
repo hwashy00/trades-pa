@@ -4763,6 +4763,12 @@ function renderSetupWizard(profile){
     var pend=document.createElement('div'); pend.className='setup-pending';
     pend.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round"/></svg><div><div style="font-weight:700;color:var(--grn);font-size:.86rem">Setup requested</div><div style="font-size:.75rem;color:var(--t3);margin-top:3px">We\'re sorting your dedicated number. You\'ll get a text when your bot is live \u2014 usually within a few hours.</div></div>';
     card.appendChild(pend);
+
+    var resend=document.createElement('div');
+    resend.style.cssText='font-size:.72rem;color:var(--acc2);margin-top:10px;cursor:pointer;text-decoration:underline';
+    resend.textContent='Still waiting? Tap to resend the request';
+    resend.onclick=function(){ resend.textContent='Resending\u2026'; submitSetupRequest(); };
+    card.appendChild(resend);
   } else {
     var note=document.createElement('div');
     note.style.cssText='font-size:.74rem;color:var(--t3);margin:14px 0 4px;line-height:1.5';
