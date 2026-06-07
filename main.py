@@ -4272,10 +4272,10 @@ def notify_admin(text):
                 return True
     except Exception as e:
         print("notify_admin telegram error:", e)
-    # 2) SMS — needs an SMS-capable Twilio number in ADMIN_SMS_FROM
+    # 2) SMS — uses ADMIN_SMS_FROM if set, otherwise your (SMS-capable) TWILIO_NUMBER
     try:
         admin_phone = os.environ.get("ADMIN_PHONE", "")
-        sms_from = os.environ.get("ADMIN_SMS_FROM", "")
+        sms_from = os.environ.get("ADMIN_SMS_FROM", "") or os.environ.get("TWILIO_NUMBER", "")
         if admin_phone and sms_from:
             tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
             tc.messages.create(body=text, from_=sms_from, to=admin_phone)
