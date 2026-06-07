@@ -219,8 +219,8 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .scr.on{display:block}
 .scr.in-r{animation:slideInR .34s var(--ease-out)}
 .scr.in-l{animation:slideInL .34s var(--ease-out)}
-@keyframes slideInR{from{opacity:0;transform:translateX(22px)}to{opacity:1;transform:none}}
-@keyframes slideInL{from{opacity:0;transform:translateX(-22px)}to{opacity:1;transform:none}}
+@keyframes slideInR{from{transform:translateX(22px)}to{transform:none}}
+@keyframes slideInL{from{transform:translateX(-22px)}to{transform:none}}
 #s-home.reveal>*{opacity:0}
 #s-home.reveal.go>*{animation:rise .5s var(--ease-out) forwards}
 #s-home.reveal.go>*:nth-child(1){animation-delay:.02s}
@@ -1490,7 +1490,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     <button class="ni" id="n-quotes" onclick="go('quotes')" style="position:relative"><div class="ni-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:21px;height:21px;display:block"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" stroke-linejoin="round"/></svg></div><div class="ni-lbl">Quotes</div></button>
     <button class="ni" id="n-invoices" onclick="go('invoices')"><div class="ni-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:21px;height:21px;display:block"><path d="M5 3h9l5 5v13H5z" stroke-linejoin="round"/><path d="M14 3v5h5M8 13h8M8 17h5" stroke-linecap="round"/></svg></div><div class="ni-lbl">Invoices</div></button>
     <button class="ni" id="n-designer" onclick="go('designer')"><div class="ni-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:21px;height:21px;display:block"><path d="M4 20l4-1 10-10-3-3L5 16l-1 4z" stroke-linejoin="round"/><path d="M14 6l3 3"/></svg></div><div class="ni-lbl">Style</div></button>
-    <button class="ni" id="n-inbox" onclick="go('inbox',5)"><div class="ni-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:21px;height:21px;display:block"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linejoin="round"/></svg></div><div class="ni-lbl">Inbox</div></button>
+    <button class="ni" id="n-inbox" onclick="go('inbox')"><div class="ni-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:21px;height:21px;display:block"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linejoin="round"/></svg></div><div class="ni-lbl">Inbox</div></button>
     <button class="ni" id="n-profile" onclick="go('profile')"><div class="ni-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:21px;height:21px;display:block"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0" stroke-linecap="round"/></svg></div><div class="ni-lbl">Profile</div></button>
   </nav>
 </div>
@@ -1743,7 +1743,7 @@ function _launchApp(data){
   document.getElementById('avInit').textContent=n;
   renderCal();
   const _home=document.getElementById('s-home');
-  if(_home){_home.classList.add('reveal');requestAnimationFrame(()=>requestAnimationFrame(()=>_home.classList.add('go')));}
+  if(_home){_home.classList.add('reveal');requestAnimationFrame(()=>requestAnimationFrame(()=>_home.classList.add('go')));setTimeout(()=>{_home.classList.remove('reveal','go');},1200);}
   const _nav=document.querySelector('.nav');if(_nav){_nav.classList.add('slideup');}
   // Inbox: preload conversations for unread badge + start live polling
   try{ loadInbox(true); loadPending(); startInboxPolling(); }catch(e){ console.warn('inbox init',e); }
@@ -2353,7 +2353,7 @@ function haptic(style='light'){
 }
 
 let _curIdx=0;
-const _navOrder={home:0,jobs:1,quotes:1,quotes:2,quotegen:2,invoices:3,expenses:3,calendar:3,designer:4,inbox:5,profile:6};
+const _navOrder={home:0,jobs:1,quotes:2,quotegen:2,invoices:3,expenses:3,calendar:3,designer:4,inbox:5,profile:6};
 function go(name){
   haptic('light');
   const next=document.getElementById('s-'+name);
@@ -2364,7 +2364,7 @@ function go(name){
   _curIdx=ni;
   if(cur)cur.classList.remove('on','in-r','in-l');
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
-  next.classList.add('on');void next.offsetWidth;next.classList.add(dir);
+  next.classList.remove('in-r','in-l');next.classList.add('on');void next.offsetWidth;next.classList.add(dir);
   const nb=document.getElementById('n-'+name);
   if(nb)nb.classList.add('on');
   const c=document.getElementById('content');if(c)c.scrollTop=0;
