@@ -1563,19 +1563,17 @@ def incoming_call():
     except Exception as e:
         print("Profile lookup error: " + str(e))
         profile = None
-    try:
-        supabase.table("enquiries").insert({
-            "sender": caller, "message": "INCOMING CALL",
-            "summary": "Call from " + caller, "client_name": "",
-            "job_type": "incoming call", "location": "", "status": "incoming call"
-        }).execute()
-    except Exception as e:
-        print("Logging error: " + str(e))
     from twilio.twiml.voice_response import VoiceResponse, Dial
+    from urllib.parse import quote
     resp = VoiceResponse()
     if profile and profile.get("phone"):
-        resp.say("Please hold while we connect your call. This call may be recorded for quality purposes.")
-        dial = Dial(action="/call-status", method="POST")
+        resp.say("Please hold while we connect your call. Please note, calls may be recorded and transcribed for quality and training purposes.")
+        rec_cb = "/call-recording?caller=" + quote(caller) + "&called=" + quote(called)
+        dial = Dial(action="/call-status", method="POST", timeout=20,
+                    record="record-from-answer-dual",
+                    recording_status_callback=rec_cb,
+                    recording_status_callback_method="POST",
+                    recording_status_callback_event="completed")
         dial.number(profile.get("phone"))
         resp.append(dial)
     else:
@@ -1585,32 +1583,145 @@ def incoming_call():
 
 @app.route("/call-status", methods=["POST"])
 def call_status():
+    from twilio.twiml.voice_response import VoiceResponse
     dial_status = request.form.get("DialCallStatus", "")
     caller = request.form.get("From", "")
     called = request.form.get("To", "")
-    if dial_status != "completed":
-        try:
-            result = supabase.table("profiles").select("*").eq("twilio_number", called).execute()
-            profile = result.data[0] if result.data else None
-        except:
-            profile = None
-        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-        twilio_client = TwilioClient(account_sid, auth_token)
-        try:
-            twilio_client.messages.create(
-                body="Hi, sorry I missed your call! I am currently on site. What is the job? I will get back to you as soon as I can.",
-                from_=called, to=caller
-            )
-            supabase.table("enquiries").update({
-                "status": "missed call", "job_type": "missed call",
-                "summary": "Missed call from " + caller
-            }).eq("sender", caller).eq("status", "incoming call").execute()
-        except Exception as e:
-            print("SMS error: " + str(e))
-    from twilio.twiml.voice_response import VoiceResponse
     resp = VoiceResponse()
+    if dial_status != "completed":
+        # Missed — text the caller back, then take a voicemail we'll transcribe.
+        try:
+            account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+            auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+            twilio_client = TwilioClient(account_sid, auth_token)
+            twilio_client.messages.create(
+                body="Hi, sorry I missed your call! I'm on site at the moment. Send me a quick message about the job and I'll get back to you as soon as I can.",
+                from_=called, to=caller)
+        except Exception as e:
+            print("Missed-call SMS error: " + str(e))
+        resp.say("Sorry, we can't take your call right now. Please leave a short message after the tone and we'll get back to you.")
+        resp.record(action="/voicemail", method="POST", max_length=120, play_beep=True, timeout=4, trim="trim-silence")
     return str(resp)
+
+
+@app.route("/voicemail", methods=["POST"])
+def voicemail():
+    """Caller left a voicemail: transcribe it with Whisper, log it as an enquiry, alert the owner."""
+    from twilio.twiml.voice_response import VoiceResponse
+    caller = request.form.get("From", "")
+    called = request.form.get("To", "")
+    recording_url = request.form.get("RecordingUrl", "")
+    resp = VoiceResponse()
+    resp.say("Thanks, we've got that and we'll be in touch shortly. Goodbye.")
+    try:
+        result = supabase.table("profiles").select("*").eq("twilio_number", called).execute()
+        profile = result.data[0] if result.data else None
+    except Exception:
+        profile = None
+    if not profile:
+        return str(resp)
+    snd = profile.get("sender", "")
+    try:
+        name = contact_name_for(snd, caller) or ""
+    except Exception:
+        name = ""
+    transcript = ""
+    if recording_url:
+        try:
+            import requests as _rq
+            from openai import OpenAI
+            import time
+            sid = os.environ.get("TWILIO_ACCOUNT_SID")
+            tok = os.environ.get("TWILIO_AUTH_TOKEN")
+            audio = None
+            for _attempt in range(2):  # the recording can take a moment to be ready
+                audio = _rq.get(recording_url + ".mp3", auth=(sid, tok), timeout=30)
+                if audio.ok and audio.content:
+                    break
+                time.sleep(2)
+            if audio is not None and audio.ok and audio.content:
+                path = "/tmp/vm_" + caller.replace("+", "").replace(":", "") + ".mp3"
+                with open(path, "wb") as f:
+                    f.write(audio.content)
+                oc = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+                with open(path, "rb") as af:
+                    tr = oc.audio.transcriptions.create(model="whisper-1", file=af)
+                transcript = (getattr(tr, "text", "") or "").strip()
+        except Exception as e:
+            print("Voicemail transcription error:", e)
+    try:
+        if transcript:
+            summary = "Voicemail from " + (name or caller) + ": " + transcript[:140]
+            supabase.table("enquiries").insert({
+                "sender": snd, "message": transcript, "summary": summary,
+                "client_name": name, "job_type": "voicemail", "location": "", "status": "new"
+            }).execute()
+            notify_owner(profile, "New voicemail from " + (name or caller) + " (" + caller + "):\n\n\u201c" + transcript + "\u201d")
+        else:
+            supabase.table("enquiries").insert({
+                "sender": snd, "message": "", "summary": "Missed call from " + caller,
+                "client_name": name, "job_type": "missed call", "location": "", "status": "missed call"
+            }).execute()
+    except Exception as e:
+        print("Voicemail logging error:", e)
+    return str(resp)
+
+
+@app.route("/call-recording", methods=["POST"])
+def call_recording():
+    """An answered call finished recording: transcribe it with Whisper and log a call summary."""
+    caller = request.args.get("caller", "") or request.form.get("From", "")
+    called = request.args.get("called", "") or request.form.get("To", "")
+    recording_url = request.form.get("RecordingUrl", "")
+    if not recording_url:
+        return ("", 204)
+    try:
+        result = supabase.table("profiles").select("*").eq("twilio_number", called).execute()
+        profile = result.data[0] if result.data else None
+    except Exception:
+        profile = None
+    if not profile:
+        return ("", 204)
+    snd = profile.get("sender", "")
+    try:
+        name = contact_name_for(snd, caller) or ""
+    except Exception:
+        name = ""
+    transcript = ""
+    try:
+        import requests as _rq
+        from openai import OpenAI
+        import time
+        sid = os.environ.get("TWILIO_ACCOUNT_SID")
+        tok = os.environ.get("TWILIO_AUTH_TOKEN")
+        audio = None
+        for _attempt in range(3):  # recording can take a few seconds to finalise
+            audio = _rq.get(recording_url + ".mp3", auth=(sid, tok), timeout=45)
+            if audio.ok and audio.content:
+                break
+            time.sleep(2)
+        if audio is not None and audio.ok and audio.content:
+            path = "/tmp/call_" + caller.replace("+", "").replace(":", "") + ".mp3"
+            with open(path, "wb") as f:
+                f.write(audio.content)
+            oc = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+            with open(path, "rb") as af:
+                tr = oc.audio.transcriptions.create(model="whisper-1", file=af)
+            transcript = (getattr(tr, "text", "") or "").strip()
+    except Exception as e:
+        print("Call recording transcription error:", e)
+    if transcript:
+        try:
+            summary = "Call with " + (name or caller) + ": " + transcript[:140]
+            # status 'call' (not 'new') so answered calls don't inflate the new-enquiry count
+            supabase.table("enquiries").insert({
+                "sender": snd, "message": transcript, "summary": summary,
+                "client_name": name, "job_type": "call", "location": "", "status": "call"
+            }).execute()
+            notify_owner(profile, "Call summary \u2014 " + (name or caller) + " (" + caller + "):\n\n\u201c" + transcript + "\u201d")
+        except Exception as e:
+            print("Call recording logging error:", e)
+    return ("", 204)
 
 
 @app.route("/auth/gmail")
