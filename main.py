@@ -1732,10 +1732,11 @@ def api_stats():
         profile = result.data[0]
         if str(profile.get("pin", "")) != str(pin):
             return jsonify({"error": "Invalid PIN"}), 401
-        new_enq = supabase.table("enquiries").select("*").eq("status", "new").execute().data
-        missed = supabase.table("enquiries").select("*").eq("status", "missed call").execute().data
-        quoted = supabase.table("enquiries").select("*").eq("status", "quoted").execute().data
-        recent = supabase.table("enquiries").select("*").order("created_at", desc=True).limit(20).execute().data
+        _snd = profile.get("sender", "")
+        new_enq = supabase.table("enquiries").select("*").eq("sender", _snd).eq("status", "new").execute().data
+        missed = supabase.table("enquiries").select("*").eq("sender", _snd).eq("status", "missed call").execute().data
+        quoted = supabase.table("enquiries").select("*").eq("sender", _snd).eq("status", "quoted").execute().data
+        recent = supabase.table("enquiries").select("*").eq("sender", _snd).order("created_at", desc=True).limit(20).execute().data
         bookings = supabase.table("bookings").select("*").eq("sender", profile.get("sender", "")).order("date").execute().data
         template_result = supabase.table("quote_templates").select("*").eq("sender", profile.get("sender", "")).execute()
         template = template_result.data[0] if template_result.data else None
@@ -3012,7 +3013,7 @@ def _assistant_execute_tool(name, ti, profile):
             unpaid = [i for i in invoices if i.get("status") != "paid"]
             unpaid_total = sum(float(str(i.get("total", "0")).replace("\u00a3", "") or 0) for i in unpaid)
             bookings = supabase.table("bookings").select("*").eq("sender", sender).execute().data or []
-            new_enq = supabase.table("enquiries").select("id").eq("status", "new").execute().data or []
+            new_enq = supabase.table("enquiries").select("id").eq("sender", sender).eq("status", "new").execute().data or []
             return ("Summary: \u00a3" + str(int(unpaid_total)) + " unpaid across " + str(len(unpaid)) +
                     " invoices, " + str(len(bookings)) + " jobs in the diary, " + str(len(new_enq)) + " new enquiries.")
 
@@ -3172,7 +3173,7 @@ def briefing():
         unpaid_total = sum(_num(i.get("total", 0)) for i in unpaid)
         quotes = supabase.table("quotes").select("*").eq("sender", sender).execute().data or []
         awaiting = [q for q in quotes if q.get("status") == "sent"]
-        new_enq = supabase.table("enquiries").select("*").eq("status", "new").execute().data or []
+        new_enq = supabase.table("enquiries").select("*").eq("sender", sender).eq("status", "new").execute().data or []
 
         parts = [part + ((", " + owner) if owner else "") + "."]
         if today_jobs:
@@ -4176,7 +4177,8 @@ def request_setup():
                 body_msg = ("WhatsApp setup request:\n" + biz + " (" + trade + ", " + loc + ")\n"
                                + num_line + "\nPhone: " + phone
                                + "\n\nRegister in Twilio then update their twilio_number in Supabase.")
-                tc.messages.create(body=body_msg, from_="whatsapp:"+twilio_num, to="whatsapp:"+admin_phone)
+                sms_from = os.environ.get("ADMIN_SMS_FROM") or twilio_num
+                tc.messages.create(body=body_msg, from_=sms_from, to=admin_phone)
         except Exception as ne:
             print("Setup notify error:", ne)
         return jsonify({"ok":True})
