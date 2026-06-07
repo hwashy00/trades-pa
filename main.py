@@ -2398,7 +2398,7 @@ def save_profile():
         profile = result.data[0]
         data = request.json or {}
         update = {}
-        fields = ["business_name", "trade", "day_rate", "half_day_rate", "hourly_rate",
+        fields = ["business_name", "trade", "location", "day_rate", "half_day_rate", "hourly_rate",
                   "materials_markup", "payment_terms", "vat_registered", "logo"]
         for f in fields:
             if f in data and data[f] is not None:
