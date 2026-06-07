@@ -605,6 +605,10 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
   </div>
   <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 0;min-height:0">
     <div>
+      <div class="lbl">Phone number</div>
+      <input class="inp" id="su-phone" placeholder="+44 7700 000000" type="tel" inputmode="tel">
+    </div>
+    <div>
       <div class="lbl">Your name</div>
       <input class="inp" id="su-name" placeholder="Harry Walsh" type="text">
     </div>
@@ -1595,13 +1599,15 @@ function showSignupScreen(){
     s.style.transition='opacity .25s,transform .3s';
     s.style.opacity='1';s.style.transform='translateY(0)';
   });
-  var n=document.getElementById('su-name');if(n)setTimeout(function(){n.focus();},300);
+  var p=document.getElementById('su-phone');if(p)p.value=userPhone||'';
+  var n=document.getElementById('su-name');var foc=(userPhone? n : p)||n;if(foc)setTimeout(function(){foc.focus();},300);
 }
 function backToPhone(){
   document.getElementById('screenSignup').classList.add('hidden');
   document.getElementById('screenPhone').classList.remove('hidden');
 }
 async function submitSignup(){
+  var phone=document.getElementById('su-phone').value.trim();
   var name=document.getElementById('su-name').value.trim();
   var biz=document.getElementById('su-biz').value.trim();
   var trade=document.getElementById('su-trade').value.trim();
@@ -1610,16 +1616,18 @@ async function submitSignup(){
   var pin=document.getElementById('su-pin').value.trim();
   var err=document.getElementById('suErr');
   err.textContent='';
+  if(!phone){err.textContent='Please enter your phone number';return;}
   if(!name){err.textContent='Please enter your name';return;}
   if(!biz){err.textContent='Please enter your business name';return;}
   if(!trade){err.textContent='Please enter your trade';return;}
   if(!pin||pin.length<4||!/^\d{4}$/.test(pin)){err.textContent='PIN must be exactly 4 digits';return;}
   var btn=document.getElementById('suBtn');
   btn.textContent='Creating account...';btn.disabled=true;
+  userPhone=phone;
   try{
     var res=await fetch('/api/register',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({phone:userPhone,pin:pin,owner_name:name,business_name:biz,
+      body:JSON.stringify({phone:phone,pin:pin,owner_name:name,business_name:biz,
         trade:trade,location:area,day_rate:rate})
     });
     var d=await res.json();
