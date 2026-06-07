@@ -2499,6 +2499,46 @@ def save_design_template():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/help", methods=["POST"])
+def help_assistant():
+    try:
+        data = request.json or {}
+        messages = data.get("messages", [])
+        messages = messages[-12:] if isinstance(messages, list) else []
+        system = (
+            "You are the friendly in-app help assistant for VanOffice, an app for UK self-employed tradespeople "
+            "(builders, plumbers, electricians, carpenters, decorators, roofers and the like). You help the user "
+            "understand and use the app. Talk in plain, warm, everyday language like a helpful mate \u2014 never "
+            "technical jargon. Keep answers short (2 to 5 sentences), practical, and give clear step-by-step when "
+            "explaining how to do something.\n\n"
+            "What VanOffice does:\n"
+            "- Answers their customers automatically: when a customer texts or calls their VanOffice number, the AI "
+            "replies, answers questions, and can build a quote and take a booking \u2014 even while they're on the tools. "
+            "Customers reach them by TEXT or CALL to their VanOffice number (WhatsApp may come later).\n"
+            "- Quotes: create and send branded quote PDFs, add extras to a quote, and choose a quote style with their "
+            "logo and colours on the 'Style' tab.\n"
+            "- Invoices: turn a job into an invoice, send it, and mark it paid.\n"
+            "- Accounts: scan receipts, log expenses and mileage, and see an estimate of profit and how much tax to set aside.\n"
+            "- Inbox: every customer conversation in one place.\n"
+            "- Jobs/Diary: track jobs and bookings.\n"
+            "- Profile: set business name, trade, area and number, and upload a logo.\n"
+            "- Settings: turn on push notifications.\n\n"
+            "If you're not sure VanOffice can do something, say so honestly and suggest they check Settings or try it "
+            "\u2014 never invent features. If the user seems stuck or frustrated, be reassuring and concrete. "
+            "You're here to help, not to sell."
+        )
+        resp = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=600,
+            system=system,
+            messages=messages
+        )
+        return jsonify({"reply": resp.content[0].text})
+    except Exception as e:
+        print("Help assistant error:", e)
+        return jsonify({"reply": "Sorry, I couldn't answer just now \u2014 give it another go in a moment."})
+
+
 @app.route("/api/save-profile", methods=["POST"])
 def save_profile():
     try:
@@ -3153,6 +3193,89 @@ def api_pending():
         return jsonify({"error": str(e)}), 500
 
 
+def _booking_from_approval(profile, pa, choice):
+    """When the owner approves a decision that confirms a specific appointment,
+    create a diary booking so it lands in the calendar. Returns a short summary
+    string if a booking was created, else None. Never raises."""
+    sender = profile.get("sender", "")
+    today_str = datetime.date.today().strftime("%A %d %B %Y")
+    customer_msg = pa.get("customer_msg", "") or ""
+    cname = pa.get("client_name", "") or ""
+
+    # Best job/location context from this client's recent enquiries.
+    job_ctx, loc_ctx = "", ""
+    try:
+        enq = (supabase.table("enquiries").select("job_type,location")
+               .eq("sender", sender).order("created_at", desc=True).limit(8).execute().data or [])
+        for e in enq:
+            if not job_ctx and e.get("job_type"): job_ctx = e["job_type"]
+            if not loc_ctx and e.get("location"): loc_ctx = e["location"]
+            if job_ctx and loc_ctx: break
+    except Exception:
+        pass
+
+    ext_sys = (
+        "You decide whether an owner's decision CONFIRMS a specific appointment with a customer, "
+        "and if so extract it. Today is " + today_str + ".\n"
+        "The customer said: \"" + customer_msg + "\"\n"
+        "The owner decided: \"" + choice + "\"\n"
+        "Known job: \"" + job_ctx + "\". Known location: \"" + loc_ctx + "\".\n"
+        "Reply with ONLY a JSON object, no prose and no code fences:\n"
+        "{\"book\": true|false, \"date\": \"YYYY-MM-DD\", \"time\": \"HH:MM\" or \"\", "
+        "\"job\": \"short\", \"location\": \"short\"}\n"
+        "Set book=true ONLY if the decision names or agrees a specific day that resolves to a real date "
+        "(resolve relative days like 'Wednesday', 'tomorrow', 'next Tue' against today). "
+        "Set book=false for vague replies (e.g. 'suggest another time', 'send a quote', 'arrange a call', 'I'll reply myself'). "
+        "If the visit is to quote or survey the work, set job to 'Quote visit'. Use 24h time; leave time empty if none was agreed."
+    )
+    try:
+        ai = client.messages.create(model="claude-sonnet-4-5", max_tokens=160,
+                                    system=ext_sys, messages=[{"role": "user", "content": "Decide and extract."}])
+        raw = ai.content[0].text.strip()
+        s = raw.find("{"); e = raw.rfind("}")
+        info = json.loads(raw[s:e + 1]) if (s != -1 and e != -1) else {}
+    except Exception as ex:
+        print("booking extract error:", ex)
+        return None
+
+    if not info.get("book"):
+        return None
+    date_str = (info.get("date", "") or "").strip()
+    if not date_str:
+        return None
+    time_str = (info.get("time", "") or "").strip()
+    job_txt = (info.get("job", "") or job_ctx or "Job").strip()
+    loc_txt = (info.get("location", "") or loc_ctx or "").strip()
+
+    # Don't double-book: same client already has something that day.
+    try:
+        dupe = (supabase.table("bookings").select("id")
+                .eq("sender", sender).eq("date", date_str)
+                .eq("client_name", cname or "Customer").limit(1).execute().data or [])
+        if dupe:
+            return None
+    except Exception:
+        pass
+
+    try:
+        supabase.table("bookings").insert({
+            "sender": sender,
+            "client_name": cname or "Customer",
+            "job_type": job_txt,
+            "location": loc_txt,
+            "date": date_str,
+            "time": time_str,
+            "duration_days": "1",
+            "notes": "Added automatically from an approved appointment.",
+            "status": "booked"
+        }).execute()
+    except Exception as ie:
+        print("auto-booking insert error:", ie)
+        return None
+    return ("Booked " + (cname or "customer") + " for " + date_str +
+            (" at " + time_str if time_str else "") + (" \u2014 " + job_txt if job_txt else ""))
+
+
 @app.route("/api/pending/resolve", methods=["POST"])
 def api_pending_resolve():
     """
@@ -3213,7 +3336,14 @@ def api_pending_resolve():
             "status": "done", "resolved_at": datetime.datetime.now().isoformat()
         }).eq("id", pid).execute()
 
-        return jsonify({"ok": True, "sent": customer_message})
+        # If the owner's decision confirmed a specific time, drop it into the diary/calendar.
+        booking_note = None
+        try:
+            booking_note = _booking_from_approval(profile, pa, choice)
+        except Exception as _be:
+            print("auto-booking error:", _be)
+
+        return jsonify({"ok": True, "sent": customer_message, "booked": booking_note})
     except Exception as e:
         print("api_pending_resolve error:", e)
         return jsonify({"error": str(e)}), 500
