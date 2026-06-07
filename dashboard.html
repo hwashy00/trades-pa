@@ -1053,20 +1053,6 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 
         </div>
 
-        <div style="background:var(--s1);border-radius:12px;padding:12px 14px;margin-bottom:12px">
-          <div style="font-size:.72rem;font-weight:600;margin-bottom:6px">Business logo (optional)</div>
-          <div style="font-size:.65rem;color:var(--t3);margin-bottom:8px">Describe your logo and AI will generate one, or upload yours in Profile</div>
-          <input id="logoPromptInput" placeholder="e.g. a plumbing wrench, GW initials, a house outline..." style="width:100%;padding:9px 12px;background:var(--s3);border:1px solid var(--br);border-radius:8px;font-family:'Hanken Grotesk',sans-serif;font-size:.75rem;color:var(--t1);outline:none;margin-bottom:8px">
-          <button onclick="generateLogo()" style="width:100%;padding:11px;background:var(--s2);border:1px solid var(--br);border-radius:10px;font-family:'Hanken Grotesk',sans-serif;font-size:.78rem;font-weight:700;color:var(--t1);cursor:pointer" id="genLogoBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:1.05em;height:1.05em;vertical-align:-.17em;flex-shrink:0"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-1 1.4-2-.4-1 .2-2 1.4-2H17a4 4 0 0 0 4-4c0-5-4-8-9-8z" stroke-linejoin="round"/><circle cx="8" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="11" r="1" fill="currentColor" stroke="none"/></svg> Generate logo with AI</button>
-          <div id="logoGenMsg" style="text-align:center;font-size:.68rem;color:var(--t3);margin-top:8px;min-height:16px"></div>
-          <div id="logoGenPreview" style="display:none;text-align:center;margin-top:10px">
-            <img id="logoGenImg" style="width:80px;height:80px;border-radius:10px;object-fit:contain;background:var(--s2);padding:4px">
-            <div style="display:flex;gap:8px;margin-top:8px">
-              <button onclick="saveLogo()" style="flex:1;padding:8px;background:var(--grn);border:none;border-radius:8px;font-family:'Hanken Grotesk',sans-serif;font-size:.72rem;font-weight:700;color:#000;cursor:pointer">Save to profile</button>
-              <button onclick="generateLogo()" style="flex:1;padding:8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;font-family:'Hanken Grotesk',sans-serif;font-size:.72rem;font-weight:700;color:var(--t2);cursor:pointer">Regenerate</button>
-            </div>
-          </div>
-        </div>
 
         <div style="display:flex;gap:8px;margin-bottom:6px">
           <button onclick="generateAndPreview()" style="flex:1;padding:14px;background:var(--s2);border:1.5px solid var(--br);border-radius:12px;font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;font-weight:700;color:var(--t1);cursor:pointer" id="genPreviewBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:1.05em;height:1.05em;vertical-align:-.17em;flex-shrink:0"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg> Preview</button>
@@ -3259,17 +3245,20 @@ async function analyseTemplatePDF(input){
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
-          system:`You are a quote template analyser for VanOffice, a UK trades app.
-The user has uploaded their existing quote PDF or image. Analyse it and extract their style preferences.
-Look for: business name, trade, phone, email, location, colours (dominant hex values), layout style,
-sections present (scope of works, inclusions, commitment, lead time, payment terms, please note),
-any intro text, typical scope items for their trade, inclusions listed.
-Reply with a short friendly message saying what you found, then on a new line:
-TMPL_JSON: followed by a JSON object with these fields (only include what you can confidently extract):
-bizName, trade, phone, email, location, accent (dominant brand colour as hex), dark (dark background colour as hex),
-intro, scopeItems (array), inclusionItems (array), note, commitment, leadTime, paymentTerms,
-showNote, showCommitment, showLeadTime, showVat (booleans).
-Also include a "detectedStyle" field: "gold" for dark/black with gold or yellow accents, "navy" for dark blue, "green" for green style, "slate" for charcoal/grey, "mono" for clean black and white.`,
+          system:`You are a quote-template analyser for VanOffice, a UK trades app. The user has uploaded their existing quote (PDF or image). Read it carefully and capture everything needed to recreate a quote that looks and reads like THEIRS.
+
+Extract as faithfully as possible:
+- Business details: business name, trade, phone, email, location/address.
+- Colours: read the ACTUAL colours used. "accent" = their main brand colour (headings, lines, highlights) as a hex value; "dark" = any dark header/background colour as a hex value. Sample the real colours from the document, do not guess generic ones.
+- Their exact wording, copied VERBATIM (never paraphrase or invent): "intro" (opening blurb), "commitment" (their promise/closing statement), "leadTime" (lead-time wording), "paymentTerms" (their payment-terms text), "note" (any "please note" text).
+- "scopeItems": array of their scope-of-works lines, taken word-for-word from the document.
+- "inclusionItems": array of what's included, taken word-for-word from the document.
+- Which sections actually appear, as booleans: showNote, showCommitment, showLeadTime, showVat.
+- "detectedStyle": pick the CLOSEST layout — "gold" (dark/black with gold or yellow accents), "navy" (dark blue), "green" (green accents), "slate" (charcoal/grey), "mono" (clean black & white). Choose by the dominant colour and overall feel.
+
+Reply with one short friendly sentence saying what you found, then on a new line:
+TMPL_JSON: followed by a single JSON object with these fields (only include fields you can confidently extract): bizName, trade, phone, email, location, accent, dark, intro, scopeItems, inclusionItems, note, commitment, leadTime, paymentTerms, showNote, showCommitment, showLeadTime, showVat, detectedStyle.
+Copy their real text exactly where present \u2014 matching their wording and colours is what makes the quote feel like theirs.`,
           messages:[{
             role:'user',
             content: isImage ? [
