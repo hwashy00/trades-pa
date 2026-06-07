@@ -1468,6 +1468,63 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     <button class="ni" id="n-inbox" onclick="go('inbox')"><div class="ni-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:21px;height:21px;display:block"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linejoin="round"/></svg></div><div class="ni-lbl">Inbox</div></button>
     <button class="ni" id="n-profile" onclick="go('profile')"><div class="ni-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:21px;height:21px;display:block"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0" stroke-linecap="round"/></svg></div><div class="ni-lbl">Profile</div></button>
   </nav>
+
+  <button id="helpFab" onclick="openHelp()" aria-label="Help" style="position:fixed;right:16px;bottom:80px;z-index:900;width:46px;height:46px;border-radius:50%;background:var(--acc);border:none;color:#04231a;font-family:'Archivo',sans-serif;font-weight:900;font-size:1.35rem;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.45);cursor:pointer">?</button>
+
+  <div id="helpModal" style="display:none;position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.55);align-items:flex-end;justify-content:center">
+    <div style="width:100%;max-width:390px;height:82%;background:var(--s1);border-radius:18px 18px 0 0;display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--br)">
+        <div style="display:flex;align-items:center;gap:9px">
+          <div style="width:26px;height:26px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;color:#04231a;font-weight:900;font-family:'Archivo',sans-serif;font-size:.9rem">?</div>
+          <div style="font-family:'Archivo',sans-serif;font-weight:800;font-size:1rem">Help</div>
+        </div>
+        <button onclick="closeHelp()" style="background:none;border:none;color:var(--t3);font-size:1.5rem;line-height:1;cursor:pointer">&times;</button>
+      </div>
+      <div id="helpMsgs" style="flex:1;overflow-y:auto;padding:16px 16px 8px;display:flex;flex-direction:column;gap:10px"></div>
+      <div id="helpChips" style="padding:0 14px 6px;display:flex;flex-wrap:wrap;gap:7px"></div>
+      <div style="display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--br)">
+        <input id="helpInput" placeholder="Ask me anything about VanOffice..." onkeydown="if(event.key==='Enter')sendHelp()" style="flex:1;padding:11px 13px;background:var(--s3);border:1px solid var(--br);border-radius:10px;font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;color:var(--t1);outline:none">
+        <button onclick="sendHelp()" id="helpSendBtn" style="padding:0 16px;background:var(--acc);border:none;border-radius:10px;color:#04231a;font-weight:800;font-family:'Hanken Grotesk',sans-serif;cursor:pointer">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="welcomeModal" style="display:none;position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center">
+    <div style="width:100%;max-width:390px;max-height:90%;overflow-y:auto;background:var(--s1);border-radius:18px 18px 0 0;padding:24px 20px 22px">
+      <div style="font-family:'Archivo',sans-serif;font-weight:800;font-size:1.3rem;letter-spacing:-.02em">Welcome to VanOffice</div>
+      <div style="font-size:.82rem;color:var(--t3);margin:6px 0 18px;line-height:1.5">Three quick things to get the most out of it on your phone.</div>
+
+      <div style="display:flex;gap:12px;padding:14px;background:var(--s2);border:1px solid var(--br);border-radius:12px;margin-bottom:11px">
+        <div id="wlNumHome" style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--acc);color:#04231a;font-family:'Archivo',sans-serif;font-weight:900;font-size:.85rem;display:flex;align-items:center;justify-content:center">1</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:.92rem;margin-bottom:3px">Add to your Home Screen</div>
+          <div id="wlHomeBody" style="font-size:.8rem;color:var(--t2);line-height:1.5"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;padding:14px;background:var(--s2);border:1px solid var(--br);border-radius:12px;margin-bottom:11px">
+        <div style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--acc);color:#04231a;font-family:'Archivo',sans-serif;font-weight:900;font-size:.85rem;display:flex;align-items:center;justify-content:center">2</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:.92rem;margin-bottom:3px">Turn on notifications</div>
+          <div style="font-size:.8rem;color:var(--t2);line-height:1.5;margin-bottom:9px">Get a buzz the moment a customer messages or calls, so you never miss a job.</div>
+          <button id="wlPushBtn" onclick="welcomeEnablePush()" style="padding:8px 16px;background:var(--acc);border:none;border-radius:9px;color:#04231a;font-weight:800;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;cursor:pointer">Turn on</button>
+          <div id="wlPushNote" style="font-size:.72rem;color:var(--t3);margin-top:7px;display:none"></div>
+        </div>
+      </div>
+
+      <div id="wlStepBio" style="display:flex;gap:12px;padding:14px;background:var(--s2);border:1px solid var(--br);border-radius:12px;margin-bottom:18px">
+        <div style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--acc);color:#04231a;font-family:'Archivo',sans-serif;font-weight:900;font-size:.85rem;display:flex;align-items:center;justify-content:center">3</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:.92rem;margin-bottom:3px">Set up Face ID</div>
+          <div style="font-size:.8rem;color:var(--t2);line-height:1.5;margin-bottom:9px">Unlock with your face instead of typing your PIN every time.</div>
+          <button id="wlBioBtn" onclick="welcomeEnableBio()" style="padding:8px 16px;background:var(--acc);border:none;border-radius:9px;color:#04231a;font-weight:800;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;cursor:pointer">Turn on</button>
+        </div>
+      </div>
+
+      <button onclick="closeWelcome()" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:11px;color:#04231a;font-weight:800;font-family:'Hanken Grotesk',sans-serif;font-size:.92rem;cursor:pointer">Done</button>
+      <div onclick="closeWelcome()" style="text-align:center;font-size:.78rem;color:var(--t3);margin-top:12px;cursor:pointer">I'll do this later</div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1726,6 +1783,7 @@ function _launchApp(data){
   const _nav=document.querySelector('.nav');if(_nav){_nav.classList.add('slideup');}
   // Inbox: preload conversations for unread badge + start live polling
   try{ loadInbox(true); loadPending(); startInboxPolling(); }catch(e){ console.warn('inbox init',e); }
+  try{ maybeShowWelcome(); }catch(e){}
 }
 
 // Manual refresh — re-pull the dashboard data and re-render the lists/counters.
@@ -3097,6 +3155,115 @@ function closePreview(){
   const modal = document.getElementById('previewModal');
   modal.style.display = 'none';
   document.body.style.overflow = '';
+}
+
+/* ════════ AI HELP ASSISTANT ════════ */
+let helpHistory = [];
+function openHelp(){
+  haptic('light');
+  document.getElementById('helpModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  if(helpHistory.length === 0){
+    helpAddMsg('assistant', "Hi! I'm your VanOffice helper \u2014 ask me anything. How to send a quote, log an expense, how your customers reach you, whatever you're stuck on.");
+    helpRenderChips();
+  }
+  setTimeout(function(){ var i=document.getElementById('helpInput'); if(i) i.focus(); }, 200);
+}
+function closeHelp(){
+  document.getElementById('helpModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function helpAddMsg(role, text){
+  const wrap = document.getElementById('helpMsgs');
+  const b = document.createElement('div');
+  const mine = role === 'user';
+  b.style.cssText = 'max-width:85%;padding:10px 13px;border-radius:14px;font-size:.85rem;line-height:1.5;white-space:pre-wrap;word-wrap:break-word;' + (mine
+    ? 'align-self:flex-end;background:var(--acc);color:#04231a;border-bottom-right-radius:4px'
+    : 'align-self:flex-start;background:var(--s3);color:var(--t1);border-bottom-left-radius:4px');
+  b.textContent = text;
+  wrap.appendChild(b);
+  wrap.scrollTop = wrap.scrollHeight;
+  return b;
+}
+function helpRenderChips(){
+  const chips = ['How do customers reach me?','How do I send an invoice?','How do I log an expense?','How do I change my quote style?'];
+  const c = document.getElementById('helpChips');
+  c.innerHTML = '';
+  chips.forEach(function(q){
+    const el = document.createElement('button');
+    el.textContent = q;
+    el.style.cssText = "padding:7px 11px;background:var(--s3);border:1px solid var(--br);border-radius:999px;font-size:.72rem;color:var(--t2);font-family:'Hanken Grotesk',sans-serif;cursor:pointer";
+    el.onclick = function(){ document.getElementById('helpInput').value = q; sendHelp(); };
+    c.appendChild(el);
+  });
+}
+async function sendHelp(){
+  const input = document.getElementById('helpInput');
+  const text = (input.value || '').trim();
+  if(!text) return;
+  input.value = '';
+  document.getElementById('helpChips').innerHTML = '';
+  helpAddMsg('user', text);
+  helpHistory.push({role:'user', content:text});
+  const thinking = helpAddMsg('assistant', '\u2026');
+  const btn = document.getElementById('helpSendBtn'); if(btn) btn.disabled = true;
+  try{
+    const res = await fetch('/api/help', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({messages: helpHistory.slice(-12)})});
+    const d = await res.json();
+    const reply = d.reply || "Sorry, I couldn't answer just now \u2014 try again in a sec.";
+    thinking.textContent = reply;
+    helpHistory.push({role:'assistant', content: reply});
+  }catch(e){
+    thinking.textContent = "Couldn't reach help just now \u2014 check your connection and try again.";
+  }
+  if(btn) btn.disabled = false;
+  const w = document.getElementById('helpMsgs'); if(w) w.scrollTop = w.scrollHeight;
+}
+
+// ---- First-run welcome: nudge Home Screen install + notifications + Face ID ----
+function maybeShowWelcome(){
+  try{ if(localStorage.getItem('vo_setup_seen')==='1') return; }catch(e){}
+  setTimeout(showWelcome, 1400);
+}
+function showWelcome(){
+  var m=document.getElementById('welcomeModal'); if(!m) return;
+  var homeBody=document.getElementById('wlHomeBody');
+  var numHome=document.getElementById('wlNumHome');
+  var pushBtn=document.getElementById('wlPushBtn');
+  var pushNote=document.getElementById('wlPushNote');
+  var bioStep=document.getElementById('wlStepBio');
+  var standalone=false, ios=false;
+  try{ standalone=pwaIsStandalone(); ios=pwaIsIOS(); }catch(e){}
+  if(standalone){
+    if(numHome){ numHome.textContent='\u2713'; numHome.style.background='var(--grn)'; }
+    if(homeBody) homeBody.innerHTML='<span style="color:var(--grn);font-weight:700">Done \u2014 you\u2019re running the app version.</span>';
+  } else if(ios){
+    if(homeBody) homeBody.innerHTML='Tap the <b>Share</b> button at the bottom of Safari, then <b>Add to Home Screen</b>. Open VanOffice from the new icon \u2014 that\u2019s the proper app.';
+    if(pushBtn){ pushBtn.disabled=true; pushBtn.style.opacity='.45'; pushBtn.style.cursor='default'; }
+    if(pushNote){ pushNote.style.display='block'; pushNote.textContent='Add to your Home Screen first, then open it from there to switch notifications on.'; }
+  } else {
+    if(homeBody) homeBody.innerHTML='Tap your browser\u2019s <b>menu</b>, then <b>Install app</b> (or <b>Add to Home Screen</b>).';
+  }
+  try{
+    var bioRow=document.getElementById('bioRow');
+    if(bioStep && bioRow && bioRow.style.display==='none') bioStep.style.display='none';
+  }catch(e){}
+  m.style.display='flex';
+}
+function closeWelcome(){
+  try{ localStorage.setItem('vo_setup_seen','1'); }catch(e){}
+  var m=document.getElementById('welcomeModal'); if(m) m.style.display='none';
+}
+function _wlMarkDone(btn){ if(!btn) return; btn.textContent='\u2713 On'; btn.style.background='var(--grn)'; btn.disabled=true; btn.style.cursor='default'; }
+async function welcomeEnablePush(){
+  var b=document.getElementById('wlPushBtn');
+  try{ await enablePush(); }catch(e){}
+  if(window._pushOn) _wlMarkDone(b);
+}
+async function welcomeEnableBio(){
+  var b=document.getElementById('wlBioBtn');
+  try{ await enableFaceId(); }catch(e){}
+  if(window._bioOn) _wlMarkDone(b);
 }
 
 function renderGeorgePreview(){
