@@ -4258,6 +4258,43 @@ def activate_client():
         return jsonify({"error":str(e)}),500
 
 
+def notify_admin(text):
+    """Alert the operator (Harry). Tries Telegram, then SMS, then WhatsApp — uses whatever is configured."""
+    # 1) Telegram — most reliable, no number/template issues
+    try:
+        tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        tg_chat = os.environ.get("ADMIN_TELEGRAM_CHAT_ID", "")
+        if tg_token and tg_chat:
+            import requests as _rq
+            r = _rq.post("https://api.telegram.org/bot" + tg_token + "/sendMessage",
+                         json={"chat_id": tg_chat, "text": text}, timeout=15)
+            if r.ok:
+                return True
+    except Exception as e:
+        print("notify_admin telegram error:", e)
+    # 2) SMS — needs an SMS-capable Twilio number in ADMIN_SMS_FROM
+    try:
+        admin_phone = os.environ.get("ADMIN_PHONE", "")
+        sms_from = os.environ.get("ADMIN_SMS_FROM", "")
+        if admin_phone and sms_from:
+            tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
+            tc.messages.create(body=text, from_=sms_from, to=admin_phone)
+            return True
+    except Exception as e:
+        print("notify_admin sms error:", e)
+    # 3) WhatsApp fallback — only delivers if you've messaged the bot in the last 24h
+    try:
+        admin_phone = os.environ.get("ADMIN_PHONE", "")
+        wa_from = os.environ.get("TWILIO_NUMBER", "")
+        if admin_phone and wa_from:
+            tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
+            tc.messages.create(body=text, from_="whatsapp:" + wa_from, to="whatsapp:" + admin_phone)
+            return True
+    except Exception as e:
+        print("notify_admin whatsapp error:", e)
+    return False
+
+
 @app.route("/api/request-setup", methods=["POST"])
 def request_setup():
     try:
@@ -4275,21 +4312,13 @@ def request_setup():
         supabase.table("profiles").update({"twilio_number": pending_val}).eq("phone",phone).execute()
         # notify Harry
         try:
-            admin_phone = os.environ.get("ADMIN_PHONE","")
-            twilio_num  = os.environ.get("TWILIO_NUMBER","")
-            if admin_phone and twilio_num:
-                from twilio.rest import Client as TwilioClient
-                tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"),
-                                  os.environ.get("TWILIO_AUTH_TOKEN"))
-                biz  = profile.get("business_name") or profile.get("owner_name","?")
-                trade = profile.get("trade","")
-                loc   = profile.get("location","")
-                num_line = ("Wants their existing number: "+requested) if requested else "Wants a new number allocated"
-                body_msg = ("WhatsApp setup request:\n" + biz + " (" + trade + ", " + loc + ")\n"
-                               + num_line + "\nPhone: " + phone
-                               + "\n\nRegister in Twilio then update their twilio_number in Supabase.")
-                sms_from = os.environ.get("ADMIN_SMS_FROM") or twilio_num
-                tc.messages.create(body=body_msg, from_=sms_from, to=admin_phone)
+            biz = profile.get("business_name") or profile.get("owner_name", "?")
+            trade = profile.get("trade", "")
+            loc = profile.get("location", "")
+            body_msg = ("WhatsApp setup request:\n" + biz + " (" + trade + ", " + loc + ")\n"
+                        + "Wants a new number allocated\nPhone: " + phone
+                        + "\n\nRegister in Twilio then update their twilio_number in Supabase.")
+            notify_admin(body_msg)
         except Exception as ne:
             print("Setup notify error:", ne)
         return jsonify({"ok":True})
