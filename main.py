@@ -2087,9 +2087,10 @@ def incoming_sms():
         system += "Never give robotic brush-offs like 'I'll get " + owner_name + " to call you' unless you genuinely need to escalate (see below). "
         system += "Speak as 'we', warm and concise (this is SMS). Never pretend to BE " + owner_name + " personally.\n\n"
         system += "THE DIARY (upcoming jobs):\n" + diary_text + "\n\n"
+        system += "WHAT WE'RE DOING: for almost every enquiry the next step is a QUOTE VISIT \u2014 we come round to look at the work and give a price. We do NOT agree to carry out the job over text, and you must NEVER imply the work itself is booked or that we're turning up to do it. Everything you arrange is a visit to take a look and quote (unless it's something tiny we could clearly price right away). Always get the FULL ADDRESS of where the work is, since we need it to come and quote.\n\n"
         system += "YOU CAN HANDLE THESE YOURSELF:\n"
         system += "- Simple questions: opening hours, areas covered, what trade/work we do.\n"
-        system += "- Gathering details for a quote: what the job is, where, rough timing.\n"
+        system += "- Gathering what we need to quote: what the job is, the FULL ADDRESS (street + postcode if you can get it, not just the town), and when roughly suits them for a visit.\n"
         system += "- You do NOT book, confirm or agree appointment times yourself \u2014 anything about timing always goes to " + owner_name + " (see the critical rule below), even if a slot looks free in the diary.\n\n"
         system += "GET THEIR NAME: early in a new conversation, if you don't already know who you're speaking to, politely ask for their name (e.g. 'Happy to help — can I take your name?'). Work it into the chat naturally, don't interrogate. The moment you know it, add the CONTACT: line described below.\n\n"
         system += "CRITICAL RULE ON TIMES & BOOKINGS:\n"
@@ -2101,15 +2102,15 @@ def incoming_sms():
         system += "- the customer asks when you can come / proposes or asks about timing / wants to book or rearrange;\n"
         system += "- ANYTHING about price, cost, money, deposits, or discounts;\n"
         system += "- complaints or an unhappy customer; emergencies/urgent; anything you are unsure about.\n\n"
-        system += "TO HAND IT OVER: send the customer a warm, honest holding line that does NOT promise a specific time or answer "
-        system += "(e.g. 'Let me check with " + owner_name + "\u2019s diary and come right back to you on that'). "
+        system += "TO HAND IT OVER: send the customer ONE short, neutral holding line that does NOT name anyone and does NOT promise a specific time "
+        system += "(e.g. 'Leave that with me and I\u2019ll confirm shortly' or 'Let me come right back to you on that'). Don't say you're checking a particular person's diary, and don't repeat the holding line on every message. "
         system += "Then on its OWN FINAL LINE add:\n"
-        system += "NEEDYOU:reason=<short reason e.g. choose a day to view>|options=<2-5 short choices " + owner_name + " could pick, separated by commas>\n"
+        system += "NEEDYOU:reason=<short reason, e.g. arrange a time to come and quote>|options=<2-5 short choices " + owner_name + " could pick, separated by commas>\n"
         system += "The options must be SMART and based on what the customer said. Example: if they say 'any evening next week', options could be: "
         system += "Mon eve,Tue eve,Wed eve,Thu eve,Fri eve. If they ask a price, options could be: Send rough quote,Arrange a call,I\u2019ll reply myself. "
         system += "Always make the LAST option a sensible catch-all. Never invent the answer yourself \u2014 the options are for " + owner_name + " to choose from.\n\n"
-        system += "WHEN YOU HAVE ENOUGH JOB DETAIL for a quote (job, location, rough timing) and it is NOT a timing/price/booking moment, end with:\n"
-        system += "NEWJOB:name=<name or Unknown>|job=<job type>|location=<location>\n\n"
+        system += "WHEN YOU HAVE ENOUGH TO QUOTE (job + full address) and it is NOT a timing/price/booking moment, end with:\n"
+        system += "NEWJOB:name=<name or Unknown>|job=<job type>|location=<full address incl postcode if known>\n\n"
         system += "IF THE CUSTOMER TELLS YOU THEIR NAME at any point (e.g. 'it's Dave', 'this is Sarah Jones'), add on its OWN FINAL LINE:\n"
         system += "CONTACT:name=<their name>\n"
         system += "Always include CONTACT: once you know their name, even on a later message. The customer NEVER sees it.\n\n"
@@ -2859,6 +2860,28 @@ ASSISTANT_TOOLS = [
             },
             "required": ["client_name", "message"]
         }
+    },
+    {
+        "name": "respond_to_customer",
+        "description": "Reply to a customer who is currently waiting on the owner (a parked decision: confirming/proposing an appointment time, answering a question, or giving a price). Use this when the owner is responding to such a customer - e.g. a bare number picking an offered option, 'Weds 2pm works', or 'tell him £400 all in'. If a specific time is confirmed it is added to the diary automatically.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message": {"type": "string", "description": "What to tell the customer, in plain words. It will be turned into a warm, brief message."},
+                "client_name": {"type": "string", "description": "Optional: which waiting customer, if more than one. Leave blank for the most recent."}
+            },
+            "required": ["message"]
+        }
+    },
+    {
+        "name": "dismiss_customer_request",
+        "description": "Dismiss/park a waiting customer decision without replying, because the owner will handle it themselves.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "client_name": {"type": "string", "description": "Optional: which waiting customer. Leave blank for the most recent."}
+            }
+        }
     }
 ]
 
@@ -3189,6 +3212,36 @@ def _assistant_execute_tool(name, ti, profile):
             return ("Summary: \u00a3" + str(int(unpaid_total)) + " unpaid across " + str(len(unpaid)) +
                     " invoices, " + str(len(bookings)) + " jobs in the diary, " + str(len(new_enq)) + " new enquiries.")
 
+        if name == "respond_to_customer":
+            msg = (ti.get("message", "") or "").strip()
+            cn = (ti.get("client_name", "") or "").strip()
+            if not msg:
+                return "No message given to send."
+            pa = _latest_pending(sender, cn)
+            if not pa:
+                return "There's no customer waiting on a reply right now."
+            res = _resolve_pending_action(profile, pa, msg, send_verbatim=False)
+            if not res.get("ok"):
+                return "Couldn't send that to the customer just now."
+            out = "Sent to " + (pa.get("client_name") or "the customer") + "."
+            if res.get("booked"):
+                out += " " + res["booked"] + "."
+            return out
+
+        if name == "dismiss_customer_request":
+            cn = (ti.get("client_name", "") or "").strip()
+            pa = _latest_pending(sender, cn)
+            if not pa:
+                return "Nothing waiting to dismiss."
+            try:
+                supabase.table("pending_actions").update({
+                    "status": "dismissed", "resolved_at": datetime.datetime.now().isoformat()
+                }).eq("id", pa.get("id")).execute()
+            except Exception as de:
+                print("dismiss tool error:", de)
+                return "Couldn't dismiss that just now."
+            return "Dismissed " + (pa.get("client_name") or "that request") + "."
+
         return "Unknown action."
     except Exception as e:
         print("Tool exec error (" + name + "):", e)
@@ -3279,7 +3332,7 @@ def _booking_from_approval(profile, pa, choice):
         pass
 
     try:
-        supabase.table("bookings").insert({
+        ins = supabase.table("bookings").insert({
             "sender": sender,
             "client_name": cname or "Customer",
             "job_type": job_txt,
@@ -3293,6 +3346,15 @@ def _booking_from_approval(profile, pa, choice):
     except Exception as ie:
         print("auto-booking insert error:", ie)
         return None
+    # Best-effort: remember the customer's number so we can send a day-of reminder.
+    # (Needs the bookings.client_number column; silently skipped if it's not there.)
+    try:
+        new_id = (ins.data or [{}])[0].get("id")
+        cnum = pa.get("client_number", "")
+        if new_id and cnum:
+            supabase.table("bookings").update({"client_number": cnum}).eq("id", new_id).execute()
+    except Exception:
+        pass
     return ("Booked " + (cname or "customer") + " for " + date_str +
             (" at " + time_str if time_str else "") + (" \u2014 " + job_txt if job_txt else ""))
 
@@ -3315,6 +3377,9 @@ def _resolve_pending_action(profile, pa, choice, send_verbatim=False):
                    "The customer said: \"" + convo + "\".\n"
                    "The owner (" + owner_name + ") has decided: \"" + choice + "\".\n"
                    "Write ONLY the message to send to the customer relaying that decision naturally. "
+                   "If a time is being agreed, frame it as us coming round to take a look and give a quote "
+                   "(e.g. 'we\u2019ll pop round Wednesday at 5pm to take a look and quote') \u2014 do NOT imply the job "
+                   "itself is booked to be carried out, unless the owner clearly means starting the work. "
                    "Do not add quotes, signatures, or tags. Keep it brief and human.")
         try:
             ai = client.messages.create(model="claude-sonnet-4-5", max_tokens=180,
@@ -3342,12 +3407,97 @@ def _resolve_pending_action(profile, pa, choice, send_verbatim=False):
     return {"ok": True, "sent": customer_message, "booked": booking_note}
 
 
+def _latest_pending(sender, client_name=""):
+    """Most recent customer decision still waiting on the owner. If client_name
+    is given, prefer a match on that name. Returns the row or None."""
+    try:
+        rows = (supabase.table("pending_actions").select("*")
+                .eq("sender", sender).eq("status", "pending")
+                .order("created_at", desc=True).limit(10).execute().data or [])
+    except Exception as e:
+        print("_latest_pending error:", e)
+        return None
+    if client_name:
+        cl = client_name.lower()
+        for r in rows:
+            if cl in (r.get("client_name", "") or "").lower():
+                return r
+    return rows[0] if rows else None
+
+
+def run_owner_assistant(profile, user_text):
+    """Run the owner's assistant brain over a single text command and return a
+    short reply. Reuses ASSISTANT_TOOLS + _assistant_execute_tool, and is aware
+    of any customers currently waiting so it can reply to them too."""
+    sender = profile.get("sender", "")
+    owner_name = profile.get("owner_name", "") or "there"
+    biz = profile.get("business_name", "your business")
+    today = datetime.date.today().strftime("%A %d %B %Y")
+
+    pend_txt = ""
+    try:
+        pend = (supabase.table("pending_actions").select("*").eq("sender", sender)
+                .eq("status", "pending").order("created_at", desc=True).limit(5).execute().data or [])
+    except Exception:
+        pend = []
+    if pend:
+        pend_txt = "\n\nCUSTOMERS WAITING ON YOU RIGHT NOW (most recent first):\n"
+        for p in pend:
+            opts = p.get("options") or []
+            if isinstance(opts, str):
+                try:
+                    opts = json.loads(opts)
+                except Exception:
+                    opts = [o.strip() for o in opts.split(",") if o.strip()]
+            who = p.get("client_name") or p.get("client_number") or "a customer"
+            line = "- " + who + ": " + (p.get("reason", "") or "needs a reply")
+            if isinstance(opts, list) and opts:
+                line += " [options: " + ", ".join(str(o) for o in opts) + "]"
+            pend_txt += line + "\n"
+
+    system_prompt = (
+        "You are " + biz + "'s assistant, texting with the OWNER " + owner_name + ". "
+        "Today is " + today + ". This is SMS \u2014 keep every reply very short, plain and human, no markdown. "
+        "You can create quotes and invoices, check and add diary bookings, read enquiries, mark invoices paid, "
+        "message clients, and reply to waiting customers, all using your tools. "
+        "Pick the right tool and just do it; don't ask for confirmation unless something is genuinely ambiguous.\n"
+        "If the owner is responding to a customer who is waiting (a bare number choosing an option, confirming a time, "
+        "giving a price, or saying what to tell them), use respond_to_customer \u2014 a bare number refers to the option "
+        "list of the most recent waiting customer. If they say to leave/ignore it, use dismiss_customer_request. "
+        "Otherwise help them with the right tool. Never mention tool names or internal tags; just confirm what you did "
+        "in a few words." + pend_txt
+    )
+
+    messages = [{"role": "user", "content": user_text}]
+    try:
+        for _ in range(5):
+            resp = client.messages.create(model="claude-sonnet-4-5", max_tokens=600,
+                                           system=system_prompt, tools=ASSISTANT_TOOLS, messages=messages)
+            if resp.stop_reason == "tool_use":
+                messages.append({"role": "assistant", "content": resp.content})
+                tool_results = []
+                for block in resp.content:
+                    if getattr(block, "type", "") == "tool_use":
+                        out = _assistant_execute_tool(block.name, block.input, profile)
+                        tool_results.append({"type": "tool_result", "tool_use_id": block.id, "content": out})
+                messages.append({"role": "user", "content": tool_results})
+                continue
+            parts = [b.text for b in resp.content if getattr(b, "type", "") == "text"]
+            return ("\n".join(parts)).strip() or "Done."
+        return "Done."
+    except Exception as e:
+        print("run_owner_assistant error:", e)
+        return "Sorry, I couldn't action that just now \u2014 try again, or open VanOffice."
+
+
 def handle_owner_reply(profile, owner_text):
-    """The owner texted their own VanOffice number. If a decision is waiting on
-    them, treat this text as their approval/instruction and action it by reply.
-    Returns a short confirmation line to text back to the owner."""
+    """The owner texted their own VanOffice number. Action it by reply: instant
+    approve/dismiss when a decision is waiting, otherwise hand to the assistant
+    so they can run the business by text (quotes, diary, invoices, replies)."""
     sender = profile.get("sender", "")
     text = (owner_text or "").strip()
+    if not text:
+        return "Send me a quick instruction \u2014 e.g. 'what's on tomorrow', or reply to a waiting customer."
 
     try:
         pend = (supabase.table("pending_actions").select("*")
@@ -3357,50 +3507,42 @@ def handle_owner_reply(profile, owner_text):
         print("owner reply pending fetch error:", e)
         pend = []
 
-    if not pend:
-        return ("Nothing waiting for your approval right now. "
-                "Open VanOffice to send a quote, check the diary or message a customer.")
+    # Fast, deterministic path for the commonest actions when a decision is waiting.
+    if pend:
+        pa = pend[0]
+        who = pa.get("client_name") or pa.get("client_number") or "the customer"
+        low = text.lower()
+        if low in ("ignore", "dismiss", "skip", "leave it", "leave", "nothing", "no"):
+            try:
+                supabase.table("pending_actions").update({
+                    "status": "dismissed", "resolved_at": datetime.datetime.now().isoformat()
+                }).eq("id", pa.get("id")).execute()
+            except Exception as e:
+                print("owner dismiss error:", e)
+            more = (" (" + str(len(pend) - 1) + " more waiting.)") if len(pend) > 1 else ""
+            return "Okay, left that with " + who + " for now." + more
 
-    pa = pend[0]
-    who = pa.get("client_name") or pa.get("client_number") or "the customer"
+        options = pa.get("options") or []
+        if isinstance(options, str):
+            try:
+                options = json.loads(options)
+            except Exception:
+                options = [o.strip() for o in options.split(",") if o.strip()]
+        if text.isdigit() and isinstance(options, list) and options:
+            idx = int(text) - 1
+            if 0 <= idx < len(options):
+                res = _resolve_pending_action(profile, pa, options[idx], send_verbatim=False)
+                if not res.get("ok"):
+                    return "Couldn't send that to " + who + " just now \u2014 try again, or open VanOffice."
+                msg = "\u2713 Sent to " + who + "."
+                if res.get("booked"):
+                    msg += " " + res["booked"] + "."
+                if len(pend) > 1:
+                    msg += " (" + str(len(pend) - 1) + " more waiting \u2014 reply to action the next.)"
+                return msg
 
-    options = pa.get("options") or []
-    if isinstance(options, str):
-        try:
-            options = json.loads(options)
-        except Exception:
-            options = [o.strip() for o in options.split(",") if o.strip()]
-    if not isinstance(options, list):
-        options = []
-
-    low = text.lower()
-    if low in ("ignore", "dismiss", "skip", "leave it", "leave", "nothing"):
-        try:
-            supabase.table("pending_actions").update({
-                "status": "dismissed", "resolved_at": datetime.datetime.now().isoformat()
-            }).eq("id", pa.get("id")).execute()
-        except Exception as e:
-            print("owner dismiss error:", e)
-        more = (" (" + str(len(pend) - 1) + " more waiting.)") if len(pend) > 1 else ""
-        return "Okay, left that one with " + who + " for now." + more
-
-    # A bare number picks one of the options we offered.
-    choice = text
-    if text.isdigit() and options:
-        idx = int(text) - 1
-        if 0 <= idx < len(options):
-            choice = options[idx]
-
-    res = _resolve_pending_action(profile, pa, choice, send_verbatim=False)
-    if not res.get("ok"):
-        return "Couldn't send that to " + who + " just now \u2014 try again, or open VanOffice."
-
-    msg = "\u2713 Sent to " + who + "."
-    if res.get("booked"):
-        msg += " " + res["booked"] + "."
-    if len(pend) > 1:
-        msg += " (" + str(len(pend) - 1) + " more waiting \u2014 reply to action the next.)"
-    return msg
+    # Everything else (natural-language approvals + all other commands) → the assistant.
+    return run_owner_assistant(profile, text)
 
 
 @app.route("/api/pending/resolve", methods=["POST"])
@@ -3461,6 +3603,70 @@ def api_pending_dismiss():
     except Exception as e:
         print("api_pending_dismiss error:", e)
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/cron/quote-reminders", methods=["GET", "POST"])
+def cron_quote_reminders():
+    """Run daily by a scheduler. Texts every customer who has a visit booked for
+    TODAY a short 'still ok for later?' confirmation. Protected by CRON_KEY."""
+    expected = os.environ.get("CRON_KEY", "")
+    if not expected or request.args.get("key", "") != expected:
+        return jsonify({"error": "Unauthorised"}), 401
+    today = datetime.date.today().isoformat()
+    sent, skipped = 0, 0
+    try:
+        rows = supabase.table("bookings").select("*").eq("date", today).execute().data or []
+    except Exception as e:
+        print("cron bookings fetch error:", e)
+        return jsonify({"error": str(e)}), 500
+
+    prof_cache = {}
+    for b in rows:
+        try:
+            if b.get("reminder_sent"):
+                skipped += 1
+                continue
+            sender = b.get("sender", "")
+            if not sender:
+                continue
+            cnum = (b.get("client_number", "") or "").strip()
+            cname = (b.get("client_name", "") or "").strip()
+            # Fall back to the contacts directory if the booking has no number stored.
+            if not cnum and cname:
+                try:
+                    cc = (supabase.table("client_contacts").select("client_number")
+                          .eq("sender", sender).ilike("name", "%" + cname + "%")
+                          .limit(1).execute().data or [])
+                    if cc:
+                        cnum = (cc[0].get("client_number", "") or "").strip()
+                except Exception:
+                    pass
+            if not cnum:
+                skipped += 1
+                continue
+            if sender not in prof_cache:
+                pr = supabase.table("profiles").select("*").eq("sender", sender).limit(1).execute().data or []
+                prof_cache[sender] = pr[0] if pr else None
+            profile = prof_cache[sender]
+            if not profile:
+                continue
+            time_txt = (b.get("time", "") or "").strip()
+            when = ("at " + time_txt) if time_txt else "later today"
+            is_quote = "quote" in (b.get("job_type", "") or "").lower()
+            what = " to take a look and quote" if is_quote else ""
+            first = cname.split()[0] if cname else "there"
+            msg = ("Hi " + first + ", just confirming we're still good to pop round " + when + what +
+                   ". Let us know if that still works \u2014 thanks!")
+            res = send_to_client(profile, cnum, msg)
+            if res.get("ok"):
+                try:
+                    supabase.table("bookings").update({"reminder_sent": True}).eq("id", b.get("id")).execute()
+                except Exception:
+                    pass
+                sent += 1
+        except Exception as e:
+            print("cron reminder error:", e)
+    return jsonify({"ok": True, "sent": sent, "skipped": skipped})
 
 
 @app.route("/api/usage", methods=["GET"])
