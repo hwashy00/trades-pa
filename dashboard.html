@@ -1985,6 +1985,15 @@ function pushRowTap(){ if(window._pushOn) sendTestPush(); else enablePush(); }
 async function sendTestPush(){
   pushStatus('Sending a test\u2026');
   try{
+    // self-heal: make sure this device is saved server-side before testing
+    try{
+      var reg0=await navigator.serviceWorker.ready;
+      var sub0=await reg0.pushManager.getSubscription();
+      if(sub0){
+        await fetch('/api/push/subscribe?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),
+          {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sub0)});
+      }
+    }catch(_){}
     var res=await fetch('/api/push/test?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST'});
     var d=await res.json();
     if(d.ok){ pushStatus('Test sent \u2014 you should see a notification in a second. (If the app is open in front, iOS may not show it.)'); }
