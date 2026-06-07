@@ -257,6 +257,12 @@ def format_phone(phone):
     return phone
 
 
+def _phone_last10(num):
+    """Last 10 digits of a phone number, for matching regardless of +44/0 formatting."""
+    import re as _r
+    return _r.sub(r"\D", "", str(num or ""))[-10:]
+
+
 # ── CLIENT CONTACTS: name <-> number directory, per owner ──
 # Lets us show client names in the inbox and resolve "message Dave" to a number.
 _CONTACT_NONAMES = {"", "unknown", "client", "customer", "there", "mate", "hi", "hello"}
@@ -2034,6 +2040,17 @@ def incoming_sms():
         biz_name = profile.get("business_name", "the business")
         owner_name = profile.get("owner_name", "")
 
+        # ── Owner texting their OWN VanOffice number → reply-to-approve, not a customer. ──
+        if client_number and _phone_last10(client_number) and \
+           _phone_last10(client_number) == _phone_last10(profile.get("phone", "")):
+            try:
+                owner_msg = handle_owner_reply(profile, incoming_msg)
+            except Exception as oe:
+                print("handle_owner_reply error:", oe)
+                owner_msg = "Sorry, something went wrong actioning that \u2014 open VanOffice to manage it."
+            resp.message(owner_msg)
+            return str(resp)
+
         # Save incoming message
         supabase.table("client_chats").insert({
             "twilio_number": twilio_number,
@@ -2200,7 +2217,11 @@ def incoming_sms():
                 }).execute()
                 # nudge the owner (SMS-first, works today)
                 who = cname or client_number
-                notify_owner(profile, "\u26A0 " + who + " needs you: " + reason + ". Open VanOffice > Inbox to choose what to send.")
+                _opts_txt = ""
+                for _i, _o in enumerate(options[:5], 1):
+                    _opts_txt += "\n" + str(_i) + ". " + str(_o)
+                notify_owner(profile, "\u26A0 " + who + " needs you: " + reason + _opts_txt +
+                             "\n\nReply with a number, or just tell me what to do.")
             except Exception as e:
                 print("NEEDYOU parse error:", e)
 
@@ -3276,6 +3297,112 @@ def _booking_from_approval(profile, pa, choice):
             (" at " + time_str if time_str else "") + (" \u2014 " + job_txt if job_txt else ""))
 
 
+def _resolve_pending_action(profile, pa, choice, send_verbatim=False):
+    """Shared core for actioning a pending decision (used by both the dashboard
+    Inbox and reply-by-text): phrase the owner's choice into a customer message,
+    send it on the customer's channel, mark the action done, and create a diary
+    booking if the choice confirmed a time. Returns {ok, sent, booked, error}."""
+    client_number = pa.get("client_number", "")
+    pid = pa.get("id")
+
+    if send_verbatim:
+        customer_message = choice
+    else:
+        owner_name = profile.get("owner_name", "")
+        biz = profile.get("business_name", "the business")
+        convo = pa.get("customer_msg", "")
+        phr_sys = ("You write a single short, warm SMS to a customer on behalf of " + biz + ".\n"
+                   "The customer said: \"" + convo + "\".\n"
+                   "The owner (" + owner_name + ") has decided: \"" + choice + "\".\n"
+                   "Write ONLY the message to send to the customer relaying that decision naturally. "
+                   "Do not add quotes, signatures, or tags. Keep it brief and human.")
+        try:
+            ai = client.messages.create(model="claude-sonnet-4-5", max_tokens=180,
+                                        system=phr_sys, messages=[{"role": "user", "content": "Write the message."}])
+            customer_message = ai.content[0].text.strip()
+        except Exception as ae:
+            print("phrasing error:", ae)
+            customer_message = choice
+
+    send_res = send_to_client(profile, client_number, customer_message)
+    if not send_res.get("ok"):
+        return {"ok": False, "error": send_res.get("error") or "Send failed"}
+
+    if pid is not None:
+        supabase.table("pending_actions").update({
+            "status": "done", "resolved_at": datetime.datetime.now().isoformat()
+        }).eq("id", pid).execute()
+
+    booking_note = None
+    try:
+        booking_note = _booking_from_approval(profile, pa, choice)
+    except Exception as _be:
+        print("auto-booking error:", _be)
+
+    return {"ok": True, "sent": customer_message, "booked": booking_note}
+
+
+def handle_owner_reply(profile, owner_text):
+    """The owner texted their own VanOffice number. If a decision is waiting on
+    them, treat this text as their approval/instruction and action it by reply.
+    Returns a short confirmation line to text back to the owner."""
+    sender = profile.get("sender", "")
+    text = (owner_text or "").strip()
+
+    try:
+        pend = (supabase.table("pending_actions").select("*")
+                .eq("sender", sender).eq("status", "pending")
+                .order("created_at", desc=True).limit(5).execute().data or [])
+    except Exception as e:
+        print("owner reply pending fetch error:", e)
+        pend = []
+
+    if not pend:
+        return ("Nothing waiting for your approval right now. "
+                "Open VanOffice to send a quote, check the diary or message a customer.")
+
+    pa = pend[0]
+    who = pa.get("client_name") or pa.get("client_number") or "the customer"
+
+    options = pa.get("options") or []
+    if isinstance(options, str):
+        try:
+            options = json.loads(options)
+        except Exception:
+            options = [o.strip() for o in options.split(",") if o.strip()]
+    if not isinstance(options, list):
+        options = []
+
+    low = text.lower()
+    if low in ("ignore", "dismiss", "skip", "leave it", "leave", "nothing"):
+        try:
+            supabase.table("pending_actions").update({
+                "status": "dismissed", "resolved_at": datetime.datetime.now().isoformat()
+            }).eq("id", pa.get("id")).execute()
+        except Exception as e:
+            print("owner dismiss error:", e)
+        more = (" (" + str(len(pend) - 1) + " more waiting.)") if len(pend) > 1 else ""
+        return "Okay, left that one with " + who + " for now." + more
+
+    # A bare number picks one of the options we offered.
+    choice = text
+    if text.isdigit() and options:
+        idx = int(text) - 1
+        if 0 <= idx < len(options):
+            choice = options[idx]
+
+    res = _resolve_pending_action(profile, pa, choice, send_verbatim=False)
+    if not res.get("ok"):
+        return "Couldn't send that to " + who + " just now \u2014 try again, or open VanOffice."
+
+    msg = "\u2713 Sent to " + who + "."
+    if res.get("booked"):
+        msg += " " + res["booked"] + "."
+    if len(pend) > 1:
+        msg += " (" + str(len(pend) - 1) + " more waiting \u2014 reply to action the next.)"
+    return msg
+
+
 @app.route("/api/pending/resolve", methods=["POST"])
 def api_pending_resolve():
     """
@@ -3306,44 +3433,10 @@ def api_pending_resolve():
         client_number = pa.get("client_number", "")
         cname = pa.get("client_name") or "there"
 
-        if send_verbatim:
-            customer_message = choice
-        else:
-            # Ask the AI to phrase the owner's instruction as a warm message to the customer.
-            owner_name = profile.get("owner_name", "")
-            biz = profile.get("business_name", "the business")
-            convo = pa.get("customer_msg", "")
-            phr_sys = ("You write a single short, warm SMS to a customer on behalf of " + biz + ".\n"
-                       "The customer said: \"" + convo + "\".\n"
-                       "The owner (" + owner_name + ") has decided: \"" + choice + "\".\n"
-                       "Write ONLY the message to send to the customer relaying that decision naturally. "
-                       "Do not add quotes, signatures, or tags. Keep it brief and human.")
-            try:
-                ai = client.messages.create(model="claude-sonnet-4-5", max_tokens=180,
-                                            system=phr_sys, messages=[{"role": "user", "content": "Write the message."}])
-                customer_message = ai.content[0].text.strip()
-            except Exception as ae:
-                print("phrasing error:", ae)
-                customer_message = choice
-
-        # Send to the customer on their channel.
-        send_res = send_to_client(profile, client_number, customer_message)
-        if not send_res["ok"]:
-            return jsonify({"ok": False, "error": send_res.get("error") or "Send failed"}), 200
-
-        # Mark this pending action done.
-        supabase.table("pending_actions").update({
-            "status": "done", "resolved_at": datetime.datetime.now().isoformat()
-        }).eq("id", pid).execute()
-
-        # If the owner's decision confirmed a specific time, drop it into the diary/calendar.
-        booking_note = None
-        try:
-            booking_note = _booking_from_approval(profile, pa, choice)
-        except Exception as _be:
-            print("auto-booking error:", _be)
-
-        return jsonify({"ok": True, "sent": customer_message, "booked": booking_note})
+        res = _resolve_pending_action(profile, pa, choice, send_verbatim)
+        if not res.get("ok"):
+            return jsonify({"ok": False, "error": res.get("error") or "Send failed"}), 200
+        return jsonify({"ok": True, "sent": res.get("sent"), "booked": res.get("booked")})
     except Exception as e:
         print("api_pending_resolve error:", e)
         return jsonify({"error": str(e)}), 500
