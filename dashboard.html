@@ -2048,9 +2048,12 @@ function initAuth(){
     userPhone=creds.phone;
     try{ var fp=document.getElementById('forgotPhone'); if(fp)fp.value=creds.phone; }catch(e){}
     if(bioEnabled() && webauthnSupported()){
-      // show the PIN screen as an unlock screen with a Face ID button (PIN still works)
+      // show the PIN screen as an unlock screen; Face ID fires automatically on open.
       showPinScreen();
+      var sub=document.querySelector('#screenPin .logo-sub'); if(sub) sub.textContent='Look at your phone to unlock';
       var b=document.getElementById('faceIdBtn'); if(b) b.style.display='inline-flex';
+      _armBioTap();                                     // first tap anywhere triggers it if iOS blocks auto
+      setTimeout(function(){ bioUnlock(true); }, 400);  // attempt automatically on open
     } else {
       autoLogin(creds);                                 // remember-me: straight in
     }
@@ -2058,17 +2061,33 @@ function initAuth(){
 }
 window.addEventListener('load', initAuth);
 
-async function bioUnlock(){
+let _bioInFlight=false;
+async function bioUnlock(silent){
   if(!webauthnSupported()||!bioEnabled()) return;
+  if(_bioInFlight) return;
+  _bioInFlight=true;
   try{
     await navigator.credentials.get({publicKey:{
       challenge:_rand(32),
       allowCredentials:[{type:'public-key', id:_b64ToBuf(localStorage.getItem('vo_bio_id'))}],
       userVerification:'required', timeout:60000
     }});
+    _bioDisarmTap();
     var creds=getCreds(); if(creds) autoLogin(creds);
-  }catch(e){ console.warn('bioUnlock',e); var pe=document.getElementById('pinErr'); if(pe) pe.textContent='Face ID didn\u2019t work \u2014 enter your PIN.'; }
+  }catch(e){
+    // Silent = the automatic on-open attempt (iOS may block it without a gesture); stay quiet and
+    // let the first tap trigger it. Only surface an error on a deliberate attempt.
+    if(!silent){ var pe=document.getElementById('pinErr'); if(pe) pe.textContent='Face ID didn\u2019t work \u2014 enter your PIN.'; }
+  }
+  _bioInFlight=false;
 }
+function _bioTapHandler(ev){
+  // Let deliberate PIN entry / other controls through; any other tap triggers Face ID.
+  if(ev.target.closest && ev.target.closest('.pk-btn, .back-btn, input, label, #faceIdBtn, [onclick*="showForgotPin"]')) return;
+  bioUnlock(false);
+}
+function _armBioTap(){ var s=document.getElementById('screenPin'); if(s) s.addEventListener('pointerdown', _bioTapHandler); }
+function _bioDisarmTap(){ var s=document.getElementById('screenPin'); if(s) s.removeEventListener('pointerdown', _bioTapHandler); }
 
 function bioStatus(t){ var e=document.getElementById('bioStatus'); if(e)e.textContent=t; }
 function updateBioBtn(on){ var e=document.getElementById('bioAction'); if(e){ e.textContent=on?'Turn off':'Enable'; e.style.color=on?'var(--t3)':'var(--acc2)'; } window._bioOn=!!on; }
