@@ -1721,8 +1721,13 @@ async function submitReset(){
 
 let _pendingAppData = null;
 
+function _hideLoginScreens(){
+  ['screenPhone','screenPin','screenSignup','screenForgot','screenReset','screenQuoteSetup'].forEach(function(id){
+    var e=document.getElementById(id); if(e) e.classList.add('hidden');
+  });
+}
 function showApp(data){
-  document.getElementById('screenPin').classList.add('hidden');
+  _hideLoginScreens();
   if(data.profile){window._vanofficeProfile=data.profile;}
 
   // First time user — no template saved yet, show quote setup
@@ -1743,7 +1748,7 @@ function showApp(data){
 
 function _launchApp(data){
   document.getElementById('chatBtn').style.display='block';
-  document.getElementById('screenQuoteSetup').classList.add('hidden');
+  _hideLoginScreens();
   const app=document.getElementById('app');
   app.classList.remove('hidden');app.style.display='flex';
   allEnquiries=data.recent||[];
