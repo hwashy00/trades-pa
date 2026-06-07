@@ -3469,6 +3469,9 @@ async function qsPreview(){
       iframe.srcdoc = data.html;
       wrapper.appendChild(iframe);
       inner.appendChild(wrapper);
+      document.getElementById('qsMsg').textContent = '';
+    } else {
+      document.getElementById('qsMsg').textContent = data.error ? ('Preview failed: '+data.error) : 'Preview failed — try again.';
     }
   }catch(e){
     document.getElementById('qsMsg').textContent = 'Preview failed. Try again.';
