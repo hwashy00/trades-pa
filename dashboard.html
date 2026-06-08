@@ -966,7 +966,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     </div>
 
     <div id="s-calendar" class="scr">
-      <div class="ph"><div class="ph-title">Calendar</div></div>
+      <div class="ph" style="display:flex;align-items:center;justify-content:space-between"><div class="ph-title">Calendar</div><button onclick="startBlankBooking()" style="display:flex;align-items:center;gap:6px;padding:9px 15px;background:var(--acc);border:none;border-radius:11px;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.78rem;color:#04231a;cursor:pointer">+ Add</button></div>
       <div id="bookBanner" style="display:none;margin:0 20px 14px;padding:12px 14px;background:var(--acc-d);border:1px solid var(--acc);border-radius:12px"></div>
       <div class="cal">
         <div class="cal-top">
@@ -3879,6 +3879,11 @@ function startBookingFromJob(id){
   go('calendar');
   renderCal(); renderBookBanner();
 }
+function startBlankBooking(){
+  _bookingDraft={ client_name:'', job_description:'', client_number:'', quote_id:null, blank:true, start:null, end:null, time:'' };
+  renderCal(); renderBookBanner();
+  var b=document.getElementById('bookBanner'); if(b)b.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
 function cancelBooking(){ _bookingDraft=null; renderCal(); renderBookBanner(); }
 function pickBookDay(y,m,d){
   if(!_bookingDraft)return;
@@ -3891,17 +3896,19 @@ function pickBookDay(y,m,d){
 function renderBookBanner(){
   var el=document.getElementById('bookBanner'); if(!el)return;
   if(!_bookingDraft){ el.style.display='none'; el.innerHTML=''; return; }
-  var who=_bookingDraft.client_name||'this job';
+  var isBlank=!!_bookingDraft.blank;
+  var who=_bookingDraft.client_name||(isBlank?'this booking':'this job');
   var msg, confirmBtn='';
-  if(!_bookingDraft.start){ msg='Tap a start day to book in <b>'+who+'</b>'; }
+  if(!_bookingDraft.start){ msg = isBlank ? 'Type what this is, then tap a start day' : ('Tap a start day to book in <b>'+who+'</b>'); }
   else{
     var s=_bookingDraft.start, e=_bookingDraft.end||s;
     var days=Math.round((e.getTime()-s.getTime())/86400000)+1;
     msg='<b>'+who+'</b> · '+_fmtD(s)+(days>1?(' → '+_fmtD(e)+' ('+days+' days)'):' (1 day) — tap another day to extend');
     confirmBtn='<button onclick="confirmBooking()" style="padding:8px 16px;background:var(--acc);border:none;border-radius:9px;color:#04231a;font-family:\'Hanken Grotesk\',sans-serif;font-weight:800;font-size:.78rem;cursor:pointer">Confirm booking</button>';
   }
+  var titleRow = isBlank ? '<input value="'+((_bookingDraft.client_name||'').replace(/"/g,'&quot;'))+'" oninput="if(_bookingDraft)_bookingDraft.client_name=this.value" placeholder="What\'s this? e.g. Boiler service, Mrs Lewis" style="width:100%;padding:9px 11px;border-radius:9px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:inherit;font-size:.82rem;margin-bottom:10px;box-sizing:border-box">' : '';
   var timeRow = _bookingDraft.start ? '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:.76rem;color:var(--t3)">Start time</span><input type="time" value="'+(_bookingDraft.time||'')+'" oninput="if(_bookingDraft)_bookingDraft.time=this.value" style="padding:7px 9px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:inherit;font-size:.8rem"></div>' : '';
-  el.innerHTML='<div style="font-size:.82rem;color:var(--t1);line-height:1.5;margin-bottom:'+(_bookingDraft.start?'10px':'0')+'">'+msg+'</div>'+timeRow+'<div style="display:flex;gap:8px">'+confirmBtn+'<button onclick="cancelBooking()" style="padding:8px 14px;background:var(--s2);border:none;border-radius:9px;color:var(--t2);font-family:\'Hanken Grotesk\',sans-serif;font-weight:700;font-size:.78rem;cursor:pointer">Cancel</button></div>';
+  el.innerHTML=titleRow+'<div style="font-size:.82rem;color:var(--t1);line-height:1.5;margin-bottom:'+(_bookingDraft.start?'10px':'0')+'">'+msg+'</div>'+timeRow+'<div style="display:flex;gap:8px">'+confirmBtn+'<button onclick="cancelBooking()" style="padding:8px 14px;background:var(--s2);border:none;border-radius:9px;color:var(--t2);font-family:\'Hanken Grotesk\',sans-serif;font-weight:700;font-size:.78rem;cursor:pointer">Cancel</button></div>';
   el.style.display='block';
 }
 async function confirmBooking(){
@@ -3912,7 +3919,7 @@ async function confirmBooking(){
   try{
     var r=await fetch('/api/create-booking?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({client_name:_bookingDraft.client_name,job_type:_bookingDraft.job_description,client_number:_bookingDraft.client_number,date:iso,time:(_bookingDraft.time||''),duration_days:String(days)})
+      body:JSON.stringify({client_name:(_bookingDraft.client_name||'Booking'),job_type:_bookingDraft.job_description,client_number:_bookingDraft.client_number,date:iso,time:(_bookingDraft.time||''),duration_days:String(days)})
     });
     var dta=await r.json();
     if(dta&&dta.ok){
