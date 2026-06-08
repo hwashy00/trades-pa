@@ -2647,6 +2647,12 @@ def create_quote():
         }
         res = supabase.table("quotes").insert(quote).execute()
         saved = res.data[0] if res.data else quote
+        try:
+            eq_id = data.get("enquiry_id")
+            if eq_id:
+                supabase.table("enquiries").update({"status": "quoted"}).eq("id", eq_id).execute()
+        except Exception as e:
+            print("enquiry->quoted update error: " + str(e))
         return jsonify({"ok": True, "quote": saved})
     except Exception as e:
         print("Create quote error: " + str(e))
@@ -2702,6 +2708,25 @@ def mark_invoice_paid(invoice_id):
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/delete-enquiry", methods=["POST"])
+def delete_enquiry():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        data = request.json or {}
+        eq_id = data.get("enquiry_id")
+        if not eq_id:
+            return jsonify({"error": "Missing enquiry_id"}), 400
+        supabase.table("enquiries").delete().eq("id", eq_id).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        print("Delete enquiry error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
