@@ -3841,7 +3841,7 @@ def capture_submit(slug):
 
 @app.route("/api/capture-link", methods=["GET"])
 def api_capture_link():
-    phone = request.args.get("phone", "")
+    phone = format_phone(request.args.get("phone", "").strip())
     pin = request.args.get("pin", "")
     if not phone or not pin:
         return jsonify({"error": "Phone and PIN required"}), 401
@@ -3870,7 +3870,7 @@ def api_capture_link():
 
 @app.route("/api/generate-ad", methods=["POST"])
 def api_generate_ad():
-    phone = request.args.get("phone", "")
+    phone = format_phone(request.args.get("phone", "").strip())
     pin = request.args.get("pin", "")
     if not phone or not pin:
         return jsonify({"error": "Phone and PIN required"}), 401
