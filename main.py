@@ -3868,6 +3868,49 @@ def api_capture_link():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/generate-ad", methods=["POST"])
+def api_generate_ad():
+    phone = request.args.get("phone", "")
+    pin = request.args.get("pin", "")
+    if not phone or not pin:
+        return jsonify({"error": "Phone and PIN required"}), 401
+    try:
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data:
+            return jsonify({"error": "Profile not found"}), 404
+        profile = result.data[0]
+        if str(profile.get("pin", "")) != str(pin):
+            return jsonify({"error": "Invalid PIN"}), 401
+        data = request.get_json(force=True, silent=True) or {}
+        job = (data.get("job_type", "") or "").strip()
+        location = (data.get("location", "") or "").strip()
+        biz = profile.get("business_name") or "our business"
+        trade = profile.get("trade") or ""
+        slug = ensure_capture_slug(profile)
+        link = request.url_root.rstrip("/") + "/q/" + slug + "?src=fb"
+
+        sys = ("You write short, upbeat social posts for a UK tradesperson to put on their OWN "
+               "Facebook/Instagram, showing off a recently completed job to win more work.\n"
+               "Business: " + biz + (". Trade: " + trade if trade else "") + ". "
+               "Recent job: " + (job or "a recent job") + ((" in " + location) if location else "") + ".\n"
+               "Write 3 DIFFERENT ready-to-post captions. Rules: friendly and natural (a real tradesperson, not corporate); "
+               "1-3 short sentences each; a few tasteful emojis are fine; do NOT include any customer names or personal details; "
+               "do NOT invent prices or specific claims. End each caption with a clear call to action for a free quote and this "
+               "exact link on its own final line: " + link + "\n"
+               "Return ONLY the 3 captions, separated by a line containing just ---. No numbering, no preamble.")
+        ai = client.messages.create(model="claude-sonnet-4-5", max_tokens=600,
+                                    system=sys, messages=[{"role": "user", "content": "Write the 3 posts."}])
+        raw = ai.content[0].text.strip()
+        variants = [v.strip() for v in raw.split("---") if v.strip()]
+        variants = [(v if link in v else (v + "\n" + link)) for v in variants][:3]
+        if not variants:
+            variants = ["Another job done by " + biz + "! Get in touch for a free quote:\n" + link]
+        return jsonify({"ok": True, "variants": variants, "link": link})
+    except Exception as e:
+        print("api_generate_ad error:", e)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/usage", methods=["GET"])
 def api_usage():
     try:
