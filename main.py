@@ -3702,6 +3702,172 @@ def cron_quote_reminders():
     return jsonify({"ok": True, "sent": sent, "skipped": skipped})
 
 
+# ---- Lead capture page: a tagged front door that turns scans/links into enquiries ----
+def ensure_capture_slug(profile):
+    """Return the profile's public capture slug, generating + saving one if missing."""
+    slug = (profile.get("capture_slug") or "").strip()
+    if slug:
+        return slug
+    import secrets
+    slug = secrets.token_urlsafe(8).replace("-", "").replace("_", "").lower()[:8] or "vo"
+    try:
+        supabase.table("profiles").update({"capture_slug": slug}).eq("sender", profile.get("sender", "")).execute()
+    except Exception as e:
+        print("capture_slug save error:", e)
+    return slug
+
+
+def _capture_source_label(src):
+    m = {"van": "Van QR", "site": "Site board", "card": "Business card",
+         "google": "Google", "fb": "Facebook", "fbad": "Facebook ad",
+         "insta": "Instagram", "referral": "Referral", "web": "Website", "link": "Quote link"}
+    return m.get((src or "").lower(), "Quote link")
+
+
+@app.route("/q/<slug>", methods=["GET"])
+def capture_page(slug):
+    import html as _h, re as _re
+    try:
+        res = supabase.table("profiles").select("*").eq("capture_slug", slug).limit(1).execute().data or []
+    except Exception:
+        res = []
+    if not res:
+        return "Not found", 404
+    profile = res[0]
+    biz = _h.escape(profile.get("business_name") or "us")
+    trade = _h.escape(profile.get("trade") or "")
+    src = _re.sub(r"[^a-zA-Z0-9_-]", "", request.args.get("src", "link"))[:20] or "link"
+    return """<!doctype html><html lang=en><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>Get a free quote - """ + biz + """</title>
+<style>*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0e1013;color:#f2f4f7}
+.wrap{max-width:480px;margin:0 auto;padding:28px 20px 40px}.card{background:#171a1f;border:1px solid #262b33;border-radius:16px;padding:22px}
+h1{font-size:1.5rem;margin:0 0 6px;letter-spacing:-.02em}.sub{color:#9aa3ad;font-size:.92rem;margin-bottom:18px;line-height:1.5}
+label{display:block;font-size:.82rem;color:#c4ccd4;margin:14px 0 6px}
+input,textarea{width:100%;padding:13px;border-radius:10px;border:1px solid #2c323b;background:#0e1013;color:#f2f4f7;font-size:1rem;font-family:inherit}
+textarea{min-height:90px;resize:vertical}
+button{width:100%;margin-top:20px;padding:15px;border:none;border-radius:11px;background:#1fb888;color:#04231a;font-weight:800;font-size:1.02rem;cursor:pointer}
+.foot{text-align:center;color:#6b7480;font-size:.72rem;margin-top:18px}</style></head><body><div class=wrap><div class=card>
+<h1>Get a free quote</h1>
+<div class=sub>""" + biz + (" - " + trade if trade else "") + """. Pop your details in and we'll text you straight back to sort it.</div>
+<form method=post action="/q/""" + _h.escape(slug) + """/submit">
+<input type=hidden name=src value=\"""" + _h.escape(src) + """\">
+<label>Your name</label><input name=name required>
+<label>Mobile number</label><input name=phone type=tel inputmode=tel required>
+<label>What do you need doing?</label><textarea name=job required placeholder="e.g. 6 doors fitted and a couple of shelves"></textarea>
+<label>Address / area (optional)</label><input name=location placeholder="Street or postcode">
+<button type=submit>Get my quote</button></form></div>
+<div class=foot>Powered by VanOffice</div></div></body></html>"""
+
+
+@app.route("/q/<slug>/submit", methods=["POST"])
+def capture_submit(slug):
+    import html as _h, re as _re
+    try:
+        res = supabase.table("profiles").select("*").eq("capture_slug", slug).limit(1).execute().data or []
+    except Exception:
+        res = []
+    if not res:
+        return "Not found", 404
+    profile = res[0]
+    sender = profile.get("sender", "")
+    twilio_number = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER", "")
+    biz = profile.get("business_name") or "us"
+
+    name = (request.form.get("name", "") or "").strip()
+    phone = (request.form.get("phone", "") or "").strip()
+    job = (request.form.get("job", "") or "").strip()
+    location = (request.form.get("location", "") or "").strip()
+    src = _re.sub(r"[^a-zA-Z0-9_-]", "", request.form.get("src", "link"))[:20] or "link"
+    source_label = _capture_source_label(src)
+    if not (name and phone and job):
+        return "Please go back and add your name, number and what you need.", 400
+    cust = format_phone(phone)
+
+    # 1) Log the enquiry, tagged with where it came from.
+    try:
+        supabase.table("enquiries").insert({
+            "sender": sender, "message": job, "summary": job,
+            "client_name": name, "job_type": job, "location": location,
+            "status": "new", "source": source_label
+        }).execute()
+    except Exception as e:
+        print("capture enquiry insert error:", e)
+
+    # 2) Remember the contact + seed the conversation so the bot has context.
+    try:
+        upsert_contact(sender, cust, name)
+    except Exception:
+        pass
+    seed = "Hi, I'm " + name + ". " + job + ((" Address: " + location) if location else "")
+    try:
+        supabase.table("client_chats").insert({
+            "twilio_number": twilio_number, "client_number": cust,
+            "message": seed, "direction": "inbound", "sender_profile": sender, "channel": "sms"
+        }).execute()
+    except Exception as e:
+        print("capture seed chat error:", e)
+
+    # 3) Text the customer to kick off the bot.
+    first = name.split()[0] if name else "there"
+    opening = ("Hi " + first + ", thanks for your enquiry to " + biz + "! To get you a quick quote, "
+               "what's the best address for us to come and take a look, and when roughly suits you?")
+    try:
+        send_res = send_to_client(profile, cust, opening)
+        if send_res.get("ok"):
+            supabase.table("client_chats").insert({
+                "twilio_number": twilio_number, "client_number": cust,
+                "message": opening, "direction": "outbound",
+                "sender_profile": sender, "channel": send_res.get("channel", "sms")
+            }).execute()
+    except Exception as e:
+        print("capture opening send error:", e)
+
+    # 4) The "VanOffice got you this" moment.
+    try:
+        notify_owner(profile, "\u2728 VanOffice just landed you an enquiry via " + source_label + ":\n"
+                     + name + " \u2014 " + job + ((" (" + location + ")") if location else "")
+                     + "\nWe've texted them to get the details - it's in your inbox.")
+    except Exception as e:
+        print("capture notify error:", e)
+
+    return ("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<div style=\"font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0e1013;color:#f2f4f7;"
+            "min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px\">"
+            "<div><div style='font-size:2.4rem'>\u2705</div><h2 style='letter-spacing:-.02em'>Thanks "
+            + _h.escape(first) + "!</h2><p style='color:#9aa3ad;max-width:300px;line-height:1.5'>"
+            + _h.escape(biz) + " has got your enquiry and will text you in the next few minutes to sort your quote.</p></div></div>")
+
+
+@app.route("/api/capture-link", methods=["GET"])
+def api_capture_link():
+    phone = request.args.get("phone", "")
+    pin = request.args.get("pin", "")
+    if not phone or not pin:
+        return jsonify({"error": "Phone and PIN required"}), 401
+    try:
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data:
+            return jsonify({"error": "Profile not found"}), 404
+        profile = result.data[0]
+        if str(profile.get("pin", "")) != str(pin):
+            return jsonify({"error": "Invalid PIN"}), 401
+        slug = ensure_capture_slug(profile)
+        base = request.url_root.rstrip("/")
+        link = base + "/q/" + slug
+        sources = [
+            {"label": "Van / sticker", "src": "van", "url": link + "?src=van"},
+            {"label": "Site board", "src": "site", "url": link + "?src=site"},
+            {"label": "Business card", "src": "card", "url": link + "?src=card"},
+            {"label": "Facebook / social", "src": "fb", "url": link + "?src=fb"},
+            {"label": "Plain link", "src": "link", "url": link},
+        ]
+        return jsonify({"ok": True, "slug": slug, "link": link, "sources": sources})
+    except Exception as e:
+        print("api_capture_link error:", e)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/usage", methods=["GET"])
 def api_usage():
     try:
