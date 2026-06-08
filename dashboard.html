@@ -1336,6 +1336,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <button id="drawerInvBtn" onclick="openInvoiceFromDrawer()" style="padding:14px;background:var(--acc-d);color:var(--acc2);border:none;border-radius:12px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">+ Invoice</button>
     </div>
     <button id="drawerPostBtn" onclick="makePostFromDrawer()" style="margin-top:10px;width:100%;padding:14px;background:var(--acc);color:#04231a;border:none;border-radius:12px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:800;cursor:pointer">&#10024; Turn into a social post</button>
+    <button id="drawerDelBtn" onclick="deleteEnquiry()" style="margin-top:8px;width:100%;padding:11px;background:none;border:none;color:var(--red);font-family:'Hanken Grotesk',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">Delete enquiry</button>
   </div>
 
   <div id="postModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:310" onclick="closePostModal()"></div>
@@ -2802,6 +2803,25 @@ function closeJobDrawer(){
   document.getElementById('jobDrawer').style.display='none';
 }
 
+async function deleteEnquiry(){
+  if(!activeDrawerItem||!activeDrawerItem.id){ closeJobDrawer(); return; }
+  if(!confirm('Delete this enquiry? This can\'t be undone.')) return;
+  var id=activeDrawerItem.id;
+  try{
+    const r=await fetch('/api/delete-enquiry?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enquiry_id:id})
+    });
+    const d=await r.json();
+    if(d&&d.ok){
+      allEnquiries=allEnquiries.filter(function(x){return x.id!==id;});
+      closeJobDrawer();
+      try{renderJobs(allEnquiries,'all');}catch(e){}
+      try{haptic('success');}catch(e){}
+      refreshApp();
+    } else { alert((d&&d.error)||'Could not delete.'); }
+  }catch(e){ alert('Connection error. Try again.'); }
+}
+
 function makePostFromDrawer(){
   if(!activeDrawerItem) return;
   const job=activeDrawerItem.job_type||'';
@@ -2934,7 +2954,7 @@ function poShare(){
 function openQuoteFromDrawer(){
   if(!activeDrawerItem)return;
   closeJobDrawer();
-  openQuoteModal(activeDrawerItem.client_name||'',activeDrawerItem.job_type||'',activeDrawerItem.sender||'',null);
+  openQuoteModal(activeDrawerItem.client_name||'',activeDrawerItem.job_type||'',activeDrawerItem.sender||'',null,activeDrawerItem.id||null);
 }
 
 function openInvoiceFromDrawer(){
@@ -2945,6 +2965,7 @@ function openInvoiceFromDrawer(){
 
 let quoteItems=[];
 let invoiceItems=[];
+let _quoteEnquiryId=null;
 
 function makeItemRow(items, containerId, updateFn){
   const idx=items.length;
@@ -3002,8 +3023,9 @@ function updateInvoiceTotal(){
   document.getElementById('inv-total-display').textContent='£'+t.toFixed(2);
 }
 
-function openQuoteModal(clientName, jobType, clientNumber, e){
+function openQuoteModal(clientName, jobType, clientNumber, e, enquiryId){
   if(e)e.stopPropagation();
+  _quoteEnquiryId = enquiryId||null;
   // Close any open drawer
   const drawer = document.getElementById('jobDrawer');
   const overlay = document.getElementById('drawerOverlay');
@@ -3055,14 +3077,16 @@ async function submitQuoteModal(){
     const res=await fetch('/api/create-quote?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({client_name:client,client_address:address,job_description:job,line_items:quoteItems,total:total.toFixed(2),subtotal:total.toFixed(2),client_number:clientNumber})
+      body:JSON.stringify({client_name:client,client_address:address,job_description:job,line_items:quoteItems,total:total.toFixed(2),subtotal:total.toFixed(2),client_number:clientNumber,enquiry_id:_quoteEnquiryId})
     });
     const data=await res.json();
     if(data.ok){
       allQuotes.unshift(data.quote);
+      _quoteEnquiryId=null;
       closeQuoteModal();
       window.open('/generate-pdf/'+data.quote.id,'_blank');
       go('quotes');
+      refreshApp();
     }else{
       document.getElementById('quModalErr').textContent=data.error||'Error creating quote';
     }
