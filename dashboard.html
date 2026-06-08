@@ -539,6 +539,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .pulse-v{font-family:'Spline Sans Mono',monospace;font-weight:600;font-size:.92rem;color:var(--t1)}
 .pulse-l{font-size:.58rem;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -1063,6 +1064,23 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div class="prof-hero">
         <div class="prof-av" id="profAv">H</div>
         <div><div class="prof-name" id="profName">Loading...</div><div class="prof-trade" id="profTrade">VanOffice</div></div>
+      </div>
+
+      <div class="sg">
+        <div class="sg-lbl">Get more work — your quote link</div>
+        <div class="sg-list">
+          <div class="sg-row" style="flex-direction:column;align-items:stretch;gap:12px;padding:16px 18px">
+            <div style="font-size:.78rem;color:var(--t3);line-height:1.5">Share this link or print the QR on your van, cards and site boards. Every scan becomes an enquiry — VanOffice texts them straight back, and tells you where it came from.</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="captureLinkInput" readonly value="Loading…" style="flex:1;padding:11px;border-radius:9px;border:1px solid var(--br);background:var(--s3);color:var(--t1);font-size:.8rem">
+              <button onclick="copyCaptureLink(this)" style="padding:11px 14px;background:var(--acc);border:none;border-radius:9px;color:#04231a;font-weight:700;font-size:.78rem;cursor:pointer">Copy</button>
+            </div>
+            <div id="captureQR" style="display:flex;justify-content:center;align-items:center;padding:14px;background:#fff;border-radius:12px;min-height:60px"><span style="color:#888;font-size:.72rem">QR loading…</span></div>
+            <button onclick="downloadCaptureQR()" style="padding:10px;background:var(--s3);border:1px solid var(--br);border-radius:9px;color:var(--t1);font-size:.78rem;font-weight:600;cursor:pointer">Download QR to print</button>
+            <div class="sg-lbl" style="margin:6px 0 0">Tagged links — know what's working</div>
+            <div id="captureSources" style="display:flex;flex-direction:column;gap:7px"></div>
+          </div>
+        </div>
       </div>
 
       <div class="sg">
@@ -1967,6 +1985,7 @@ function renderJobs(items,filter){
         <div class="li-body">
           <div class="li-name">${item.client_name||'Unknown'}</div>
           <div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div>
+          ${item.source?`<div style="margin-top:4px"><span style="font-size:.62rem;background:rgba(31,184,136,.15);color:var(--acc);padding:2px 7px;border-radius:6px;font-weight:600">via ${item.source}</span></div>`:''}
           ${preview?`<div class="li-detail" style="margin-top:3px;font-style:italic;color:var(--t3)">"${preview}"</div>`:''}
         </div>
         <div class="li-right">${statusBadge(item.status)}</div>
@@ -2446,6 +2465,46 @@ function haptic(style='light'){
 
 let _curIdx=0;
 const _navOrder={home:0,jobs:1,quotes:2,quotegen:2,invoices:3,expenses:3,calendar:3,designer:4,inbox:5,profile:6};
+let _captureData=null;
+async function loadCaptureLink(){
+  if(!userPhone||!userPin) return;
+  try{
+    const r=await fetch('/api/capture-link?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin));
+    const d=await r.json();
+    if(!d||!d.ok) return;
+    _captureData=d;
+    const inp=document.getElementById('captureLinkInput'); if(inp) inp.value=d.link;
+    _renderCaptureQR(d.link);
+    renderCaptureSources(d.sources||[]);
+  }catch(e){ console.warn('capture link',e); }
+}
+function _renderCaptureQR(url){
+  const box=document.getElementById('captureQR'); if(!box) return;
+  box.innerHTML='';
+  if(typeof QRCode==='undefined'){ box.innerHTML='<span style="color:#888;font-size:.72rem">Share the link above — QR couldn\'t load</span>'; return; }
+  try{ new QRCode(box,{text:url,width:180,height:180,colorDark:'#0e1013',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M}); }
+  catch(e){ box.innerHTML='<span style="color:#888;font-size:.72rem">QR error</span>'; }
+}
+function copyCaptureLink(btn){
+  const inp=document.getElementById('captureLinkInput'); if(!inp) return;
+  navigator.clipboard.writeText(inp.value).then(()=>{ try{haptic('success')}catch(e){} if(btn){const t=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=t,1200);} });
+}
+function _copyText(t,btn){
+  navigator.clipboard.writeText(t).then(()=>{ if(btn){const o=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=o,1200);} });
+}
+function renderCaptureSources(sources){
+  const el=document.getElementById('captureSources'); if(!el) return;
+  el.innerHTML=sources.map(s=>`<div style="display:flex;align-items:center;gap:8px">
+    <div style="flex:1;font-size:.76rem;color:var(--t2)">${s.label}</div>
+    <button onclick="_copyText('${s.url}',this)" style="padding:7px 12px;background:var(--s3);border:1px solid var(--br);border-radius:8px;color:var(--t1);font-size:.72rem;cursor:pointer">Copy</button>
+  </div>`).join('');
+}
+function downloadCaptureQR(){
+  const cv=document.querySelector('#captureQR canvas');
+  if(!cv){ try{haptic('error')}catch(e){} return; }
+  try{ const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download='vanoffice-qr.png'; a.click(); }catch(e){ console.warn(e); }
+}
+
 function go(name){
   haptic('light');
   const next=document.getElementById('s-'+name);
@@ -2468,7 +2527,7 @@ function go(name){
   if(name==='expenses')loadAccounts();
   if(name==='calendar'){renderBookings(allBookings);renderCal()}
   if(name==='inbox'){ loadInbox(inboxConvs.length>0); loadPending(); }
-  if(name==='profile'){loadAdminPanel();hfInitVoiceSettings();loadUsage();if(typeof refreshPushState==='function')refreshPushState();if(typeof refreshBioState==='function')refreshBioState();}
+  if(name==='profile'){loadAdminPanel();hfInitVoiceSettings();loadUsage();loadCaptureLink();if(typeof refreshPushState==='function')refreshPushState();if(typeof refreshBioState==='function')refreshBioState();}
 }
 
 /* ════════ ACCOUNTS: EXPENSES, MILEAGE, TAX SET-ASIDE ════════ */
