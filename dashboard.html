@@ -2518,6 +2518,7 @@ function downloadCaptureQR(){
 
 function go(name){
   haptic('light');
+  if(typeof _resetSheets==='function')_resetSheets();
   const next=document.getElementById('s-'+name);
   if(!next)return;
   const cur=document.querySelector('.scr.on');
@@ -2757,8 +2758,14 @@ function filt(el,filter){
 
 let activeDrawerItem=null;
 
+function _resetSheets(){
+  ['postModal','postModalOverlay','jobDrawer','jobDrawerOverlay'].forEach(function(id){
+    var e=document.getElementById(id); if(e) e.style.display='none';
+  });
+}
 function openJobDrawer(idx, list){
-  const item=list[idx];
+  _resetSheets();
+  const item=list&&list[idx];
   if(!item)return;
   activeDrawerItem=item;
   document.getElementById('drawerClientName').textContent=item.client_name||'Unknown';
