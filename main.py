@@ -2709,6 +2709,38 @@ def mark_invoice_paid(invoice_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/create-booking", methods=["POST"])
+def create_booking_api():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+        data = request.json or {}
+        if not data.get("date"):
+            return jsonify({"error": "Missing date"}), 400
+        booking = {
+            "sender": sender,
+            "client_name": data.get("client_name", ""),
+            "job_type": data.get("job_type", "") or "Job",
+            "location": data.get("location", ""),
+            "date": data.get("date", ""),
+            "time": data.get("time", ""),
+            "duration_days": str(data.get("duration_days", "1")),
+            "status": "booked",
+            "client_number": data.get("client_number", "")
+        }
+        res = supabase.table("bookings").insert(booking).execute()
+        saved = res.data[0] if res.data else booking
+        return jsonify({"ok": True, "booking": saved})
+    except Exception as e:
+        print("Create booking error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/quote/<quote_id>/accept", methods=["POST"])
 def accept_quote(quote_id):
     try:
