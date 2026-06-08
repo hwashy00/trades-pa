@@ -967,6 +967,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 
     <div id="s-calendar" class="scr">
       <div class="ph"><div class="ph-title">Calendar</div></div>
+      <div id="bookBanner" style="display:none;margin:0 20px 14px;padding:12px 14px;background:var(--acc-d);border:1px solid var(--acc);border-radius:12px"></div>
       <div class="cal">
         <div class="cal-top">
           <button class="cal-nav" onclick="chM(-1)">&#8249;</button>
@@ -2033,7 +2034,7 @@ function renderJobsDone(quotes){
   if(!j.length){el.innerHTML='<div class="empty-state">No jobs yet.<br>Accept a quote and it lands here.</div>';return}
   el.innerHTML=j.map(q=>{
     const total=q.total?'£'+q.total:'';
-    return`<div class="li"><div class="li-ico" style="background:var(--grn-d);color:var(--grn)">${ICO.diary}</div><div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.quote_number||''}${q.job_description?' · '+q.job_description:''}</div></div><div class="li-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><div class="li-amt">${total}</div><button onclick="go('calendar')" style="padding:6px 12px;background:var(--acc-d);border:none;border-radius:8px;color:var(--acc2);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">Book in</button></div></div>`;
+    return`<div class="li"><div class="li-ico" style="background:var(--grn-d);color:var(--grn)">${ICO.diary}</div><div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.quote_number||''}${q.job_description?' · '+q.job_description:''}</div></div><div class="li-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><div class="li-amt">${total}</div><button onclick="startBookingFromJob('${q.id}')" style="padding:6px 12px;background:var(--acc-d);border:none;border-radius:8px;color:var(--acc2);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">Book in</button></div></div>`;
   }).join('');
 }
 
@@ -2070,7 +2071,7 @@ async function acceptQuote(id){
       if(q)q.status='accepted';
       renderQuotesList(allQuotes);
       renderJobsDone(allQuotes);
-      if(confirm("Quote accepted — it's now in Jobs. Book it into your diary now?")){ go('calendar'); }
+      if(confirm("Quote accepted — it's now in Jobs. Book it into your diary now?")){ startBookingFromJob(id); }
       refreshApp();
     } else { alert((d&&d.error)||'Could not update.'); }
   }catch(e){ alert('Connection error. Try again.'); }
@@ -2587,7 +2588,7 @@ function go(name){
   if(name==='designer')initDesigner();
   if(name==='invoices')renderInvoices(allInvoices,currentInvFilter);
   if(name==='expenses')loadAccounts();
-  if(name==='calendar'){renderBookings(allBookings);renderCal()}
+  if(name==='calendar'){renderBookings(allBookings);renderCal();renderBookBanner();}
   if(name==='inbox'){ loadInbox(inboxConvs.length>0); loadPending(); }
   if(name==='profile'){loadAdminPanel();hfInitVoiceSettings();loadUsage();loadCaptureLink();if(typeof refreshPushState==='function')refreshPushState();if(typeof refreshBioState==='function')refreshBioState();}
 }
@@ -3857,8 +3858,72 @@ function renderCal(){
     const el=document.createElement('div');el.className='cd';el.textContent=d;
     if(d===td.getDate()&&cm===td.getMonth()&&cy===td.getFullYear())el.classList.add('today');
     else if(bookedDates.has(d))el.classList.add('hj');
+    if(_bookingDraft){
+      el.style.cursor='pointer';
+      (function(y,m,day){ el.onclick=function(){ pickBookDay(y,m,day); }; })(cy,cm,d);
+      const s=_bookingDraft.start, e=_bookingDraft.end||_bookingDraft.start;
+      if(s){ const t=new Date(cy,cm,d).getTime(); if(t>=s.getTime()&&t<=e.getTime()){ el.style.background='var(--acc)'; el.style.color='#04231a'; el.style.borderRadius='8px'; } }
+    }
     g.appendChild(el);
   }
+}
+
+/* ===== Manual job booking (tap a job, then tap days) ===== */
+var _bookingDraft=null;
+function _fmtD(d){ return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
+function startBookingFromJob(id){
+  var q=(allQuotes||[]).find(function(x){return String(x.id)===String(id);});
+  _bookingDraft = q
+    ? { client_name:q.client_name||'', job_description:q.job_description||'', client_number:q.client_number||'', quote_id:q.id, start:null, end:null }
+    : { client_name:'', job_description:'', client_number:'', quote_id:null, start:null, end:null };
+  go('calendar');
+  renderCal(); renderBookBanner();
+}
+function cancelBooking(){ _bookingDraft=null; renderCal(); renderBookBanner(); }
+function pickBookDay(y,m,d){
+  if(!_bookingDraft)return;
+  var picked=new Date(y,m,d);
+  if(!_bookingDraft.start || picked.getTime()<_bookingDraft.start.getTime()){ _bookingDraft.start=picked; _bookingDraft.end=null; }
+  else { _bookingDraft.end=picked; }
+  try{haptic('light');}catch(e){}
+  renderCal(); renderBookBanner();
+}
+function renderBookBanner(){
+  var el=document.getElementById('bookBanner'); if(!el)return;
+  if(!_bookingDraft){ el.style.display='none'; el.innerHTML=''; return; }
+  var who=_bookingDraft.client_name||'this job';
+  var msg, confirmBtn='';
+  if(!_bookingDraft.start){ msg='Tap a start day to book in <b>'+who+'</b>'; }
+  else{
+    var s=_bookingDraft.start, e=_bookingDraft.end||s;
+    var days=Math.round((e.getTime()-s.getTime())/86400000)+1;
+    msg='<b>'+who+'</b> · '+_fmtD(s)+(days>1?(' → '+_fmtD(e)+' ('+days+' days)'):' (1 day) — tap another day to extend');
+    confirmBtn='<button onclick="confirmBooking()" style="padding:8px 16px;background:var(--acc);border:none;border-radius:9px;color:#04231a;font-family:\'Hanken Grotesk\',sans-serif;font-weight:800;font-size:.78rem;cursor:pointer">Confirm booking</button>';
+  }
+  var timeRow = _bookingDraft.start ? '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:.76rem;color:var(--t3)">Start time</span><input type="time" value="'+(_bookingDraft.time||'')+'" oninput="if(_bookingDraft)_bookingDraft.time=this.value" style="padding:7px 9px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:inherit;font-size:.8rem"></div>' : '';
+  el.innerHTML='<div style="font-size:.82rem;color:var(--t1);line-height:1.5;margin-bottom:'+(_bookingDraft.start?'10px':'0')+'">'+msg+'</div>'+timeRow+'<div style="display:flex;gap:8px">'+confirmBtn+'<button onclick="cancelBooking()" style="padding:8px 14px;background:var(--s2);border:none;border-radius:9px;color:var(--t2);font-family:\'Hanken Grotesk\',sans-serif;font-weight:700;font-size:.78rem;cursor:pointer">Cancel</button></div>';
+  el.style.display='block';
+}
+async function confirmBooking(){
+  if(!_bookingDraft||!_bookingDraft.start)return;
+  var s=_bookingDraft.start, e=_bookingDraft.end||s;
+  var days=Math.max(1,Math.round((e.getTime()-s.getTime())/86400000)+1);
+  var iso=s.getFullYear()+'-'+String(s.getMonth()+1).padStart(2,'0')+'-'+String(s.getDate()).padStart(2,'0');
+  try{
+    var r=await fetch('/api/create-booking?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({client_name:_bookingDraft.client_name,job_type:_bookingDraft.job_description,client_number:_bookingDraft.client_number,date:iso,time:(_bookingDraft.time||''),duration_days:String(days)})
+    });
+    var dta=await r.json();
+    if(dta&&dta.ok){
+      try{haptic('success');}catch(e){}
+      if(dta.booking)allBookings.push(dta.booking);
+      _bookingDraft=null;
+      renderBookBanner();
+      await refreshApp();
+      go('calendar');
+    } else { alert((dta&&dta.error)||'Could not book it in.'); }
+  }catch(e){ alert('Connection error. Try again.'); }
 }
 
 let qsStyle = 'gold';
