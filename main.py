@@ -3711,7 +3711,7 @@ def ensure_capture_slug(profile):
     import secrets
     slug = secrets.token_urlsafe(8).replace("-", "").replace("_", "").lower()[:8] or "vo"
     try:
-        supabase.table("profiles").update({"capture_slug": slug}).eq("sender", profile.get("sender", "")).execute()
+        supabase.table("profiles").update({"capture_slug": slug}).eq("phone", profile.get("phone", "")).execute()
     except Exception as e:
         print("capture_slug save error:", e)
     return slug
