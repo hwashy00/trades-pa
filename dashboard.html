@@ -1335,6 +1335,17 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <button id="drawerQuoteBtn" onclick="openQuoteFromDrawer()" style="padding:14px;background:var(--amb-d);color:var(--amb);border:none;border-radius:12px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">+ Quote</button>
       <button id="drawerInvBtn" onclick="openInvoiceFromDrawer()" style="padding:14px;background:var(--acc-d);color:var(--acc2);border:none;border-radius:12px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">+ Invoice</button>
     </div>
+    <button id="drawerPostBtn" onclick="makePostFromDrawer()" style="margin-top:10px;width:100%;padding:14px;background:var(--acc);color:#04231a;border:none;border-radius:12px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:800;cursor:pointer">&#10024; Turn into a social post</button>
+  </div>
+
+  <div id="postModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:310" onclick="closePostModal()"></div>
+  <div id="postModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:311;padding:22px 20px 40px;max-height:88vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-size:1.05rem;font-weight:800">Social post</div>
+      <button onclick="closePostModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">&#10005;</button>
+    </div>
+    <div style="font-size:.78rem;color:var(--t3);line-height:1.5;margin-bottom:14px">Ready-to-post captions for Facebook or Instagram. Copy one, add a photo of the finished job, and post. Each ends with your quote link, so any new enquiries land in your inbox tagged "Facebook".</div>
+    <div id="postVariants"><div style="color:var(--t3);font-size:.8rem;text-align:center;padding:20px">Writing your post…</div></div>
   </div>
 
   <!-- QUOTE EDITOR / EXTRAS DRAWER -->
@@ -2768,6 +2779,42 @@ function openJobDrawer(idx, list){
 function closeJobDrawer(){
   document.getElementById('jobDrawerOverlay').style.display='none';
   document.getElementById('jobDrawer').style.display='none';
+}
+
+function makePostFromDrawer(){
+  if(!activeDrawerItem) return;
+  const job=activeDrawerItem.job_type||'';
+  const loc=activeDrawerItem.location||'';
+  closeJobDrawer();
+  document.getElementById('postModalOverlay').style.display='block';
+  document.getElementById('postModal').style.display='block';
+  document.getElementById('postVariants').innerHTML='<div style="color:var(--t3);font-size:.8rem;text-align:center;padding:20px">Writing your post…</div>';
+  generateAd(job,loc);
+}
+function closePostModal(){
+  document.getElementById('postModalOverlay').style.display='none';
+  document.getElementById('postModal').style.display='none';
+}
+function _escPost(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+async function generateAd(job,location){
+  const box=document.getElementById('postVariants');
+  try{
+    const r=await fetch('/api/generate-ad?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({job_type:job,location:location})
+    });
+    const d=await r.json();
+    if(!d||!d.ok||!d.variants||!d.variants.length){ box.innerHTML='<div style="color:var(--t3);font-size:.8rem;text-align:center;padding:20px">Couldn\'t write a post just now — try again.</div>'; return; }
+    window._postVariants=d.variants;
+    box.innerHTML=d.variants.map((v,i)=>`<div style="background:var(--s2);border:1px solid var(--br);border-radius:12px;padding:14px;margin-bottom:11px">
+      <div style="font-size:.84rem;line-height:1.55;white-space:pre-wrap;color:var(--t1)">${_escPost(v)}</div>
+      <button onclick="_copyPost(this,${i})" style="margin-top:11px;padding:9px 16px;background:var(--acc);border:none;border-radius:9px;color:#04231a;font-weight:800;font-size:.78rem;cursor:pointer">Copy</button>
+    </div>`).join('');
+  }catch(e){ box.innerHTML='<div style="color:var(--t3);font-size:.8rem;text-align:center;padding:20px">Something went wrong — try again.</div>'; }
+}
+function _copyPost(btn,i){
+  const t=(window._postVariants&&window._postVariants[i])||'';
+  navigator.clipboard.writeText(t).then(()=>{ try{haptic('success')}catch(e){} const o=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=o,1300); });
 }
 
 function openQuoteFromDrawer(){
