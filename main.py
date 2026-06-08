@@ -2709,6 +2709,21 @@ def mark_invoice_paid(invoice_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/quote/<quote_id>/accept", methods=["POST"])
+def accept_quote(quote_id):
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        supabase.table("quotes").update({"status": "accepted"}).eq("id", quote_id).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        print("Accept quote error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/delete-enquiry", methods=["POST"])
 def delete_enquiry():
     try:
