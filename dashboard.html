@@ -1348,7 +1348,8 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <button onclick="closePostModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">&#10005;</button>
     </div>
     <div style="font-size:.78rem;color:var(--t3);line-height:1.5;margin-bottom:14px">Add a photo of the finished job (or a before &amp; after) and we'll brand it ready to post. Then grab a caption below.</div>
-    <div style="font-size:.72rem;color:var(--t3);margin-bottom:7px">Add up to 4 photos</div>
+    <div style="font-size:.72rem;color:var(--t3);margin-bottom:7px">Add up to 4 photos — pick several at once</div>
+    <label style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;border:none;border-radius:10px;background:var(--acc);color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.8rem;cursor:pointer;margin-bottom:10px">+ Add photos<input type="file" accept="image/*" multiple onchange="poLoadMulti(this)" style="display:none"></label>
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <label class="poSlot" id="poSlot0" style="flex:1;height:66px;border:1px dashed var(--br);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background-size:cover;background-position:center"><span class="poSlotPlus" style="color:var(--t3);font-size:1.2rem;font-weight:700">+</span><input type="file" accept="image/*" onchange="poLoad(0,this)" style="display:none"></label>
       <label class="poSlot" id="poSlot1" style="flex:1;height:66px;border:1px dashed var(--br);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background-size:cover;background-position:center"><span class="poSlotPlus" style="color:var(--t3);font-size:1.2rem;font-weight:700">+</span><input type="file" accept="image/*" onchange="poLoad(1,this)" style="display:none"></label>
@@ -2957,12 +2958,24 @@ function poResetComposer(){
 }
 function poLoad(slot,input){
   var f=input.files&&input.files[0]; if(!f)return;
+  _poFillSlot(slot,f);
+}
+function poLoadMulti(input){
+  var files=input.files; if(!files||!files.length)return;
+  var empties=[];
+  for(var s=0;s<4;s++){ if(!_poImgs[s]) empties.push(s); }
+  if(!empties.length){ for(var s2=0;s2<4;s2++)empties.push(s2); } // all full → replace from start
+  var count=Math.min(files.length, empties.length);
+  for(var i=0;i<count;i++){ _poFillSlot(empties[i], files[i]); }
+  input.value='';
+}
+function _poFillSlot(slot,file){
   var rd=new FileReader();
   rd.onload=function(){ var img=new Image(); img.onload=function(){ _poImgs[slot]=img;
     var sl=document.getElementById('poSlot'+slot);
     if(sl){ sl.style.backgroundImage='url('+rd.result+')'; sl.style.borderStyle='solid'; sl.style.borderColor='var(--acc)'; var t=sl.querySelector('.poSlotPlus'); if(t)t.style.display='none'; }
     poRender(); }; img.src=rd.result; };
-  rd.readAsDataURL(f);
+  rd.readAsDataURL(file);
 }
 function _poCover(ctx,img,x,y,w,h){
   if(!img){ ctx.save(); ctx.fillStyle='#1a1d23'; ctx.fillRect(x,y,w,h);
