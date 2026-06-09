@@ -2917,7 +2917,40 @@ function makePostFromJob(id){
 function makeInvoiceFromJob(id){
   var q=(allQuotes||[]).find(function(x){return String(x.id)===String(id);});
   if(!q)return;
-  openInvoiceModal(q.client_name||'', q.job_description||'', q.client_number||'', null);
+  openInvoiceFromQuote(q);
+}
+function _poNum(v){ return parseFloat(String(v==null?'':v).replace(/[£,\s]/g,''))||0; }
+function openInvoiceFromQuote(q){
+  invoiceItems=[];
+  var cont=document.getElementById('inv-items'); cont.innerHTML='';
+  document.getElementById('inv-client').value=q.client_name||'';
+  document.getElementById('inv-address').value=q.client_address||'';
+  document.getElementById('inv-job').value=q.job_description||'';
+  document.getElementById('inv-client-number').value=q.client_number||'';
+  document.getElementById('invModalErr').textContent='';
+  var src=(q.line_items&&q.line_items.length)?q.line_items:[];
+  var norm=src.map(function(it){
+    var desc=it.description||it.name||it.item||'';
+    var qty, up;
+    if(it.unit_price!==undefined&&it.unit_price!==null&&String(it.unit_price)!==''){ qty=(it.qty!==undefined&&it.qty!=='')?_poNum(it.qty)||1:1; up=_poNum(it.unit_price); }
+    else if(it.price!==undefined&&it.price!==null&&String(it.price)!==''){ qty=(it.qty!==undefined&&it.qty!=='')?_poNum(it.qty)||1:1; up=_poNum(it.price); }
+    else if(it.amount!==undefined&&it.amount!==null&&String(it.amount)!==''){ qty=1; up=_poNum(it.amount); }
+    else { qty=1; up=0; }
+    return {description:desc, qty:qty, unit_price:up};
+  }).filter(function(it){ return it.description || it.unit_price; });
+  if(!norm.length){ norm=[{description:q.job_description||'Work carried out', qty:1, unit_price:_poNum(q.total)}]; }
+  norm.forEach(function(it){
+    makeItemRow(invoiceItems,'inv-items',updateInvoiceTotal);
+    var i=invoiceItems.length-1;
+    invoiceItems[i].description=it.description; invoiceItems[i].qty=it.qty; invoiceItems[i].unit_price=it.unit_price;
+    var row=cont.children[cont.children.length-1];
+    if(row){ var inp=row.querySelectorAll('input'); if(inp[0])inp[0].value=it.description; if(inp[1])inp[1].value=it.qty; if(inp[2])inp[2].value=it.unit_price; }
+  });
+  var due=new Date(); due.setDate(due.getDate()+30);
+  document.getElementById('inv-due').value=due.toISOString().split('T')[0];
+  updateInvoiceTotal();
+  document.getElementById('invoiceModalOverlay').style.display='block';
+  document.getElementById('invoiceModal').style.display='block';
 }
 var _poReady=false;
 function openPostModal(job, loc){
@@ -2929,7 +2962,7 @@ function openPostModal(job, loc){
     ? '&#127881; <b>Job done!</b> Your post is ready — add a photo or two and tap share. We\'ve written the caption and branded it for you.'
     : 'Add a photo of the finished job (or a before &amp; after) and we\'ll brand it ready to post. Then grab a caption below.';
   _poReady=false;
-  var hl=document.getElementById('poHeadline'); if(hl)hl.value=(job||'')+((job&&loc)?' · ':'')+(loc||'');
+  var hl=document.getElementById('poHeadline'); if(hl)hl.value='';
   poResetComposer();
   generateAd(job,loc);
   loadPostStats();
