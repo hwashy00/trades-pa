@@ -1348,7 +1348,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <button onclick="closePostModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">&#10005;</button>
     </div>
     <div style="font-size:.78rem;color:var(--t3);line-height:1.5;margin-bottom:14px">Add a photo of the finished job (or a before &amp; after) and we'll brand it ready to post. Then grab a caption below.</div>
-    <div style="font-size:.72rem;color:var(--t3);margin-bottom:7px">Add up to 4 photos — pick several at once</div>
+    <div style="font-size:.72rem;color:var(--t3);margin-bottom:7px;line-height:1.5">Add up to 4 photos at once. The <b>first</b> becomes your branded cover; the rest post alongside it as a gallery.</div>
     <label style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;border:none;border-radius:10px;background:var(--acc);color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.8rem;cursor:pointer;margin-bottom:10px">+ Add photos<input type="file" accept="image/*" multiple onchange="poLoadMulti(this)" style="display:none"></label>
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <label class="poSlot" id="poSlot0" style="flex:1;height:66px;border:1px dashed var(--br);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background-size:cover;background-position:center"><span class="poSlotPlus" style="color:var(--t3);font-size:1.2rem;font-weight:700">+</span><input type="file" accept="image/*" onchange="poLoad(0,this)" style="display:none"></label>
@@ -1365,7 +1365,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     </div>
     <input id="poHeadline" oninput="poRender()" placeholder="Headline (optional) — e.g. Kitchen fit · Exeter" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;margin-bottom:12px;box-sizing:border-box">
     <canvas id="poCanvas" width="1080" height="1350" style="width:100%;max-width:280px;display:block;margin:0 auto 12px;border-radius:12px;background:#0e1013"></canvas>
-    <button onclick="poShare()" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:11px;color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">Save / share image</button>
+    <button onclick="poShare()" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:11px;color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">Save / share post</button>
     <div style="height:1px;background:var(--br);margin:20px 0 16px"></div>
     <div style="font-size:.88rem;font-weight:800;margin-bottom:6px">Captions</div>
     <div style="font-size:.76rem;color:var(--t3);line-height:1.5;margin-bottom:14px">Copy one to go with your image. Each ends with your quote link, so new enquiries land tagged "Facebook".</div>
@@ -2929,7 +2929,7 @@ function _copyPost(btn,i){
 }
 
 /* ===== Photo-to-post image composer (client-side canvas) ===== */
-var _poImgs=[null,null,null,null],_poBA=false,_poBiz='',_poTrade='',_poStyle='spotlight',_poLogo=null;
+var _poImgs=[null,null,null,null],_poFiles=[null,null,null,null],_poBA=false,_poBiz='',_poTrade='',_poStyle='spotlight',_poLogo=null;
 function poSetStyle(s){
   _poStyle=s;
   var map={spotlight:'poStyleSpot',minimal:'poStyleMin',branded:'poStyleBrand'};
@@ -2951,7 +2951,7 @@ function poToggleBA(){
   poRender();
 }
 function poResetComposer(){
-  _poImgs=[null,null,null,null]; _poBA=false;
+  _poImgs=[null,null,null,null]; _poFiles=[null,null,null,null]; _poBA=false;
   for(var i=0;i<4;i++){ var sl=document.getElementById('poSlot'+i); if(sl){ sl.style.backgroundImage=''; sl.style.borderStyle='dashed'; sl.style.borderColor='var(--br)'; var t=sl.querySelector('.poSlotPlus'); if(t)t.style.display=''; } }
   var b=document.getElementById('poBABtn'); if(b){ b.textContent='Before / After labels: Off'; b.style.background='var(--s2)'; b.style.color='var(--t2)'; }
   poSetStyle(_poStyle||'spotlight');
@@ -2970,6 +2970,7 @@ function poLoadMulti(input){
   input.value='';
 }
 function _poFillSlot(slot,file){
+  _poFiles[slot]=file;
   var rd=new FileReader();
   rd.onload=function(){ var img=new Image(); img.onload=function(){ _poImgs[slot]=img;
     var sl=document.getElementById('poSlot'+slot);
@@ -3029,11 +3030,15 @@ function _poGrid(n,x,y,w,h,g){
 function _poDrawCollage(ctx,x,y,w,h,r){
   var imgs=_poImgs.filter(Boolean), n=imgs.length;
   if(n===0){ _poCover(ctx,null,x,y,w,h); return; }
-  var g=r?10:6;
   ctx.save(); ctx.fillStyle='#0e1013'; ctx.fillRect(x,y,w,h); ctx.restore();
-  var rects=_poGrid(n,x,y,w,h,g);
-  for(var i=0;i<n;i++){ var R=rects[i]; _poCell(ctx,imgs[i],R[0],R[1],R[2],R[3], r?Math.min(16,r):0); }
-  if(n===2&&_poBA){ _poTag(ctx,'BEFORE',rects[0][0]+18,rects[0][1]+18); _poTag(ctx,'AFTER',rects[1][0]+18,rects[1][1]+18); }
+  if(_poBA && n>=2){
+    var g=r?10:6, hh=Math.floor((h-g)/2);
+    if(r){ _poRoundImg(ctx,imgs[0],x,y,w,hh,r); _poRoundImg(ctx,imgs[1],x,y+hh+g,w,h-hh-g,r); }
+    else { _poCover(ctx,imgs[0],x,y,w,hh); _poCover(ctx,imgs[1],x,y+hh+g,w,h-hh-g); ctx.fillStyle='#1fb888'; ctx.fillRect(x,y+hh-3,w,6); }
+    _poTag(ctx,'BEFORE',x+18,y+18); _poTag(ctx,'AFTER',x+18,y+hh+g+18);
+  } else {
+    if(r) _poRoundImg(ctx,imgs[0],x,y,w,h,r); else _poCover(ctx,imgs[0],x,y,w,h);
+  }
 }
 function _poBrandMarkOnLight(ctx,x,y,size){
   ctx.save(); ctx.fillStyle='#ffffff'; _poRoundRect(ctx,x,y,size,size,16); ctx.fill();
@@ -3131,17 +3136,21 @@ function poRender(){
 }
 function poShare(){
   var c=document.getElementById('poCanvas'); if(!c)return;
-  if(!_poImgs.filter(Boolean).length){ try{haptic('warning')}catch(e){} alert('Add a photo first.'); return; }
+  var imgs=_poImgs.filter(Boolean), raw=_poFiles.filter(Boolean);
+  if(!imgs.length){ try{haptic('warning')}catch(e){} alert('Add a photo first.'); return; }
   c.toBlob(function(blob){
-    if(!blob)return;
-    var file=new File([blob],'vanoffice-post.png',{type:'image/png'});
+    var files=[];
+    if(blob) files.push(new File([blob],'vanoffice-cover.png',{type:'image/png'}));
+    var heroCount=(_poBA && imgs.length>=2)?2:1;
+    for(var i=heroCount;i<raw.length;i++){ files.push(raw[i]); }
     var cap=(window._postVariants&&window._postVariants[0])||'';
-    if(navigator.canShare&&navigator.canShare({files:[file]})){
-      navigator.share({files:[file],text:cap}).catch(function(){});
+    try{haptic('success');}catch(e){}
+    if(navigator.canShare&&files.length>1&&navigator.canShare({files:files})){
+      navigator.share({files:files,text:cap}).catch(function(){});
+    } else if(navigator.canShare&&navigator.canShare({files:[files[0]]})){
+      navigator.share({files:[files[0]],text:cap}).catch(function(){});
     } else {
-      var url=URL.createObjectURL(blob), a=document.createElement('a');
-      a.href=url; a.download='vanoffice-post.png'; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function(){URL.revokeObjectURL(url);},2000);
+      files.forEach(function(f,idx){ var url=URL.createObjectURL(f); var a=document.createElement('a'); a.href=url; a.download=f.name||('photo'+(idx+1)+'.png'); document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(url);},2500); });
     }
   },'image/png');
 }
