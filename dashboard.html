@@ -2922,35 +2922,43 @@ function makeInvoiceFromJob(id){
 function _poNum(v){ return parseFloat(String(v==null?'':v).replace(/[£,\s]/g,''))||0; }
 function openInvoiceFromQuote(q){
   invoiceItems=[];
-  var cont=document.getElementById('inv-items'); cont.innerHTML='';
-  document.getElementById('inv-client').value=q.client_name||'';
-  document.getElementById('inv-address').value=q.client_address||'';
-  document.getElementById('inv-job').value=q.job_description||'';
-  document.getElementById('inv-client-number').value=q.client_number||'';
-  document.getElementById('invModalErr').textContent='';
-  var src=(q.line_items&&q.line_items.length)?q.line_items:[];
-  var norm=src.map(function(it){
-    var desc=it.description||it.name||it.item||'';
-    var qty, up;
-    if(it.unit_price!==undefined&&it.unit_price!==null&&String(it.unit_price)!==''){ qty=(it.qty!==undefined&&it.qty!=='')?_poNum(it.qty)||1:1; up=_poNum(it.unit_price); }
-    else if(it.price!==undefined&&it.price!==null&&String(it.price)!==''){ qty=(it.qty!==undefined&&it.qty!=='')?_poNum(it.qty)||1:1; up=_poNum(it.price); }
-    else if(it.amount!==undefined&&it.amount!==null&&String(it.amount)!==''){ qty=1; up=_poNum(it.amount); }
-    else { qty=1; up=0; }
-    return {description:desc, qty:qty, unit_price:up};
-  }).filter(function(it){ return it.description || it.unit_price; });
-  if(!norm.length){ norm=[{description:q.job_description||'Work carried out', qty:1, unit_price:_poNum(q.total)}]; }
-  norm.forEach(function(it){
-    makeItemRow(invoiceItems,'inv-items',updateInvoiceTotal);
-    var i=invoiceItems.length-1;
-    invoiceItems[i].description=it.description; invoiceItems[i].qty=it.qty; invoiceItems[i].unit_price=it.unit_price;
-    var row=cont.children[cont.children.length-1];
-    if(row){ var inp=row.querySelectorAll('input'); if(inp[0])inp[0].value=it.description; if(inp[1])inp[1].value=it.qty; if(inp[2])inp[2].value=it.unit_price; }
-  });
-  var due=new Date(); due.setDate(due.getDate()+30);
-  document.getElementById('inv-due').value=due.toISOString().split('T')[0];
-  updateInvoiceTotal();
+  var cont=document.getElementById('inv-items'); if(cont)cont.innerHTML='';
   document.getElementById('invoiceModalOverlay').style.display='block';
   document.getElementById('invoiceModal').style.display='block';
+  try{
+    document.getElementById('inv-client').value=q.client_name||'';
+    document.getElementById('inv-address').value=q.client_address||'';
+    document.getElementById('inv-job').value=q.job_description||'';
+    document.getElementById('inv-client-number').value=q.client_number||'';
+    document.getElementById('invModalErr').textContent='';
+    var src=q.line_items;
+    if(typeof src==='string'){ try{src=JSON.parse(src);}catch(e){src=[];} }
+    if(!Array.isArray(src)) src=[];
+    var norm=src.map(function(it){
+      it=it||{};
+      var desc=it.description||it.name||it.item||'';
+      var qty, up;
+      if(it.unit_price!==undefined&&it.unit_price!==null&&String(it.unit_price)!==''){ qty=(it.qty!==undefined&&it.qty!=='')?(_poNum(it.qty)||1):1; up=_poNum(it.unit_price); }
+      else if(it.price!==undefined&&it.price!==null&&String(it.price)!==''){ qty=(it.qty!==undefined&&it.qty!=='')?(_poNum(it.qty)||1):1; up=_poNum(it.price); }
+      else if(it.amount!==undefined&&it.amount!==null&&String(it.amount)!==''){ qty=1; up=_poNum(it.amount); }
+      else { qty=1; up=0; }
+      return {description:desc, qty:qty, unit_price:up};
+    }).filter(function(it){ return it.description || it.unit_price; });
+    if(!norm.length){ norm=[{description:q.job_description||'Work carried out', qty:1, unit_price:_poNum(q.total)}]; }
+    norm.forEach(function(it){
+      makeItemRow(invoiceItems,'inv-items',updateInvoiceTotal);
+      var i=invoiceItems.length-1;
+      invoiceItems[i].description=it.description; invoiceItems[i].qty=it.qty; invoiceItems[i].unit_price=it.unit_price;
+      var row=cont&&cont.children[cont.children.length-1];
+      if(row){ var inp=row.querySelectorAll('input'); if(inp[0])inp[0].value=it.description; if(inp[1])inp[1].value=it.qty; if(inp[2])inp[2].value=it.unit_price; }
+    });
+    var due=new Date(); due.setDate(due.getDate()+30);
+    document.getElementById('inv-due').value=due.toISOString().split('T')[0];
+    updateInvoiceTotal();
+  }catch(e){
+    console.error('invoice prefill error', e);
+    if(!invoiceItems.length){ try{ addInvoiceItem(); }catch(_){} }
+  }
 }
 var _poReady=false;
 function openPostModal(job, loc){
