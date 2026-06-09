@@ -3113,12 +3113,7 @@ function _poFooter(ctx,W,H,pad){
   var mark=96, top=y-mark;
   _poBrandMark(ctx,pad,top,mark);
   var tx=pad+mark+24, biz=_poBiz||'Your business';
-  if(_poTrade){
-    _poFit(ctx,biz,W-tx-pad,50,'800'); ctx.fillStyle='#ffffff'; ctx.fillText(biz,tx,top+44);
-    ctx.font='600 30px "Hanken Grotesk", sans-serif'; ctx.fillStyle=_poColor; ctx.fillText(_poTrade,tx,top+44+38);
-  } else {
-    var bp=_poFit(ctx,biz,W-tx-pad,52,'800'); ctx.fillStyle='#ffffff'; ctx.fillText(biz,tx,top+mark/2+bp*0.35);
-  }
+  var bp=_poFit(ctx,biz,W-tx-pad,52,'800'); ctx.fillStyle='#ffffff'; ctx.fillText(biz,tx,top+mark/2+bp*0.35);
 }
 function _poShowTag(){ return (_poTagText||'').trim() && !(_poImgs.filter(Boolean).length===2 && _poBA); }
 function _poRenderSpotlight(ctx,W,H){
@@ -3141,10 +3136,7 @@ function _poRenderMinimal(ctx,W,H){
   _poBrandMark(ctx,pad,my,mark);
   var tx=pad+mark+20, biz=_poBiz||'Your business';
   ctx.textAlign='left'; ctx.fillStyle='#ffffff';
-  if(_poTrade){
-    _poFit(ctx,biz,W-tx-330,44,'800'); ctx.fillText(biz,tx,barY+barH/2-6);
-    ctx.font='600 26px "Hanken Grotesk", sans-serif'; ctx.fillStyle=_poColor; ctx.fillText(_poTrade,tx,barY+barH/2+30);
-  } else { var bp=_poFit(ctx,biz,W-tx-330,46,'800'); ctx.fillText(biz,tx,barY+barH/2+bp*0.34); }
+  var bp=_poFit(ctx,biz,W-tx-330,46,'800'); ctx.fillText(biz,tx,barY+barH/2+bp*0.34);
   var t=(_poCTAtext||'FREE QUOTES').split('·')[0].trim(); ctx.font='800 26px "Hanken Grotesk", sans-serif';
   var w=ctx.measureText(t).width+40, h=58, cx=W-pad-w, cy=barY+(barH-h)/2;
   ctx.fillStyle=_poColor; _poRoundRect(ctx,cx,cy,w,h,12); ctx.fill();
@@ -3159,10 +3151,7 @@ function _poRenderBranded(ctx,W,H){
   _poBrandMarkOnLight(ctx,pad,my,mark);
   var tx=pad+mark+22, biz=_poBiz||'Your business';
   ctx.textAlign='left';
-  if(_poTrade){
-    _poFit(ctx,biz,W-tx-pad,46,'800'); ctx.fillStyle=_poOn(); ctx.fillText(biz,tx,my+44);
-    ctx.font='600 28px "Hanken Grotesk", sans-serif'; ctx.fillStyle=_poOn(); ctx.globalAlpha=0.75; ctx.fillText(_poTrade,tx,my+44+36); ctx.globalAlpha=1;
-  } else { var bp=_poFit(ctx,biz,W-tx-pad,50,'800'); ctx.fillStyle=_poOn(); ctx.fillText(biz,tx,my+mark/2+bp*0.34); }
+  var bp=_poFit(ctx,biz,W-tx-pad,50,'800'); ctx.fillStyle=_poOn(); ctx.fillText(biz,tx,my+mark/2+bp*0.34);
   var footH=204, imgY=headH+pad, imgW=W-pad*2, imgH=H-imgY-footH;
   _poDrawCollage(ctx,pad,imgY,imgW,imgH,18);
   if(_poShowTag()) _poTag(ctx,_poTagText,pad+22,imgY+22);
@@ -3187,6 +3176,8 @@ function poShare(){
   var c=document.getElementById('poCanvas'); if(!c)return;
   var imgs=_poImgs.filter(Boolean), raw=_poFiles.filter(Boolean);
   if(!imgs.length){ try{haptic('warning')}catch(e){} alert('Add a photo first.'); return; }
+  var cap=(window._postVariants&&window._postVariants[0])||'';
+  try{ if(cap) navigator.clipboard.writeText(cap); }catch(e){}
   c.toBlob(function(blob){
     var files=[];
     if(blob) files.push(new File([blob],'vanoffice-cover.png',{type:'image/png'}));
