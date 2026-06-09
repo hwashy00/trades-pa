@@ -2735,6 +2735,12 @@ def create_booking_api():
         }
         res = supabase.table("bookings").insert(booking).execute()
         saved = res.data[0] if res.data else booking
+        qid = data.get("quote_id")
+        if qid:
+            try:
+                supabase.table("quotes").update({"status": "booked"}).eq("id", qid).execute()
+            except Exception as e:
+                print("quote->booked update error: " + str(e))
         return jsonify({"ok": True, "booking": saved})
     except Exception as e:
         print("Create booking error: " + str(e))
