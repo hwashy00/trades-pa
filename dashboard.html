@@ -1337,11 +1337,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div style="font-size:.6rem;font-weight:700;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">Details</div>
       <div id="drawerDetails" style="display:flex;flex-direction:column;gap:7px;font-size:.82rem"></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <button id="drawerQuoteBtn" onclick="openQuoteFromDrawer()" style="padding:14px;background:var(--amb-d);color:var(--amb);border:none;border-radius:12px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">+ Quote</button>
-      <button id="drawerInvBtn" onclick="openInvoiceFromDrawer()" style="padding:14px;background:var(--acc-d);color:var(--acc2);border:none;border-radius:12px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">+ Invoice</button>
-    </div>
-    <button id="drawerPostBtn" onclick="makePostFromDrawer()" style="margin-top:10px;width:100%;padding:14px;background:var(--acc);color:#04231a;border:none;border-radius:12px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:800;cursor:pointer">&#10024; Turn into a social post</button>
+    <button id="drawerQuoteBtn" onclick="openQuoteFromDrawer()" style="width:100%;padding:14px;background:var(--amb-d);color:var(--amb);border:none;border-radius:12px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:700;cursor:pointer">+ Quote</button>
     <button id="drawerDelBtn" onclick="deleteEnquiry()" style="margin-top:8px;width:100%;padding:11px;background:none;border:none;color:var(--red);font-family:'Hanken Grotesk',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">Delete enquiry</button>
   </div>
 
@@ -2030,11 +2026,26 @@ function renderJobs(items,filter){
 
 function renderJobsDone(quotes){
   const el=document.getElementById('jobsDoneList'); if(!el)return;
-  const j=(quotes||[]).filter(q=>(q.status||'').toLowerCase()==='accepted');
+  const j=(quotes||[]).filter(q=>['accepted','booked'].indexOf((q.status||'').toLowerCase())>=0);
   if(!j.length){el.innerHTML='<div class="empty-state">No jobs yet.<br>Accept a quote and it lands here.</div>';return}
   el.innerHTML=j.map(q=>{
     const total=q.total?'£'+q.total:'';
-    return`<div class="li"><div class="li-ico" style="background:var(--grn-d);color:var(--grn)">${ICO.diary}</div><div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.quote_number||''}${q.job_description?' · '+q.job_description:''}</div></div><div class="li-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><div class="li-amt">${total}</div><button onclick="startBookingFromJob('${q.id}')" style="padding:6px 12px;background:var(--acc-d);border:none;border-radius:8px;color:var(--acc2);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">Book in</button></div></div>`;
+    const booked=(q.status||'').toLowerCase()==='booked';
+    const bookBtn = booked
+      ? `<button onclick="startBookingFromJob('${q.id}')" style="padding:7px 12px;background:var(--grn-d);border:none;border-radius:8px;color:var(--grn);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">&#10003; Booked · edit</button>`
+      : `<button onclick="startBookingFromJob('${q.id}')" style="padding:7px 12px;background:var(--acc-d);border:none;border-radius:8px;color:var(--acc2);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">Book in</button>`;
+    return`<div class="li" style="flex-direction:column;align-items:stretch;gap:10px">
+      <div style="display:flex;align-items:center;gap:13px">
+        <div class="li-ico" style="background:var(--grn-d);color:var(--grn)">${ICO.diary}</div>
+        <div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.job_description||q.quote_number||''}</div></div>
+        <div class="li-right"><div class="li-amt">${total}</div></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${bookBtn}
+        <button onclick="makePostFromJob('${q.id}')" style="padding:7px 12px;background:var(--acc);border:none;border-radius:8px;color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">&#10024; Social post</button>
+        <button onclick="makeInvoiceFromJob('${q.id}')" style="padding:7px 12px;background:var(--s2);border:none;border-radius:8px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">+ Invoice</button>
+      </div>
+    </div>`;
   }).join('');
 }
 
@@ -2053,11 +2064,12 @@ function renderQuotesList(quotes){
   el.innerHTML=quotes.map(q=>{
     const total=q.total?'£'+q.total:'';
     const st=(q.status||'draft').toLowerCase();
-    const accepted=(st==='accepted');
-    const badge = accepted?'<span class="bdg b-grn">Accepted</span>'
+    const done=(st==='accepted'||st==='booked');
+    const badge = (st==='booked')?'<span class="bdg b-grn">Booked</span>'
+                : (st==='accepted')?'<span class="bdg b-grn">Accepted</span>'
                 : (st==='sent')?'<span class="bdg b-grn">Sent</span>'
                 : '<span class="bdg b-amb">Draft</span>';
-    const acceptBtn = accepted?'' : `<button onclick="event.stopPropagation();acceptQuote('${q.id}')" style="margin-top:5px;padding:6px 12px;background:var(--acc);border:none;border-radius:8px;color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">Mark accepted</button>`;
+    const acceptBtn = done?'' : `<button onclick="event.stopPropagation();acceptQuote('${q.id}')" style="margin-top:5px;padding:6px 12px;background:var(--acc);border:none;border-radius:8px;color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">Mark accepted</button>`;
     return`<div class="li" onclick="openQuoteDrawer('${q.id}')" style="cursor:pointer"><div class="li-ico" style="background:var(--amb-d);color:var(--amb)">${ICO.quote}</div><div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.quote_number||''} · ${q.job_description||''}</div></div><div class="li-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><div class="li-amt">${total}</div>${badge}${acceptBtn}</div></div>`;
   }).join('');
 }
@@ -2860,9 +2872,21 @@ async function deleteEnquiry(){
 
 function makePostFromDrawer(){
   if(!activeDrawerItem) return;
-  const job=activeDrawerItem.job_type||'';
-  const loc=activeDrawerItem.location||'';
+  var job=activeDrawerItem.job_type||'', loc=activeDrawerItem.location||'';
   closeJobDrawer();
+  openPostModal(job, loc);
+}
+function makePostFromJob(id){
+  var q=(allQuotes||[]).find(function(x){return String(x.id)===String(id);});
+  if(!q)return;
+  openPostModal(q.job_description||'', q.client_address||'');
+}
+function makeInvoiceFromJob(id){
+  var q=(allQuotes||[]).find(function(x){return String(x.id)===String(id);});
+  if(!q)return;
+  openInvoiceModal(q.client_name||'', q.job_description||'', q.client_number||'', null);
+}
+function openPostModal(job, loc){
   document.getElementById('postModalOverlay').style.display='block';
   document.getElementById('postModal').style.display='block';
   document.getElementById('postVariants').innerHTML='<div style="color:var(--t3);font-size:.8rem;text-align:center;padding:20px">Writing your captions…</div>';
@@ -3919,7 +3943,7 @@ async function confirmBooking(){
   try{
     var r=await fetch('/api/create-booking?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({client_name:(_bookingDraft.client_name||'Booking'),job_type:_bookingDraft.job_description,client_number:_bookingDraft.client_number,date:iso,time:(_bookingDraft.time||''),duration_days:String(days)})
+      body:JSON.stringify({client_name:(_bookingDraft.client_name||'Booking'),job_type:_bookingDraft.job_description,client_number:_bookingDraft.client_number,date:iso,time:(_bookingDraft.time||''),duration_days:String(days),quote_id:(_bookingDraft.quote_id||null)})
     });
     var dta=await r.json();
     if(dta&&dta.ok){
