@@ -1363,6 +1363,12 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <button id="poStyleMin" onclick="poSetStyle('minimal')" style="flex:1;padding:9px;border:none;border-radius:9px;background:var(--s2);color:var(--t2);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.76rem;cursor:pointer">Minimal</button>
       <button id="poStyleBrand" onclick="poSetStyle('branded')" style="flex:1;padding:9px;border:none;border-radius:9px;background:var(--s2);color:var(--t2);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.76rem;cursor:pointer">Branded</button>
     </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <label style="font-size:.8rem;color:var(--t2);font-weight:700">Brand colour</label>
+      <input type="color" value="#1fb888" oninput="_poColor=this.value;poRender()" style="width:46px;height:34px;border:none;background:none;padding:0;cursor:pointer">
+    </div>
+    <input id="poCTAtext" value="FREE QUOTES · MESSAGE US" oninput="_poCTAtext=this.value;poRender()" placeholder="Call to action" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;margin-bottom:10px;box-sizing:border-box">
+    <input id="poTagText" value="JUST COMPLETED" oninput="_poTagText=this.value;poRender()" placeholder="Corner tag (leave blank to hide)" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;margin-bottom:12px;box-sizing:border-box">
     <input id="poHeadline" oninput="poRender()" placeholder="Headline (optional) — e.g. Kitchen fit · Exeter" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;margin-bottom:12px;box-sizing:border-box">
     <canvas id="poCanvas" width="1080" height="1350" style="width:100%;max-width:280px;display:block;margin:0 auto 12px;border-radius:12px;background:#0e1013"></canvas>
     <button onclick="poShare()" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:11px;color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">Save / share post</button>
@@ -2929,7 +2935,12 @@ function _copyPost(btn,i){
 }
 
 /* ===== Photo-to-post image composer (client-side canvas) ===== */
-var _poImgs=[null,null,null,null],_poFiles=[null,null,null,null],_poBA=false,_poBiz='',_poTrade='',_poStyle='spotlight',_poLogo=null;
+var _poImgs=[null,null,null,null],_poFiles=[null,null,null,null],_poBA=false,_poBiz='',_poTrade='',_poStyle='spotlight',_poLogo=null,_poColor='#1fb888',_poCTAtext='FREE QUOTES · MESSAGE US',_poTagText='JUST COMPLETED';
+function _poOn(){
+  var h=(_poColor||'#1fb888').replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+  var r=parseInt(h.substr(0,2),16)||0,g=parseInt(h.substr(2,2),16)||0,b=parseInt(h.substr(4,2),16)||0;
+  return ((0.299*r+0.587*g+0.114*b)/255>0.5)?'#04231a':'#ffffff';
+}
 function poSetStyle(s){
   _poStyle=s;
   var map={spotlight:'poStyleSpot',minimal:'poStyleMin',branded:'poStyleBrand'};
@@ -2998,7 +3009,7 @@ function _poTag(ctx,text,x,y){
   ctx.font='800 27px "Hanken Grotesk", sans-serif';
   var w=ctx.measureText(text).width+36, h=50;
   ctx.fillStyle='rgba(14,16,19,0.82)'; _poRoundRect(ctx,x,y,w,h,11); ctx.fill();
-  ctx.fillStyle='#56e0b0'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(text,x+18,y+h/2+1); ctx.textBaseline='alphabetic';
+  ctx.fillStyle=_poColor; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(text,x+18,y+h/2+1); ctx.textBaseline='alphabetic';
 }
 function _poInitials(n){
   var p=(n||'').trim().split(/\s+/).filter(Boolean);
@@ -3013,8 +3024,8 @@ function _poBrandMark(ctx,x,y,size){
     var bw=size*0.74, s=Math.min(bw/_poLogo.width,bw/_poLogo.height), dw=_poLogo.width*s, dh=_poLogo.height*s;
     ctx.drawImage(_poLogo,x+(size-dw)/2,y+(size-dh)/2,dw,dh); ctx.restore();
   } else {
-    ctx.save(); ctx.fillStyle='#1fb888'; _poRoundRect(ctx,x,y,size,size,16); ctx.fill();
-    ctx.fillStyle='#04231a'; ctx.font='800 '+Math.round(size*0.42)+'px "Hanken Grotesk", sans-serif';
+    ctx.save(); ctx.fillStyle=_poColor; _poRoundRect(ctx,x,y,size,size,16); ctx.fill();
+    ctx.fillStyle=_poOn(); ctx.font='800 '+Math.round(size*0.42)+'px "Hanken Grotesk", sans-serif';
     ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(_poInitials(_poBiz),x+size/2,y+size/2+2);
     ctx.textAlign='left'; ctx.textBaseline='alphabetic'; ctx.restore();
   }
@@ -3034,7 +3045,7 @@ function _poDrawCollage(ctx,x,y,w,h,r){
   if(_poBA && n>=2){
     var g=r?10:6, hh=Math.floor((h-g)/2);
     if(r){ _poRoundImg(ctx,imgs[0],x,y,w,hh,r); _poRoundImg(ctx,imgs[1],x,y+hh+g,w,h-hh-g,r); }
-    else { _poCover(ctx,imgs[0],x,y,w,hh); _poCover(ctx,imgs[1],x,y+hh+g,w,h-hh-g); ctx.fillStyle='#1fb888'; ctx.fillRect(x,y+hh-3,w,6); }
+    else { _poCover(ctx,imgs[0],x,y,w,hh); _poCover(ctx,imgs[1],x,y+hh+g,w,h-hh-g); ctx.fillStyle=_poColor; ctx.fillRect(x,y+hh-3,w,6); }
     _poTag(ctx,'BEFORE',x+18,y+18); _poTag(ctx,'AFTER',x+18,y+hh+g+18);
   } else {
     if(r) _poRoundImg(ctx,imgs[0],x,y,w,h,r); else _poCover(ctx,imgs[0],x,y,w,h);
@@ -3043,15 +3054,15 @@ function _poDrawCollage(ctx,x,y,w,h,r){
 function _poBrandMarkOnLight(ctx,x,y,size){
   ctx.save(); ctx.fillStyle='#ffffff'; _poRoundRect(ctx,x,y,size,size,16); ctx.fill();
   if(_poLogo){ _poRoundRect(ctx,x,y,size,size,16); ctx.clip(); var bw=size*0.74,s=Math.min(bw/_poLogo.width,bw/_poLogo.height),dw=_poLogo.width*s,dh=_poLogo.height*s; ctx.drawImage(_poLogo,x+(size-dw)/2,y+(size-dh)/2,dw,dh); }
-  else { ctx.fillStyle='#0e7a55'; ctx.font='800 '+Math.round(size*0.42)+'px "Hanken Grotesk", sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(_poInitials(_poBiz),x+size/2,y+size/2+2); ctx.textAlign='left'; ctx.textBaseline='alphabetic'; }
+  else { ctx.fillStyle=_poColor; ctx.font='800 '+Math.round(size*0.42)+'px "Hanken Grotesk", sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(_poInitials(_poBiz),x+size/2,y+size/2+2); ctx.textAlign='left'; ctx.textBaseline='alphabetic'; }
   ctx.restore();
 }
 function _poCTA(ctx,x,bottomY){
-  var t='FREE QUOTES · MESSAGE US';
+  var t=_poCTAtext||'FREE QUOTES';
   ctx.font='800 29px "Hanken Grotesk", sans-serif';
   var w=ctx.measureText(t).width+52, h=72, y=bottomY-h;
-  ctx.fillStyle='#1fb888'; _poRoundRect(ctx,x,y,w,h,14); ctx.fill();
-  ctx.fillStyle='#04231a'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(t,x+26,y+h/2+1); ctx.textBaseline='alphabetic';
+  ctx.fillStyle=_poColor; _poRoundRect(ctx,x,y,w,h,14); ctx.fill();
+  ctx.fillStyle=_poOn(); ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(t,x+26,y+h/2+1); ctx.textBaseline='alphabetic';
   return y;
 }
 function _poFooter(ctx,W,H,pad){
@@ -3060,22 +3071,22 @@ function _poFooter(ctx,W,H,pad){
   var hlEl=document.getElementById('poHeadline'), hl=hlEl?(hlEl.value||'').trim():'';
   ctx.textAlign='left';
   if(hl){ var hp=_poFit(ctx,hl,W-pad*2,44,'600'); ctx.fillStyle='#e7ecf1'; ctx.fillText(hl,pad,y); y-=(hp+30); }
-  ctx.fillStyle='#1fb888'; ctx.fillRect(pad,y,70,6); y-=24;
+  ctx.fillStyle=_poColor; ctx.fillRect(pad,y,70,6); y-=24;
   var mark=96, top=y-mark;
   _poBrandMark(ctx,pad,top,mark);
   var tx=pad+mark+24, biz=_poBiz||'Your business';
   if(_poTrade){
     _poFit(ctx,biz,W-tx-pad,50,'800'); ctx.fillStyle='#ffffff'; ctx.fillText(biz,tx,top+44);
-    ctx.font='600 30px "Hanken Grotesk", sans-serif'; ctx.fillStyle='#56e0b0'; ctx.fillText(_poTrade,tx,top+44+38);
+    ctx.font='600 30px "Hanken Grotesk", sans-serif'; ctx.fillStyle=_poColor; ctx.fillText(_poTrade,tx,top+44+38);
   } else {
     var bp=_poFit(ctx,biz,W-tx-pad,52,'800'); ctx.fillStyle='#ffffff'; ctx.fillText(biz,tx,top+mark/2+bp*0.35);
   }
 }
-function _poShowTag(){ return !(_poImgs.filter(Boolean).length===2 && _poBA); }
+function _poShowTag(){ return (_poTagText||'').trim() && !(_poImgs.filter(Boolean).length===2 && _poBA); }
 function _poRenderSpotlight(ctx,W,H){
   var pad=64;
   _poDrawCollage(ctx,0,0,W,H,0);
-  if(_poShowTag()) _poTag(ctx,'JUST COMPLETED',pad,pad);
+  if(_poShowTag()) _poTag(ctx,_poTagText,pad,pad);
   var g=ctx.createLinearGradient(0,H*0.42,0,H);
   g.addColorStop(0,'rgba(14,16,19,0)'); g.addColorStop(0.55,'rgba(14,16,19,0.82)'); g.addColorStop(1,'rgba(14,16,19,0.97)');
   ctx.fillStyle=g; ctx.fillRect(0,Math.floor(H*0.4),W,Math.ceil(H*0.6));
@@ -3084,41 +3095,41 @@ function _poRenderSpotlight(ctx,W,H){
 function _poRenderMinimal(ctx,W,H){
   var pad=56;
   _poDrawCollage(ctx,0,0,W,H,0);
-  if(_poShowTag()) _poTag(ctx,'JUST COMPLETED',pad,pad);
+  if(_poShowTag()) _poTag(ctx,_poTagText,pad,pad);
   var barH=158, barY=H-barH;
   ctx.fillStyle='rgba(14,16,19,0.92)'; ctx.fillRect(0,barY,W,barH);
-  ctx.fillStyle='#1fb888'; ctx.fillRect(0,barY,W,5);
+  ctx.fillStyle=_poColor; ctx.fillRect(0,barY,W,5);
   var mark=88, my=barY+(barH-mark)/2;
   _poBrandMark(ctx,pad,my,mark);
   var tx=pad+mark+20, biz=_poBiz||'Your business';
   ctx.textAlign='left'; ctx.fillStyle='#ffffff';
   if(_poTrade){
     _poFit(ctx,biz,W-tx-330,44,'800'); ctx.fillText(biz,tx,barY+barH/2-6);
-    ctx.font='600 26px "Hanken Grotesk", sans-serif'; ctx.fillStyle='#56e0b0'; ctx.fillText(_poTrade,tx,barY+barH/2+30);
+    ctx.font='600 26px "Hanken Grotesk", sans-serif'; ctx.fillStyle=_poColor; ctx.fillText(_poTrade,tx,barY+barH/2+30);
   } else { var bp=_poFit(ctx,biz,W-tx-330,46,'800'); ctx.fillText(biz,tx,barY+barH/2+bp*0.34); }
-  var t='FREE QUOTES'; ctx.font='800 26px "Hanken Grotesk", sans-serif';
+  var t=(_poCTAtext||'FREE QUOTES').split('·')[0].trim(); ctx.font='800 26px "Hanken Grotesk", sans-serif';
   var w=ctx.measureText(t).width+40, h=58, cx=W-pad-w, cy=barY+(barH-h)/2;
-  ctx.fillStyle='#1fb888'; _poRoundRect(ctx,cx,cy,w,h,12); ctx.fill();
-  ctx.fillStyle='#04231a'; ctx.textBaseline='middle'; ctx.fillText(t,cx+20,cy+h/2+1); ctx.textBaseline='alphabetic';
+  ctx.fillStyle=_poColor; _poRoundRect(ctx,cx,cy,w,h,12); ctx.fill();
+  ctx.fillStyle=_poOn(); ctx.textBaseline='middle'; ctx.fillText(t,cx+20,cy+h/2+1); ctx.textBaseline='alphabetic';
 }
 function _poRenderBranded(ctx,W,H){
   var pad=56;
   ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H);
   var headH=172;
-  ctx.fillStyle='#1fb888'; ctx.fillRect(0,0,W,headH);
+  ctx.fillStyle=_poColor; ctx.fillRect(0,0,W,headH);
   var mark=100, my=Math.floor((headH-mark)/2);
   _poBrandMarkOnLight(ctx,pad,my,mark);
   var tx=pad+mark+22, biz=_poBiz||'Your business';
   ctx.textAlign='left';
   if(_poTrade){
-    _poFit(ctx,biz,W-tx-pad,46,'800'); ctx.fillStyle='#04231a'; ctx.fillText(biz,tx,my+44);
-    ctx.font='600 28px "Hanken Grotesk", sans-serif'; ctx.fillStyle='rgba(4,35,26,0.72)'; ctx.fillText(_poTrade,tx,my+44+36);
-  } else { var bp=_poFit(ctx,biz,W-tx-pad,50,'800'); ctx.fillStyle='#04231a'; ctx.fillText(biz,tx,my+mark/2+bp*0.34); }
+    _poFit(ctx,biz,W-tx-pad,46,'800'); ctx.fillStyle=_poOn(); ctx.fillText(biz,tx,my+44);
+    ctx.font='600 28px "Hanken Grotesk", sans-serif'; ctx.fillStyle=_poOn(); ctx.globalAlpha=0.75; ctx.fillText(_poTrade,tx,my+44+36); ctx.globalAlpha=1;
+  } else { var bp=_poFit(ctx,biz,W-tx-pad,50,'800'); ctx.fillStyle=_poOn(); ctx.fillText(biz,tx,my+mark/2+bp*0.34); }
   var footH=204, imgY=headH+pad, imgW=W-pad*2, imgH=H-imgY-footH;
   _poDrawCollage(ctx,pad,imgY,imgW,imgH,18);
-  if(_poShowTag()) _poTag(ctx,'JUST COMPLETED',pad+22,imgY+22);
+  if(_poShowTag()) _poTag(ctx,_poTagText,pad+22,imgY+22);
   var fy=H-footH+44;
-  ctx.fillStyle='#1fb888'; ctx.fillRect(pad,fy-30,70,6);
+  ctx.fillStyle=_poColor; ctx.fillRect(pad,fy-30,70,6);
   var hlEl=document.getElementById('poHeadline'), hl=hlEl?(hlEl.value||'').trim():'';
   ctx.textAlign='left';
   if(hl){ _poFit(ctx,hl,W-pad*2,40,'700'); ctx.fillStyle='#1a1d23'; ctx.fillText(hl,pad,fy+20); }
