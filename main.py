@@ -2747,6 +2747,48 @@ def create_booking_api():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/quote/<quote_id>/done", methods=["POST"])
+def done_quote(quote_id):
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        supabase.table("quotes").update({"status": "done"}).eq("id", quote_id).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        print("Done quote error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/post-stats", methods=["GET"])
+def post_stats():
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        sender = result.data[0].get("sender", "")
+        clicks = 0
+        enquiries = 0
+        try:
+            cr = supabase.table("social_clicks").select("id", count="exact").eq("sender", sender).eq("source", "fb").execute()
+            clicks = cr.count or 0
+        except Exception as e:
+            print("post-stats clicks error: " + str(e))
+        try:
+            er = supabase.table("enquiries").select("id", count="exact").eq("sender", sender).ilike("source", "%facebook%").execute()
+            enquiries = er.count or 0
+        except Exception as e:
+            print("post-stats enquiries error: " + str(e))
+        return jsonify({"ok": True, "clicks": clicks, "enquiries": enquiries})
+    except Exception as e:
+        print("Post stats error: " + str(e))
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/quote/<quote_id>/accept", methods=["POST"])
 def accept_quote(quote_id):
     try:
@@ -3815,6 +3857,10 @@ def capture_page(slug):
     biz = _h.escape(profile.get("business_name") or "us")
     trade = _h.escape(profile.get("trade") or "")
     src = _re.sub(r"[^a-zA-Z0-9_-]", "", request.args.get("src", "link"))[:20] or "link"
+    try:
+        supabase.table("social_clicks").insert({"sender": profile.get("sender", ""), "slug": slug, "source": src}).execute()
+    except Exception as e:
+        print("click log error: " + str(e))
     return """<!doctype html><html lang=en><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>Get a free quote - """ + biz + """</title>
