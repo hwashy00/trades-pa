@@ -759,6 +759,102 @@ def run_invoice_chase():
         print("run_invoice_chase error: " + str(e))
 
 # ─────────────────────────────────────────────────────────────
+# RENEWALS — the boring admin nobody remembers until it bites:
+# public liability insurance, van MOT/tax, CSCS/SMSTS cards,
+# Gas Safe / NICEIC registrations, waste carrier licence...
+# The assistant nags at 30/14/7/1/0 days and flags expiry.
+# ─────────────────────────────────────────────────────────────
+RENEWAL_STAGES = [30, 14, 7, 1, 0]
+
+def check_renewals():
+    """Daily: remind owners about upcoming renewals. Stage-tracked so each
+    threshold fires exactly once. Never raises."""
+    try:
+        rows = supabase.table("renewals").select("*").execute().data or []
+    except Exception as e:
+        print("renewals fetch error (run the setup SQL?):", e)
+        return
+    profiles_cache = {}
+    today = datetime.date.today()
+    for r in rows:
+        try:
+            sender = r.get("sender", "")
+            due = datetime.date.fromisoformat(str(r.get("due_date", ""))[:10])
+            days_left = (due - today).days
+            last = r.get("last_stage")
+            stage = None
+            if days_left < 0 and last != -1:
+                stage = -1
+            else:
+                for s in RENEWAL_STAGES:
+                    if days_left == s and (last is None or last > s):
+                        stage = s
+                        break
+            if stage is None:
+                continue
+            if sender not in profiles_cache:
+                res = supabase.table("profiles").select("*").eq("sender", sender).execute()
+                profiles_cache[sender] = res.data[0] if res.data else None
+            profile = profiles_cache[sender]
+            if not profile:
+                continue
+            label = r.get("label", "a renewal")
+            if stage == -1:
+                msg = "\u26a0\ufe0f " + label + " EXPIRED " + (("on " + due.strftime("%d %b")) if days_left < -1 else "yesterday") + ". Worth sorting today — working without it can void jobs and insurance claims."
+            elif stage == 0:
+                msg = "\u26a0\ufe0f " + label + " is due TODAY (" + due.strftime("%d %b") + ")."
+            else:
+                msg = "Heads up — " + label + " renews in " + str(stage) + " day" + ("" if stage == 1 else "s") + " (" + due.strftime("%d %b") + ")." + ((" " + r.get("notes")) if r.get("notes") else "")
+            notify_owner(profile, msg)
+            supabase.table("renewals").update({"last_stage": stage}).eq("id", r.get("id")).execute()
+        except Exception as e:
+            print("renewal row error:", e)
+
+
+@app.route("/api/renewals", methods=["GET", "POST", "DELETE"])
+def api_renewals():
+    """List / add / remove renewals for the dashboard. Same phone+pin auth as other APIs."""
+    try:
+        phone = format_phone((request.args.get("phone") or "").strip())
+        pin = (request.args.get("pin") or "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        sender = result.data[0].get("sender", "")
+        if request.method == "GET":
+            rows = (supabase.table("renewals").select("id,label,due_date,notes")
+                    .eq("sender", sender).order("due_date").execute().data or [])
+            return jsonify({"renewals": rows})
+        if request.method == "POST":
+            body = request.get_json(silent=True) or {}
+            label = (body.get("label") or "").strip()
+            due = (body.get("due_date") or "").strip()[:10]
+            datetime.date.fromisoformat(due)  # validates
+            if not label:
+                return jsonify({"error": "Missing label"}), 400
+            ins = supabase.table("renewals").insert({
+                "sender": sender, "label": label, "due_date": due,
+                "notes": (body.get("notes") or "").strip()
+            }).execute()
+            return jsonify({"ok": True, "renewal": (ins.data or [{}])[0]})
+        if request.method == "DELETE":
+            rid = request.args.get("id", "")
+            supabase.table("renewals").delete().eq("id", rid).eq("sender", sender).execute()
+            return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/cron/renewals-check", methods=["GET", "POST"])
+def cron_renewals_check():
+    expected = os.environ.get("CRON_KEY", "")
+    if not expected or request.args.get("key", "") != expected:
+        return jsonify({"error": "Unauthorised"}), 401
+    check_renewals()
+    return jsonify({"ok": True})
+
+
+# ─────────────────────────────────────────────────────────────
 # DAILY DEBRIEF — the assistant reports in at end of day.
 # Counterpart to the 7am briefing: what happened today, what's
 # owed, what's on tomorrow, and what it suggests chasing.
@@ -836,8 +932,18 @@ def _debrief_facts(sender):
     except Exception as e:
         print("debrief stale quotes error:", e)
 
+    try:
+        rows = (supabase.table("renewals").select("label,due_date").eq("sender", sender)
+                .gte("due_date", today_iso)
+                .lte("due_date", (today + datetime.timedelta(days=14)).isoformat())
+                .order("due_date").limit(2).execute().data or [])
+        f["renewals_due"] = [{"label": r.get("label", ""), "due": r.get("due_date", "")} for r in rows]
+    except Exception as e:
+        f["renewals_due"] = []
+
     worth_sending = bool(f["new_enquiries"] or f["quotes_today"] or f["tomorrow"]
-                         or f["stale_quotes"] or f["missed_calls"] or f["owed_total"] > 0)
+                         or f["stale_quotes"] or f["missed_calls"] or f["owed_total"] > 0
+                         or f["renewals_due"])
     return f, worth_sending
 
 
@@ -858,6 +964,8 @@ def _debrief_fallback_text(first_name, f):
         if f["oldest_overdue"]:
             owed += " (" + f["oldest_overdue"]["who"] + " is " + str(f["oldest_overdue"]["days"]) + " days over)"
         lines.append(owed)
+    for r in f.get("renewals_due", [])[:1]:
+        lines.append("\u2022 " + r["label"] + " renews " + r["due"] + " \u2014 don't let it lapse")
     if f["tomorrow"]:
         t = f["tomorrow"][0]
         first = (t["time"] + " " if t["time"] else "") + t["who"] + ((" — " + t["what"]) if t["what"] else "")
@@ -935,6 +1043,7 @@ scheduler.add_job(lambda: send_intelligent_briefing(supabase, client, _twilio_fa
 scheduler.add_job(scan_all_emails, "interval", minutes=15)
 scheduler.add_job(run_invoice_chase, "cron", hour=9, minute=0)
 scheduler.add_job(send_daily_debrief, "cron", hour=17, minute=30, timezone="Europe/London")
+scheduler.add_job(check_renewals, "cron", hour=8, minute=15, timezone="Europe/London")
 scheduler.start()
 
 
