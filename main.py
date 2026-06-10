@@ -1900,7 +1900,11 @@ def incoming_call():
     bounced = caller in _recent_dial_attempts and (_now - _recent_dial_attempts.get(caller, 0)) < 45
 
     resp = VoiceResponse()
-    if profile and (forwarded_from or bounced):
+    # Catcher mode: this number is purely a divert destination (the trade's real
+    # number is public). Every call landing here is by definition a missed call —
+    # no point dialling the owner whose phone just bounced it to us.
+    catcher = bool(profile) and (profile.get("number_mode") or "").lower() == "catcher"
+    if profile and (forwarded_from or bounced or catcher):
         # Diverted from the trade's own phone (busy / no answer): this IS a missed
         # call already — re-dialling their phone would just bounce back here in a
         # loop. Triage the caller, then take a voicemail.
