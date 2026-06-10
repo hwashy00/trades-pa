@@ -385,9 +385,9 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .inbox-search-box svg{width:16px;height:16px;color:var(--t3);flex-shrink:0}
 .inbox-search-box input{flex:1;background:none;border:none;outline:none;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.88rem}
 .inbox-search-box input::placeholder{color:var(--t4)}
-.inbox-list{display:flex;flex-direction:column;padding:0 8px}\n.needs-card{background:linear-gradient(180deg,rgba(255,179,64,.10),rgba(255,179,64,.03));border:1px solid rgba(255,179,64,.32);border-radius:16px;padding:14px 15px;margin-bottom:10px;animation:msgPop .3s var(--spring)}
+.inbox-list{display:flex;flex-direction:column;padding:0 8px}\n.needs-card{background:linear-gradient(180deg,rgba(230,195,58,.10),rgba(230,195,58,.03));border:1px solid rgba(230,195,58,.32);border-radius:16px;padding:14px 15px;margin-bottom:10px;animation:msgPop .3s var(--spring)}
 .needs-top{display:flex;align-items:center;gap:8px;margin-bottom:7px}
-.needs-flag{width:22px;height:22px;border-radius:7px;background:rgba(255,179,64,.18);color:var(--amb);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.7rem;font-weight:800}
+.needs-flag{width:22px;height:22px;border-radius:7px;background:rgba(230,195,58,.18);color:var(--amb);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.7rem;font-weight:800}
 .needs-who{font-weight:800;font-size:.9rem;color:var(--t1)}
 .needs-reason{font-size:.78rem;color:var(--t2);margin-bottom:4px}
 .needs-msg{font-size:.74rem;color:var(--t3);font-style:italic;margin-bottom:11px;line-height:1.45}
@@ -519,13 +519,24 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .asst-sugg button{background:var(--s2);border:1px solid var(--br);border-radius:20px;padding:8px 13px;font-size:.76rem;color:var(--t2);font-family:'Hanken Grotesk',sans-serif;cursor:pointer;transition:transform .12s,background .15s}
 .asst-sugg button:active{transform:scale(.96);background:var(--s3)}
 .asst-bar{flex-shrink:0;display:flex;gap:8px;align-items:flex-end;padding:10px 14px 24px;border-top:1px solid var(--br);background:var(--s1)}
-.asst-mic{width:44px;height:44px;border-radius:13px;background:var(--s2);border:1px solid var(--br);color:var(--acc2);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform .12s}
-.asst-mic:active{transform:scale(.94)}
-.asst-ta{flex:1;padding:12px 14px;background:var(--s2);border:1px solid var(--br);border-radius:14px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.9rem;outline:none;resize:none;min-height:44px;max-height:120px;overflow-y:auto}
-.asst-ta:focus{border-color:var(--acc)}
-.asst-send{width:44px;height:44px;border-radius:13px;background:var(--acc);border:none;color:var(--ink);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform .12s}
-.asst-send:active{transform:scale(.94)}
-.asst-mic svg,.asst-send svg{width:19px;height:19px}
+.asst-plus{width:44px;height:44px;border-radius:13px;background:var(--s2);border:1px solid var(--br);color:var(--t2);flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .25s var(--spring),color .15s,border-color .15s}
+.asst-plus.open{transform:rotate(45deg);color:var(--acc);border-color:var(--acc)}
+.asst-pill{flex:1;min-width:0;display:flex;align-items:flex-end;background:var(--s2);border:1px solid var(--br);border-radius:15px;padding:4px 4px 4px 0;transition:border-color .15s,box-shadow .15s}
+.asst-pill:focus-within{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc-d)}
+.asst-ta{flex:1;min-width:0;padding:9px 10px 9px 14px;background:transparent;border:none;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.92rem;outline:none;resize:none;min-height:36px;max-height:120px;overflow-y:auto}
+.asst-send{width:36px;height:36px;border-radius:11px;background:var(--acc);border:none;color:var(--ink);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform .12s,opacity .15s;clip-path:polygon(0 0,calc(100% - 9px) 0,100% 9px,100% 100%,0 100%);margin-bottom:1px}
+.asst-send:active{transform:scale(.92)}
+.asst-mic svg,.asst-send svg,.asst-plus svg{width:19px;height:19px}
+.asst-tools{display:none;gap:8px;padding:10px 14px 0;background:var(--s1);border-top:1px solid var(--br)}
+.asst-tools.open{display:flex;animation:toolsIn .22s var(--ease-out)}
+@keyframes toolsIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.asst-tool{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;background:var(--s2);border:1px solid var(--br);border-radius:12px;color:var(--acc2);cursor:pointer;transition:transform .12s,background .15s;font-family:'Hanken Grotesk',sans-serif}
+.asst-tool:active{transform:scale(.96);background:var(--s3)}
+.asst-tool svg{width:19px;height:19px}
+.asst-tool span{font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t2)}
+.asst-tool.rec{background:var(--acc);border-color:var(--acc);animation:asstPulse 1.1s ease-in-out infinite}
+.asst-tool.rec svg{color:var(--ink)}
+.asst-tool.rec span{color:var(--ink)}
 .asst-mic.rec{background:var(--acc);color:var(--ink);border-color:var(--acc);animation:asstPulse 1.1s ease-in-out infinite}
 @keyframes asstPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,138,30,.45)}50%{box-shadow:0 0 0 7px rgba(255,138,30,0)}}
 .asst-typing{align-self:flex-start;display:flex;gap:4px;padding:13px 15px;background:var(--s2);border:1px solid var(--br2);border-radius:16px;border-bottom-left-radius:5px}
@@ -789,15 +800,21 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
         <span id="asstStageLabel">Photo ready — add a description below</span>
         <button onclick="asstClearPhoto()" aria-label="Remove photo">&#10005;</button>
       </div>
-      <div class="asst-bar">
-        <label class="asst-mic" title="Photo to quote" style="cursor:pointer">
+      <div class="asst-tools" id="asstTools">
+        <label class="asst-tool" title="Photo to quote">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.4"/><path d="M8 7l1.5-3h5L16 7"/></svg>
+          <span>Photo quote</span>
           <input type="file" accept="image/*" onchange="asstHandlePhoto(this)" style="display:none">
         </label>
-        <button class="asst-mic" onclick="hfOpen()" title="Hands-free voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg></button>
-        <button class="asst-mic" id="asstDictBtn" onclick="asstMicToggle()" title="Voice note → text (replies in text)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 9v6M9 5v14M13 8v8M17 6v12M21 10v4"/></svg></button>
-        <textarea class="asst-ta" id="asstInput" rows="1" placeholder="Tell me what you need..." oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'" onkeydown="asstHandleEnter(event)"></textarea>
-        <button class="asst-send" onclick="asstSend()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 12l16-8-6 16-3-7-7-1z" stroke-linejoin="round"/></svg></button>
+        <button class="asst-tool" onclick="hfOpen()" title="Hands-free voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg><span>Hands-free</span></button>
+        <button class="asst-tool" id="asstDictBtn" onclick="asstMicToggle()" title="Voice note → text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 9v6M9 5v14M13 8v8M17 6v12M21 10v4"/></svg><span>Dictate</span></button>
+      </div>
+      <div class="asst-bar">
+        <button class="asst-plus" id="asstPlus" onclick="asstToolsToggle()" title="Tools"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+        <div class="asst-pill">
+          <textarea class="asst-ta" id="asstInput" rows="1" placeholder="Tell me what you need..." oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'" onkeydown="asstHandleEnter(event)"></textarea>
+          <button class="asst-send" onclick="asstSend()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 12l16-8-6 16-3-7-7-1z" stroke-linejoin="round"/></svg></button>
+        </div>
       </div>
       <div style="display:none">
         <span id="heroNew"></span><span id="heroMissed"></span><span id="statMissed"></span>
@@ -6108,6 +6125,7 @@ function renderPulse(){
   if(bp)bp.style.width=pct(paid);
 }
 
+function asstToolsToggle(){var t=document.getElementById('asstTools'),p=document.getElementById('asstPlus');if(!t)return;var open=!t.classList.contains('open');t.classList.toggle('open',open);if(p)p.classList.toggle('open',open);try{haptic('light');}catch(e){}}
 (function(){var b=document.getElementById('bootSplash');if(!b)return;setTimeout(function(){b.classList.add('done');setTimeout(function(){if(b.parentNode)b.remove();},600);},950);})();
 </script>
 </body>
