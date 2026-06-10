@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>VanOffice</title>
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0b0c0e">
+<meta name="theme-color" content="#0d0c0a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,24 +13,26 @@
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <link rel="icon" type="image/png" href="/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ─── RESET & TOKENS ─────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
-  /* surfaces - warm graphite, top-lit */
-  --bg:#0b0c0e;--s1:#131519;--s2:#181b20;--s3:#20242b;--s4:#2a2f37;
-  /* text */
-  --t1:#f4f3f0;--t2:rgba(244,243,240,0.6);--t3:rgba(244,243,240,0.34);--t4:rgba(244,243,240,0.13);
+  /* surfaces - warm tarmac black, like a tool housing under workshop light */
+  --bg:#0d0c0a;--s1:#151310;--s2:#1b1814;--s3:#242019;--s4:#2f2a21;
+  /* text - warm white */
+  --t1:#f5f1e8;--t2:rgba(245,241,232,0.6);--t3:rgba(245,241,232,0.34);--t4:rgba(245,241,232,0.13);
   /* borders */
   --br:rgba(255,255,255,0.07);--br2:rgba(255,255,255,0.035);
   --toplight:rgba(255,255,255,0.05);
-  /* accent - deep emerald / teal (money + trust) */
-  --acc:#1fb888;--acc2:#56e0b0;--acc-deep:#0e7a5a;--acc-d:rgba(31,184,136,0.13);--acc-glow:rgba(31,184,136,0.30);
+  /* accent - hi-vis orange (site safety + premium power tools) */
+  --acc:#ff8a1e;--acc2:#ffab57;--acc-deep:#c95f00;--acc-d:rgba(255,138,30,0.13);--acc-glow:rgba(255,138,30,0.30);
+  /* ink - text sitting on the accent */
+  --ink:#2a1503;
   /* status */
   --grn:#3ad29f;--grn-d:rgba(58,210,159,0.12);
   --red:#ff5a5f;--red-d:rgba(255,90,95,0.12);
-  --amb:#e6a83a;--amb-d:rgba(230,168,58,0.13);   /* pending / quoted = gold */
+  --amb:#e6c33a;--amb-d:rgba(230,195,58,0.12);   /* pending / quoted = gold, distinct from brand orange */
   --blu:#5aa9ff;--blu-d:rgba(90,169,255,0.12);
   /* motion - refined, no overshoot */
   --spring:cubic-bezier(.34,1.12,.64,1);
@@ -43,7 +45,7 @@
 /* ─── BASE ───────────────────────────────────────────── */
 html,body{height:100%;overflow:hidden}
 body{background:var(--bg);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;max-width:390px;margin:0 auto;display:flex;flex-direction:column;position:relative;font-feature-settings:"tnum"}
-body::before{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:26px 26px;-webkit-mask-image:radial-gradient(120% 80% at 50% 0%,#000 25%,transparent 75%);mask-image:radial-gradient(120% 80% at 50% 0%,#000 25%,transparent 75%)}
+body::before{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;pointer-events:none;z-index:0;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.016) 0 1px,transparent 1px 9px);-webkit-mask-image:radial-gradient(120% 80% at 50% 0%,#000 25%,transparent 75%);mask-image:radial-gradient(120% 80% at 50% 0%,#000 25%,transparent 75%)}
 body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;pointer-events:none;z-index:1;opacity:.4;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.4'/%3E%3C/svg%3E")}
 .login-screen,.content,.nav,#app{position:relative;z-index:2}
 .mono{font-family:'Spline Sans Mono',monospace;font-feature-settings:"tnum"}
@@ -54,18 +56,18 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .login-screen{position:absolute;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;padding:72px 28px 48px;transition:opacity .25s var(--ease-out),transform .25s var(--ease-out)}
 .login-screen.out{opacity:0;pointer-events:none;transform:translateY(-14px)}
 .login-screen.hidden{display:none}
-.logo{font-family:'Archivo',sans-serif;font-size:2.1rem;font-weight:800;letter-spacing:-.05em;color:var(--t1);margin-bottom:5px}
-.logo b{color:var(--acc2);font-weight:900}
+.logo{font-family:'Big Shoulders Display',sans-serif;font-size:2.5rem;font-weight:800;letter-spacing:.015em;text-transform:uppercase;color:var(--t1);margin-bottom:5px}
+.logo b{color:var(--acc);font-weight:800}
 .logo-sub{font-size:.75rem;color:var(--t3);margin-bottom:56px}
 .lbl{font-size:.65rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
 .inp{width:100%;padding:16px 18px;background:var(--s2);border:1.5px solid var(--br);border-radius:16px;font-family:'Hanken Grotesk',sans-serif;font-size:.95rem;color:var(--t1);outline:none;margin-bottom:14px;transition:border-color .18s,box-shadow .18s}
 .inp::placeholder{color:var(--t4)}
 .inp:focus{border-color:var(--acc);box-shadow:0 0 0 4px var(--acc-glow)}
 
-/* CTA button — Revolut-style pill with glow */
-.btn-cta{width:100%;padding:17px;background:var(--acc);border:none;border-radius:16px;font-family:'Hanken Grotesk',sans-serif;font-size:.95rem;font-family:'Archivo',sans-serif;font-weight:700;color:#04231a;cursor:pointer;margin-top:4px;transition:transform .1s var(--spring),box-shadow .18s,background .15s;box-shadow:0 4px 24px var(--acc-glow);will-change:transform}
-.btn-cta:active{transform:scale(.955);box-shadow:0 2px 10px var(--acc-glow)}
-.btn-cta:hover{box-shadow:0 6px 32px var(--acc-glow)}
+/* CTA button — machined chamfer, hi-vis */
+.btn-cta{width:100%;padding:17px;background:var(--acc);border:none;border-radius:12px;font-size:1.05rem;font-family:'Big Shoulders Display',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);cursor:pointer;margin-top:4px;transition:transform .1s var(--spring),filter .18s,background .15s;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,0 100%);filter:drop-shadow(0 5px 18px var(--acc-glow));will-change:transform}
+.btn-cta:active{transform:scale(.955);filter:drop-shadow(0 2px 8px var(--acc-glow))}
+.btn-cta:hover{filter:drop-shadow(0 6px 26px var(--acc-glow))}
 .login-alt{text-align:center;margin-top:16px;font-size:.75rem;color:var(--t3)}
 .login-alt span{color:var(--acc2);cursor:pointer;font-weight:600}
 .login-foot{margin-top:auto;text-align:center;font-size:.6rem;color:var(--t4);line-height:1.9}
@@ -85,8 +87,8 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 
 /* ─── TOPBAR ─────────────────────────────────────────── */
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px;flex-shrink:0}
-.topbar-logo{font-family:'Archivo',sans-serif;font-size:1.05rem;font-weight:800;letter-spacing:-.04em}
-.topbar-logo b{color:var(--acc2)}
+.topbar-logo{font-family:'Big Shoulders Display',sans-serif;font-size:1.3rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
+.topbar-logo b{color:var(--acc)}
 .topbar-right{display:flex;align-items:center;gap:10px}
 .ib{width:38px;height:38px;border-radius:12px;background:var(--s1);border:1.5px solid var(--br);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1rem;position:relative;color:var(--t2);transition:background .15s,transform .1s var(--spring)}
 .ib:active{transform:scale(.96);background:var(--s4)}
@@ -94,7 +96,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .ib.spin svg{animation:ibspin .7s linear infinite}
 @keyframes ibspin{to{transform:rotate(360deg)}}
 .ndot{width:7px;height:7px;background:var(--acc);border-radius:50%;position:absolute;top:5px;right:5px;border:2px solid var(--bg);display:none;box-shadow:0 0 6px var(--acc)}
-.av{width:38px;height:38px;border-radius:12px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Archivo',sans-serif;font-size:.78rem;font-weight:800;color:#04231a;cursor:pointer;box-shadow:0 4px 14px -4px var(--acc-glow);transition:transform .1s var(--spring)}
+.av{width:38px;height:38px;border-radius:12px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Big Shoulders Display',sans-serif;font-size:.78rem;font-weight:800;color:var(--ink);cursor:pointer;box-shadow:0 4px 14px -4px var(--acc-glow);transition:transform .1s var(--spring)}
 .av:active{transform:scale(.96)}
 
 /* ─── HERO ───────────────────────────────────────────── */
@@ -128,7 +130,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 /* ─── SECTIONS ───────────────────────────────────────── */
 .sec{padding:0 20px 20px}
 .sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.sec-title{font-family:'Archivo',sans-serif;font-size:.95rem;font-weight:700;letter-spacing:-.02em}
+.sec-title{font-family:'Big Shoulders Display',sans-serif;font-size:1.05rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .sec-more{font-size:.7rem;font-weight:600;color:var(--acc2);cursor:pointer}
 
 /* ─── LIST ITEMS ─────────────────────────────────────── */
@@ -162,18 +164,18 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .ni-lbl{font-size:.55rem;font-weight:700;color:var(--t4);letter-spacing:.03em;transition:color .2s}
 .ni.on .ni-ico{color:var(--acc);transform:scale(1.1)}
 .ni.on .ni-lbl{color:var(--acc2)}
-.ni.on::after{content:'';position:absolute;top:2px;width:22px;height:3px;border-radius:0 0 3px 3px;background:var(--acc);box-shadow:0 0 10px var(--acc)}
+.ni.on::after{content:'';position:absolute;top:2px;width:26px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--acc2) 30%,var(--acc2) 70%,transparent);box-shadow:0 0 12px var(--acc)}
 
 /* ─── PAGE HEADER ────────────────────────────────────── */
 .ph{display:flex;align-items:center;justify-content:space-between;padding:22px 20px 14px}
-.ph-title{font-family:'Archivo',sans-serif;font-size:1.7rem;font-weight:800;letter-spacing:-.045em}
+.ph-title{font-family:'Big Shoulders Display',sans-serif;font-size:2rem;font-weight:800;letter-spacing:.025em;text-transform:uppercase}
 
 /* ─── FILTERS ────────────────────────────────────────── */
 .filters{display:flex;gap:7px;padding:0 20px 16px;overflow-x:auto;scrollbar-width:none}
 .filters::-webkit-scrollbar{display:none}
 .fp{flex-shrink:0;padding:7px 16px;border-radius:22px;font-size:.7rem;font-weight:700;border:1.5px solid var(--br);background:none;color:var(--t3);cursor:pointer;font-family:'Hanken Grotesk',sans-serif;transition:all .18s var(--spring);will-change:transform}
 .fp:active{transform:scale(.965)}
-.fp.on{background:var(--t1);border-color:var(--t1);color:var(--bg)}
+.fp.on{background:var(--acc);border-color:var(--acc);color:var(--ink)}
 
 /* ─── CALENDAR ───────────────────────────────────────── */
 .cal{padding:0 20px}
@@ -186,15 +188,15 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:24px}
 .cd{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:11px;font-size:.76rem;font-weight:500;color:var(--t3);cursor:pointer;position:relative;transition:background .1s,transform .1s var(--spring)}
 .cd:active{transform:scale(.955)}
-.cd.today{background:var(--acc);color:#04231a;font-weight:800;box-shadow:0 2px 12px var(--acc-glow)}
+.cd.today{background:var(--acc);color:var(--ink);font-weight:800;box-shadow:0 2px 12px var(--acc-glow)}
 .cd.hj{color:var(--t1);font-weight:700}
 .cd.hj::after{content:'';width:4px;height:4px;background:var(--acc);border-radius:50%;position:absolute;bottom:3px}
 .cd.empty{cursor:default}
 
 /* ─── PROFILE ────────────────────────────────────────── */
 .prof-hero{display:flex;align-items:center;gap:18px;padding:8px 20px 28px}
-.prof-av{width:62px;height:62px;border-radius:18px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Archivo',sans-serif;font-size:1.5rem;font-weight:800;color:#04231a;flex-shrink:0;box-shadow:0 6px 20px -6px var(--acc-glow)}
-.prof-name{font-family:'Archivo',sans-serif;font-size:1.2rem;font-weight:700;letter-spacing:-.03em;margin-bottom:3px}
+.prof-av{width:62px;height:62px;border-radius:18px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Big Shoulders Display',sans-serif;font-size:1.5rem;font-weight:800;color:var(--ink);flex-shrink:0;box-shadow:0 6px 20px -6px var(--acc-glow)}
+.prof-name{font-family:'Big Shoulders Display',sans-serif;font-size:1.2rem;font-weight:700;letter-spacing:-.03em;margin-bottom:3px}
 .prof-trade{font-size:.72rem;color:var(--t3)}
 .sg{padding:0 20px 20px}
 .sg-lbl{font-size:.6rem;font-weight:700;color:var(--t4);letter-spacing:.09em;text-transform:uppercase;margin-bottom:8px;padding-left:2px}
@@ -211,7 +213,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .colour-swatch.selected{border-color:var(--t1);transform:scale(1.2);box-shadow:0 0 8px currentColor}
 
 /* ─── SAVE BUTTON ────────────────────────────────────── */
-.save-btn{width:calc(100% - 40px);margin:0 20px 20px;padding:16px;background:var(--acc);border:none;border-radius:16px;font-family:'Hanken Grotesk',sans-serif;font-size:.88rem;font-weight:700;color:#04231a;cursor:pointer;transition:transform .12s var(--press),box-shadow .15s;box-shadow:0 6px 22px -8px var(--acc-glow);will-change:transform}
+.save-btn{width:calc(100% - 40px);margin:0 20px 20px;padding:16px;background:var(--acc);border:none;border-radius:16px;font-family:'Hanken Grotesk',sans-serif;font-size:.88rem;font-weight:700;color:var(--ink);cursor:pointer;transition:transform .12s var(--press),box-shadow .15s;box-shadow:0 6px 22px -8px var(--acc-glow);will-change:transform}
 .save-btn:active{transform:scale(.96);box-shadow:0 2px 8px var(--acc-glow)}
 .success-msg{text-align:center;color:var(--grn);font-size:.75rem;margin:-10px 20px 16px;min-height:20px}
 /* ─── SCREENS ────────────────────────────────────────── */
@@ -270,7 +272,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 
 /* ─── SKELETON ───────────────────────────────────────── */
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
-.skeleton{background:linear-gradient(90deg,var(--s2) 25%,var(--s3) 50%,var(--s2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:10px;color:transparent!important}
+.skeleton{background:linear-gradient(90deg,var(--s2) 30%,rgba(255,138,30,.12) 50%,var(--s2) 70%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:10px;color:transparent!important}
 
 /* ─── CHAT BUBBLES ───────────────────────────────────── */
 @keyframes bubbleIn{from{opacity:0;transform:translateY(8px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
@@ -301,7 +303,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .colour-swatch{width:32px;height:32px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:border-color .15s}
 .colour-swatch.selected{border-color:var(--t1)}
 .sg-val-ta{font-size:.78rem;color:var(--acc2);font-weight:400;text-align:right;background:none;border:none;font-family:'Hanken Grotesk',sans-serif;outline:none;width:160px;resize:none;line-height:1.5}
-.save-btn{display:block;width:calc(100% - 40px);margin:0 20px 20px;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Hanken Grotesk',sans-serif;font-size:.88rem;font-weight:700;color:#04231a;cursor:pointer;transition:opacity .15s}
+.save-btn{display:block;width:calc(100% - 40px);margin:0 20px 20px;padding:15px;background:var(--acc);border:none;border-radius:12px;font-family:'Big Shoulders Display',sans-serif;font-size:1rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink);cursor:pointer;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,0 100%);filter:drop-shadow(0 4px 14px var(--acc-glow));transition:opacity .15s}
 .save-btn:disabled{opacity:.5;cursor:not-allowed}
 .success-msg{text-align:center;font-size:.75rem;color:var(--grn);margin:-10px 20px 20px;min-height:20px}
 
@@ -319,10 +321,10 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .qg-scope-row svg{width:15px;height:15px;color:var(--grn);flex-shrink:0;margin-top:2px}
 
 /* ── HANDS-FREE OVERLAY ── */
-#hfOverlay{position:fixed;inset:0;max-width:400px;margin:0 auto;z-index:400;background:radial-gradient(130% 90% at 50% 0%,#15171c,#0b0c0e 70%);display:none;flex-direction:column;overflow:hidden}
+#hfOverlay{position:fixed;inset:0;max-width:400px;margin:0 auto;z-index:400;background:radial-gradient(130% 90% at 50% 0%,#1a1611,#0d0c0a 70%);display:none;flex-direction:column;overflow:hidden}
 #hfOverlay.open{display:flex}
 #hfOverlay .hf-top{padding:22px 24px 0;display:flex;align-items:center;gap:10px}
-#hfOverlay .hf-brand{font-family:'Archivo',sans-serif;font-weight:800;font-size:1.05rem;letter-spacing:-.04em}
+#hfOverlay .hf-brand{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.05rem;letter-spacing:-.04em}
 #hfOverlay .hf-brand b{color:var(--acc)}
 #hfOverlay .hf-pill{margin-left:auto;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);background:var(--s1);border:1px solid var(--br);padding:6px 11px;border-radius:9px}
 #hfOverlay .hf-stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:0 24px;min-height:0}
@@ -353,7 +355,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 #hfOverlay .hf-dots i{width:8px;height:8px;border-radius:50%;background:var(--acc2);animation:hfTD 1.2s infinite}
 #hfOverlay .hf-dots i:nth-child(2){animation-delay:.18s}#hfOverlay .hf-dots i:nth-child(3){animation-delay:.36s}
 @keyframes hfTD{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-6px)}}
-#hfOverlay .hf-label{font-family:'Archivo',sans-serif;font-weight:700;font-size:1.25rem;letter-spacing:-.03em;margin-top:12px;min-height:30px;text-align:center}
+#hfOverlay .hf-label{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:1.25rem;letter-spacing:-.03em;margin-top:12px;min-height:30px;text-align:center}
 #hfOverlay .hf-sub{font-size:.82rem;color:var(--t3);text-align:center;min-height:22px}
 #hfOverlay .hf-scroll{max-height:26vh;overflow-y:auto;width:100%;padding:6px 2px 0;display:flex;flex-direction:column;gap:9px;margin-top:6px}
 #hfOverlay .hf-scroll::-webkit-scrollbar{display:none}
@@ -374,7 +376,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 #hfOverlay .hf-typed.show{display:flex}
 #hfOverlay .hf-typed input{flex:1;padding:13px 15px;background:var(--s2);border:1px solid var(--br);border-radius:13px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.92rem;outline:none}
 #hfOverlay .hf-typed input:focus{border-color:var(--acc)}
-#hfOverlay .hf-typed button{width:48px;border:none;border-radius:13px;background:var(--acc);color:#04231a;font-size:1.05rem;cursor:pointer}
+#hfOverlay .hf-typed button{width:48px;border:none;border-radius:13px;background:var(--acc);color:var(--ink);font-size:1.05rem;cursor:pointer}
 
 /* ─── INBOX: list ──────────────────────────────────── */
 .inbox-search{position:sticky;top:0;z-index:4;background:var(--bg);padding:6px 16px 10px}
@@ -392,16 +394,16 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .needs-opts{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px}
 .needs-opts button{background:var(--s2);border:1px solid var(--br);border-radius:18px;padding:8px 13px;font-size:.76rem;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;cursor:pointer;transition:transform .12s var(--press),background .15s,border-color .15s}
 .needs-opts button:active{transform:scale(.95)}
-.needs-opts button.acc{background:var(--acc);color:#04231a;border-color:var(--acc);font-weight:700}
+.needs-opts button.acc{background:var(--acc);color:var(--ink);border-color:var(--acc);font-weight:700}
 .needs-type{display:flex;gap:7px;align-items:center}
 .needs-type input{flex:1;background:var(--s2);border:1px solid var(--br);border-radius:12px;padding:9px 12px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.8rem;outline:none}
 .needs-type input:focus{border-color:var(--acc)}
-.needs-type button{background:var(--acc);border:none;border-radius:12px;padding:9px 14px;color:#04231a;font-weight:700;font-size:.78rem;cursor:pointer;flex-shrink:0}
+.needs-type button{background:var(--acc);border:none;border-radius:12px;padding:9px 14px;color:var(--ink);font-weight:700;font-size:.78rem;cursor:pointer;flex-shrink:0}
 .needs-dismiss{background:none;border:none;color:var(--t4);font-size:.7rem;cursor:pointer;margin-top:8px;text-decoration:underline}
 .iconv{display:flex;align-items:center;gap:13px;padding:12px 12px;border-radius:16px;cursor:pointer;transition:background .15s;position:relative}
 .iconv:active{background:var(--s2)}
-.iconv.unread{background:rgba(31,184,136,.05)}
-.iconv-av{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Archivo,sans-serif;font-weight:700;font-size:1.1rem;color:#fff;flex-shrink:0;position:relative}
+.iconv.unread{background:rgba(255,138,30,.05)}
+.iconv-av{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:1.1rem;color:#fff;flex-shrink:0;position:relative}
 .iconv-av .av-dot{position:absolute;top:-1px;right:-1px;width:14px;height:14px;border-radius:50%;background:var(--acc);border:2.5px solid var(--bg)}
 .iconv-body{flex:1;min-width:0}
 .iconv-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:3px}
@@ -412,7 +414,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .iconv-last{font-size:.78rem;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px}
 .iconv.unread .iconv-last{color:var(--t2)}
 .iconv-last .tick{color:var(--t4);flex-shrink:0}
-.iconv-badge{min-width:20px;height:20px;border-radius:10px;background:var(--acc);color:#04231a;font-size:.62rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 6px;flex-shrink:0}
+.iconv-badge{min-width:20px;height:20px;border-radius:10px;background:var(--acc);color:var(--ink);font-size:.62rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 6px;flex-shrink:0}
 .iconv-sep{height:1px;background:var(--br2);margin:0 12px 0 75px}
 .iconv:last-child .iconv-sep{display:none}
 
@@ -421,9 +423,9 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .thread-back{width:38px;height:38px;border-radius:50%;background:var(--s2);border:1px solid var(--br);display:flex;align-items:center;justify-content:center;color:var(--t2);cursor:pointer;flex-shrink:0;transition:background .15s,transform .12s var(--press)}
 .thread-back:active{background:var(--s3);transform:scale(.92)}
 .thread-back svg{width:18px;height:18px}
-.thread-bar-av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Archivo,sans-serif;font-weight:700;font-size:.95rem;color:#fff;flex-shrink:0}
+.thread-bar-av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:.95rem;color:#fff;flex-shrink:0}
 .thread-bar-info{flex:1;min-width:0}
-.thread-name{font-family:Archivo,sans-serif;font-weight:700;font-size:1rem;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thread-name{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:1rem;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .thread-num{font-size:.68rem;color:var(--t3);margin-top:1px}
 .thread-call{width:38px;height:38px;border-radius:50%;background:var(--s2);border:1px solid var(--br);display:flex;align-items:center;justify-content:center;color:var(--acc2);cursor:pointer;flex-shrink:0;transition:transform .12s var(--press)}
 .thread-call:active{transform:scale(.92)}
@@ -438,7 +440,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .tmsg{padding:9px 13px;font-size:.88rem;line-height:1.45;border-radius:18px;word-wrap:break-word;position:relative;animation:msgPop .26s var(--spring)}
 @keyframes msgPop{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
 .trow.in .tmsg{background:var(--s2);border:1px solid var(--br2);color:var(--t1);border-bottom-left-radius:6px}
-.trow.out .tmsg{background:var(--acc);color:#04231a;font-weight:500;border-bottom-right-radius:6px}
+.trow.out .tmsg{background:var(--acc);color:var(--ink);font-weight:500;border-bottom-right-radius:6px}
 .trow.grouped.in .tmsg{border-top-left-radius:6px}
 .trow.grouped.out .tmsg{border-top-right-radius:6px}
 .tmeta{font-size:.6rem;color:var(--t4);margin:3px 4px 0;display:flex;align-items:center;gap:4px}
@@ -453,17 +455,17 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .thread-reply{flex-shrink:0;padding:10px 12px 26px;background:linear-gradient(180deg,transparent,var(--bg) 22%);display:flex;gap:8px;align-items:flex-end}
 .reply-ta{flex:1;padding:11px 15px;background:var(--s2);border:1px solid var(--br);border-radius:22px;color:var(--t1);font-family:Hanken\ Grotesk,sans-serif;font-size:.9rem;outline:none;resize:none;min-height:44px;max-height:120px;overflow-y:auto;transition:border-color .2s;line-height:1.4}
 .reply-ta:focus{border-color:var(--acc)}
-.reply-send{width:46px;height:46px;border-radius:50%;background:var(--acc);border:none;color:#04231a;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform .12s var(--press),opacity .15s}
+.reply-send{width:46px;height:46px;border-radius:50%;background:var(--acc);border:none;color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform .12s var(--press),opacity .15s}
 .reply-send:active{transform:scale(.9)}.reply-send svg{width:20px;height:20px}
 .reply-quick{flex-shrink:0;display:flex;gap:7px;padding:0 12px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .reply-quick::-webkit-scrollbar{display:none}
 .reply-quick button{flex-shrink:0;background:var(--s2);border:1px solid var(--br);border-radius:18px;padding:7px 13px;font-size:.74rem;color:var(--t2);font-family:'Hanken Grotesk',sans-serif;cursor:pointer;white-space:nowrap;transition:transform .12s var(--press),background .15s}
 .reply-quick button:active{transform:scale(.95);background:var(--s3)}
 
-.setup-card{margin:0 16px 18px;padding:20px;background:linear-gradient(135deg,rgba(31,184,136,.08),rgba(31,184,136,.03));border:1px solid rgba(31,184,136,.25);border-radius:20px;box-shadow:inset 0 1px 0 rgba(31,184,136,.12)}
+.setup-card{margin:0 16px 18px;padding:20px;background:linear-gradient(135deg,rgba(255,138,30,.08),rgba(255,138,30,.03));border:1px solid rgba(255,138,30,.25);border-radius:20px;box-shadow:inset 0 1px 0 rgba(255,138,30,.12)}
 .setup-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}
 .setup-step{text-align:center;padding:10px 6px;background:var(--s2);border-radius:12px;border:1px solid var(--br2)}
-.setup-step-n{width:26px;height:26px;border-radius:50%;background:var(--acc-d);color:var(--acc2);font-family:Archivo,sans-serif;font-weight:700;font-size:.85rem;display:flex;align-items:center;justify-content:center;margin:0 auto 6px}
+.setup-step-n{width:26px;height:26px;border-radius:50%;background:var(--acc-d);color:var(--acc2);font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:.85rem;display:flex;align-items:center;justify-content:center;margin:0 auto 6px}
 .setup-step-t{font-size:.68rem;font-weight:600;color:var(--t2);line-height:1.3}
 .setup-step-s{font-size:.6rem;color:var(--t3);margin-top:3px;line-height:1.3}
 .setup-pending{display:flex;align-items:flex-start;gap:10px;padding:14px;background:var(--grn-d);border-radius:14px;margin-top:12px}
@@ -472,18 +474,37 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .admin-card{margin:0 16px 18px;padding:18px;background:var(--s1);border:1px solid var(--br);border-radius:18px;box-shadow:inset 0 1px 0 var(--toplight)}
 .admin-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--br2)}
 .admin-row:last-child{border-bottom:none}
-.admin-av{width:40px;height:40px;border-radius:12px;background:var(--acc-d);color:var(--acc2);display:flex;align-items:center;justify-content:center;font-family:Archivo,sans-serif;font-weight:700;font-size:.9rem;flex-shrink:0}
+.admin-av{width:40px;height:40px;border-radius:12px;background:var(--acc-d);color:var(--acc2);display:flex;align-items:center;justify-content:center;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:.9rem;flex-shrink:0}
 .admin-body{flex:1;min-width:0}
 .admin-name{font-weight:600;font-size:.88rem;margin-bottom:2px}
 .admin-detail{font-size:.7rem;color:var(--t3)}
-.admin-act{padding:7px 14px;background:var(--acc);border:none;border-radius:9px;font-family:Archivo,sans-serif;font-weight:700;font-size:.72rem;color:#04231a;cursor:pointer;transition:transform .12s var(--press);flex-shrink:0}
+.admin-act{padding:7px 14px;background:var(--acc);border:none;border-radius:9px;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:.72rem;color:var(--ink);cursor:pointer;transition:transform .12s var(--press);flex-shrink:0}
 .admin-act:active{transform:scale(.94)}
 .activate-form{margin-top:12px;padding-top:12px;border-top:1px solid var(--br2);display:none}
 .activate-form.open{display:block}
 
 #s-home.on{display:flex;flex-direction:column;height:calc(100vh - 96px);height:calc(100dvh - 96px)}
 .asst-head{padding:2px 20px 12px;flex-shrink:0}
-.asst-greet{font-family:Archivo,sans-serif;font-weight:800;font-size:1.45rem;letter-spacing:-.03em;margin-bottom:12px}
+.asst-greet{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.8rem;letter-spacing:.02em;text-transform:uppercase;margin-bottom:8px}
+/* boot splash - tool firmware power-on */
+#bootSplash{position:fixed;inset:0;max-width:390px;margin:0 auto;z-index:2000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .45s var(--ease-out)}
+#bootSplash.done{opacity:0;pointer-events:none}
+#bootSplash .boot-logo{font-family:'Big Shoulders Display',sans-serif;font-size:2.7rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--t1);animation:bootIn .5s var(--ease-out)}
+#bootSplash .boot-logo b{color:var(--acc)}
+#bootSplash .boot-line{position:relative;width:148px;height:2px;background:rgba(255,138,30,.18);border-radius:2px;overflow:hidden}
+#bootSplash .boot-line span{position:absolute;top:0;left:-40%;width:40%;height:100%;background:linear-gradient(90deg,transparent,var(--acc2),transparent);box-shadow:0 0 14px var(--acc-glow);animation:levelSweep 1.1s var(--ease) infinite}
+#bootSplash .boot-sub{font-size:.6rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--t3);animation:bootIn .5s var(--ease-out) .12s both}
+@keyframes bootIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* signature: the level line - a site laser sweeping under the greeting */
+.level-line{position:relative;height:2px;margin:0 2px 14px;background:linear-gradient(90deg,rgba(255,138,30,.28),rgba(255,138,30,.05));border-radius:2px;overflow:hidden}
+.level-line span{position:absolute;top:0;left:-34%;width:34%;height:100%;background:linear-gradient(90deg,transparent,var(--acc2),transparent);box-shadow:0 0 14px var(--acc-glow);animation:levelSweep 4.2s var(--ease) infinite}
+@keyframes levelSweep{0%{left:-34%}60%{left:100%}100%{left:100%}}
+@media (prefers-reduced-motion:reduce){.level-line span{animation:none;left:0;width:100%}}
+.level-line.busy{background:linear-gradient(90deg,rgba(255,138,30,.45),rgba(255,138,30,.1))}
+.level-line.busy span{animation-duration:1.1s}
+.level-line.settle::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,var(--acc2),var(--acc));animation:levelSettle .65s var(--ease-out) forwards}
+@keyframes levelSettle{from{opacity:.9}to{opacity:0}}
 .asst-chips-row{display:flex;gap:8px}
 .asst-stat{flex:1;background:var(--s1);border:1px solid var(--br);border-radius:13px;padding:9px 8px;text-align:center;cursor:pointer;transition:background .15s}
 .asst-stat:active{background:var(--s2)}
@@ -502,11 +523,11 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .asst-mic:active{transform:scale(.94)}
 .asst-ta{flex:1;padding:12px 14px;background:var(--s2);border:1px solid var(--br);border-radius:14px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.9rem;outline:none;resize:none;min-height:44px;max-height:120px;overflow-y:auto}
 .asst-ta:focus{border-color:var(--acc)}
-.asst-send{width:44px;height:44px;border-radius:13px;background:var(--acc);border:none;color:#04231a;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform .12s}
+.asst-send{width:44px;height:44px;border-radius:13px;background:var(--acc);border:none;color:var(--ink);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform .12s}
 .asst-send:active{transform:scale(.94)}
 .asst-mic svg,.asst-send svg{width:19px;height:19px}
-.asst-mic.rec{background:var(--acc);color:#04231a;border-color:var(--acc);animation:asstPulse 1.1s ease-in-out infinite}
-@keyframes asstPulse{0%,100%{box-shadow:0 0 0 0 rgba(31,184,136,.45)}50%{box-shadow:0 0 0 7px rgba(31,184,136,0)}}
+.asst-mic.rec{background:var(--acc);color:var(--ink);border-color:var(--acc);animation:asstPulse 1.1s ease-in-out infinite}
+@keyframes asstPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,138,30,.45)}50%{box-shadow:0 0 0 7px rgba(255,138,30,0)}}
 .asst-typing{align-self:flex-start;display:flex;gap:4px;padding:13px 15px;background:var(--s2);border:1px solid var(--br2);border-radius:16px;border-bottom-left-radius:5px}
 .asst-typing span{width:7px;height:7px;border-radius:50%;background:var(--t3);animation:asstdot 1.2s infinite}
 .asst-typing span:nth-child(2){animation-delay:.2s}
@@ -525,23 +546,25 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .asst-stat:active{transform:scale(.96)}
 
 .pulse{margin-top:11px}
-.pulse-bar{display:flex;height:6px;border-radius:6px;overflow:hidden;background:var(--s2);border:1px solid var(--br)}
+.pulse-bar{display:flex;height:8px;border-radius:6px;overflow:hidden;background:var(--s2);border:1px solid var(--br);position:relative}
+.pulse-bar::after{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),rgba(13,12,10,.55) calc(10% - 1px) 10%)}
 .pulse-seg{height:100%;transition:width .8s cubic-bezier(.2,.7,.3,1)}
 .pulse-seg.pulse-q{background:var(--t3)}
 .pulse-seg.pulse-o{background:var(--amb)}
-.pulse-seg.pulse-p{background:var(--acc)}
+.pulse-seg.pulse-p{background:var(--grn)}
 .pulse-row{display:flex;margin-top:8px}
 .pulse-cell{flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:1px}
 .pulse-dot{width:7px;height:7px;border-radius:50%;margin-bottom:3px}
 .pulse-dot.pulse-q{background:var(--t3)}
 .pulse-dot.pulse-o{background:var(--amb)}
-.pulse-dot.pulse-p{background:var(--acc)}
+.pulse-dot.pulse-p{background:var(--grn)}
 .pulse-v{font-family:'Spline Sans Mono',monospace;font-weight:600;font-size:.92rem;color:var(--t1)}
 .pulse-l{font-size:.58rem;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
+<div id="bootSplash" aria-hidden="true"><div class="boot-logo">Van<b>Office</b></div><div class="boot-line"><span></span></div><div class="boot-sub">Your office. In the van.</div></div>
 
 <div id="screenPhone" class="login-screen">
   <div>
@@ -570,7 +593,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
     </div>
     <div class="err-msg" id="pinErr"></div>
-    <button id="faceIdBtn" onclick="bioUnlock()" style="display:none;margin:0 auto 16px;align-items:center;gap:8px;padding:12px 20px;background:var(--acc-d);color:var(--acc2);border:1px solid rgba(31,184,136,.3);border-radius:13px;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer">
+    <button id="faceIdBtn" onclick="bioUnlock()" style="display:none;margin:0 auto 16px;align-items:center;gap:8px;padding:12px 20px;background:var(--acc-d);color:var(--acc2);border:1px solid rgba(255,138,30,.3);border-radius:13px;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:1.1em;height:1.1em"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" stroke-linecap="round"/><path d="M9 10v1M15 10v1M12 10v3l-1 1M9 15c1.5 1 4.5 1 6 0" stroke-linecap="round"/></svg>
       Unlock with Face ID
     </button>
@@ -741,6 +764,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       </div>
       <div class="asst-head">
         <div class="asst-greet" id="asstGreet">Hello</div>
+        <div class="level-line" aria-hidden="true"><span></span></div>
         <div class="asst-chips-row">
           <div class="asst-stat" onclick="go('jobs')"><span class="asst-stat-v" id="statEnq">—</span><span class="asst-stat-l">enquiries</span></div>
           <div class="asst-stat" onclick="go('calendar')"><span class="asst-stat-v" id="statBooked" style="color:var(--acc2)">—</span><span class="asst-stat-l">booked</span></div>
@@ -755,7 +779,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
           </div>
         </div>
       </div>
-      <button id="winBackBanner" onclick="go('followups')" style="display:none;width:100%;margin:0 0 12px;padding:13px 15px;background:rgba(31,184,136,.12);border:1px solid rgba(31,184,136,.3);border-radius:12px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;cursor:pointer;align-items:center;justify-content:space-between;gap:10px">
+      <button id="winBackBanner" onclick="go('followups')" style="display:none;width:100%;margin:0 0 12px;padding:13px 15px;background:rgba(255,138,30,.12);border:1px solid rgba(255,138,30,.3);border-radius:12px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;cursor:pointer;align-items:center;justify-content:space-between;gap:10px">
         <span style="display:flex;align-items:center;gap:9px"><span style="font-size:1.05rem">&#128172;</span><span id="winBackText" style="font-weight:800;font-size:.84rem"></span></span>
         <span style="color:var(--acc);font-size:1.15rem;line-height:1">&rsaquo;</span>
       </button>
@@ -806,7 +830,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     <div id="s-quotes" class="scr">
       <div class="ph" style="display:flex;align-items:center;justify-content:space-between">
         <div class="ph-title">Quotes</div>
-        <button onclick="go('quotegen')" style="display:flex;align-items:center;gap:6px;padding:9px 15px;background:var(--acc);border:none;border-radius:11px;font-family:'Archivo',sans-serif;font-weight:700;font-size:.78rem;color:#04231a;cursor:pointer">
+        <button onclick="go('quotegen')" style="display:flex;align-items:center;gap:6px;padding:9px 15px;background:var(--acc);border:none;border-radius:11px;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:.78rem;color:var(--ink);cursor:pointer">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>New AI Quote
         </button>
       </div>
@@ -817,7 +841,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px">
         <div class="ph-title" style="margin:0">AI Quote</div>
         <div style="display:flex;gap:6px;align-items:center">
-          <button onclick="hfOpen()" title="Hands-free conversation" style="display:flex;align-items:center;gap:5px;font-size:.68rem;font-weight:700;color:var(--acc2);background:var(--acc-d);border:1px solid rgba(31,184,136,.3);cursor:pointer;font-family:'Hanken Grotesk',sans-serif;padding:5px 10px;border-radius:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="width:1.05em;height:1.05em"><path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg> Hands-free</button>
+          <button onclick="hfOpen()" title="Hands-free conversation" style="display:flex;align-items:center;gap:5px;font-size:.68rem;font-weight:700;color:var(--acc2);background:var(--acc-d);border:1px solid rgba(255,138,30,.3);cursor:pointer;font-family:'Hanken Grotesk',sans-serif;padding:5px 10px;border-radius:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="width:1.05em;height:1.05em"><path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg> Hands-free</button>
           <button id="qgVoiceToggle" onclick="qgToggleVoiceMode()" title="Toggle voice mode" style="font-size:.68rem;color:var(--t3);background:none;border:none;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;padding:4px 8px;border-radius:8px;border:1px solid var(--br)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:1.05em;height:1.05em;vertical-align:-.17em;flex-shrink:0"><path d="M5 9h3l4-3v12l-4-3H5z" stroke-linejoin="round"/><path d="M16 9l4 6M20 9l-4 6" stroke-linecap="round"/></svg> Voice off</button>
           <button onclick="qgReset()" style="font-size:.68rem;color:var(--t3);background:none;border:none;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;padding:4px 8px;border-radius:8px;border:1px solid var(--br)">New quote</button>
         </div>
@@ -864,7 +888,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
         <div id="qgBuild" style="display:none;padding:22px 4px 8px">
           <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;margin-bottom:18px">
             <div class="qg-spin"><svg viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2.4"><path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round"/></svg></div>
-            <div id="qgBuildMsg" class="disp" style="font-family:'Archivo',sans-serif;font-weight:700;font-size:.98rem;color:var(--t1)">Reading the job…</div>
+            <div id="qgBuildMsg" class="disp" style="font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:.98rem;color:var(--t1)">Reading the job…</div>
             <div id="qgBuildSub" style="font-size:.74rem;color:var(--t3)">Pricing against your rates</div>
           </div>
           <div id="qgBuildList" style="display:flex;flex-direction:column;gap:8px"></div>
@@ -874,13 +898,13 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 
           <div id="qgBrandCard" style="background:var(--s1);border:1px solid var(--br);border-radius:18px;overflow:hidden;margin-bottom:12px;box-shadow:inset 0 1px 0 var(--toplight),0 18px 40px -28px #000">
             <div style="padding:16px 18px;background:linear-gradient(180deg,var(--s2),var(--s1));border-bottom:1px solid var(--br);display:flex;align-items:center;gap:12px">
-              <div id="qgCardLogo" style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Archivo',sans-serif;font-weight:800;color:#04231a;flex-shrink:0">HC</div>
-              <div style="min-width:0"><div id="qgCardBiz" class="disp" style="font-family:'Archivo',sans-serif;font-weight:700;font-size:.95rem;letter-spacing:-.02em">Your Business</div><div id="qgCardSub" style="font-size:.68rem;color:var(--t3);margin-top:2px">—</div></div>
+              <div id="qgCardLogo" style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,var(--acc),var(--acc-deep));display:flex;align-items:center;justify-content:center;font-family:'Big Shoulders Display',sans-serif;font-weight:800;color:var(--ink);flex-shrink:0">HC</div>
+              <div style="min-width:0"><div id="qgCardBiz" class="disp" style="font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:.95rem;letter-spacing:-.02em">Your Business</div><div id="qgCardSub" style="font-size:.68rem;color:var(--t3);margin-top:2px">—</div></div>
             </div>
             <div style="padding:13px 18px;border-bottom:1px solid var(--br2)"><div style="color:var(--t3);text-transform:uppercase;letter-spacing:.08em;font-weight:700;font-size:.58rem">Quote for</div><div id="qgCardClient" style="font-weight:600;font-size:.86rem;margin-top:3px">Customer</div></div>
             <div id="qgCardScope" style="padding:4px 18px"></div>
             <div style="padding:14px 18px;background:var(--s2);border-top:1px solid var(--br);display:flex;justify-content:space-between;align-items:center">
-              <span class="disp" style="font-family:'Archivo',sans-serif;font-weight:700;font-size:1rem">Total</span>
+              <span class="disp" style="font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:1rem">Total</span>
               <span id="qgCardTotal" class="mono" title="Tap to edit" onclick="document.getElementById('qgTotalInput').focus();document.getElementById('qgTotalInput').scrollIntoView({behavior:'smooth',block:'center'})" style="font-family:'Spline Sans Mono',monospace;font-weight:700;font-size:1.5rem;color:var(--acc2);letter-spacing:-.02em;cursor:pointer">£0</span>
             </div>
           </div>
@@ -942,7 +966,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     <div id="s-invoices" class="scr">
       <div class="ph" style="display:flex;align-items:center;justify-content:space-between">
         <div class="ph-title">Invoices</div>
-        <button onclick="openInvoiceModal()" style="display:flex;align-items:center;gap:6px;padding:9px 15px;background:var(--acc);border:none;border-radius:11px;font-family:'Archivo',sans-serif;font-weight:700;font-size:.78rem;color:#04231a;cursor:pointer">
+        <button onclick="openInvoiceModal()" style="display:flex;align-items:center;gap:6px;padding:9px 15px;background:var(--acc);border:none;border-radius:11px;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:.78rem;color:var(--ink);cursor:pointer">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>New invoice
         </button>
       </div>
@@ -960,7 +984,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div class="sec">
         <div id="acctSummary" style="background:var(--s1);border-radius:16px;padding:18px"><div class="loading">Loading...</div></div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px">
-          <button onclick="document.getElementById('rcptInput').click()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:13px 6px;background:var(--acc);border:none;border-radius:13px;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.72rem;color:#04231a;cursor:pointer">
+          <button onclick="document.getElementById('rcptInput').click()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:13px 6px;background:var(--acc);border:none;border-radius:13px;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.72rem;color:var(--ink);cursor:pointer">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="width:19px;height:19px"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" stroke-linecap="round"/><circle cx="12" cy="12" r="3"/></svg>Scan receipt</button>
           <button onclick="openExpenseModal()" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:13px 6px;background:var(--s3);border:none;border-radius:13px;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.72rem;color:var(--t2);cursor:pointer">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" style="width:19px;height:19px"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Add expense</button>
@@ -976,7 +1000,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     </div>
 
     <div id="s-calendar" class="scr">
-      <div class="ph" style="display:flex;align-items:center;justify-content:space-between"><div class="ph-title">Calendar</div><button onclick="startBlankBooking()" style="display:flex;align-items:center;gap:6px;padding:9px 15px;background:var(--acc);border:none;border-radius:11px;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.78rem;color:#04231a;cursor:pointer">+ Add</button></div>
+      <div class="ph" style="display:flex;align-items:center;justify-content:space-between"><div class="ph-title">Calendar</div><button onclick="startBlankBooking()" style="display:flex;align-items:center;gap:6px;padding:9px 15px;background:var(--acc);border:none;border-radius:11px;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.78rem;color:var(--ink);cursor:pointer">+ Add</button></div>
       <div id="bookBanner" style="display:none;margin:0 20px 14px;padding:12px 14px;background:var(--acc-d);border:1px solid var(--acc);border-radius:12px"></div>
       <div class="cal">
         <div class="cal-top">
@@ -1089,7 +1113,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
             <div style="font-size:.78rem;color:var(--t3);line-height:1.5">Share this link or print the QR on your van, cards and site boards. Every scan becomes an enquiry — VanOffice texts them straight back, and tells you where it came from.</div>
             <div style="display:flex;gap:8px;align-items:center">
               <input id="captureLinkInput" readonly value="Loading…" style="flex:1;padding:11px;border-radius:9px;border:1px solid var(--br);background:var(--s3);color:var(--t1);font-size:.8rem">
-              <button onclick="copyCaptureLink(this)" style="padding:11px 14px;background:var(--acc);border:none;border-radius:9px;color:#04231a;font-weight:700;font-size:.78rem;cursor:pointer">Copy</button>
+              <button onclick="copyCaptureLink(this)" style="padding:11px 14px;background:var(--acc);border:none;border-radius:9px;color:var(--ink);font-weight:700;font-size:.78rem;cursor:pointer">Copy</button>
             </div>
             <div id="captureQR" style="display:flex;justify-content:center;align-items:center;padding:14px;background:#fff;border-radius:12px;min-height:60px"><span style="color:#888;font-size:.72rem">QR loading…</span></div>
             <button onclick="downloadCaptureQR()" style="padding:10px;background:var(--s3);border:1px solid var(--br);border-radius:9px;color:var(--t1);font-size:.78rem;font-weight:600;cursor:pointer">Download QR to print</button>
@@ -1304,7 +1328,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
         <div style="flex:1"><div class="lbl">VAT (£, opt.)</div><input class="inp" id="exp-vat" type="number" inputmode="decimal" placeholder="0.00" style="margin-bottom:0"></div>
       </div>
       <div id="expModalErr" style="color:var(--red);font-size:.75rem;min-height:16px"></div>
-      <button onclick="saveExpense()" style="width:100%;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Hanken Grotesk',sans-serif;font-size:.9rem;font-weight:700;color:#04231a;cursor:pointer" id="expModalBtn">Save expense</button>
+      <button onclick="saveExpense()" style="width:100%;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Hanken Grotesk',sans-serif;font-size:.9rem;font-weight:700;color:var(--ink);cursor:pointer" id="expModalBtn">Save expense</button>
     </div>
   </div>
 
@@ -1327,7 +1351,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       </div>
       <div style="font-size:.68rem;color:var(--t4);line-height:1.5">45p/mile covers the first 10,000 business miles a year, then 25p. This logs it as a Vehicle expense.</div>
       <div id="milModalErr" style="color:var(--red);font-size:.75rem;min-height:16px"></div>
-      <button onclick="saveMileage()" style="width:100%;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Hanken Grotesk',sans-serif;font-size:.9rem;font-weight:700;color:#04231a;cursor:pointer" id="milModalBtn">Save mileage</button>
+      <button onclick="saveMileage()" style="width:100%;padding:15px;background:var(--acc);border:none;border-radius:14px;font-family:'Hanken Grotesk',sans-serif;font-size:.9rem;font-weight:700;color:var(--ink);cursor:pointer" id="milModalBtn">Save mileage</button>
     </div>
   </div>
 
@@ -1357,10 +1381,10 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div style="font-size:1.05rem;font-weight:800">Social post</div>
       <button onclick="closePostModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">&#10005;</button>
     </div>
-    <div id="poStats" style="display:none;font-size:.76rem;font-weight:700;background:rgba(31,184,136,.12);color:var(--acc);border-radius:10px;padding:9px 12px;margin-bottom:12px"></div>
+    <div id="poStats" style="display:none;font-size:.76rem;font-weight:700;background:rgba(255,138,30,.12);color:var(--acc);border-radius:10px;padding:9px 12px;margin-bottom:12px"></div>
     <div id="poIntro" style="font-size:.78rem;color:var(--t3);line-height:1.5;margin-bottom:14px">Add a photo of the finished job (or a before &amp; after) and we'll brand it ready to post. Then grab a caption below.</div>
     <div style="font-size:.72rem;color:var(--t3);margin-bottom:7px;line-height:1.5">Add up to 4 photos at once. The <b>first</b> becomes your branded cover; the rest post alongside it as a gallery.</div>
-    <label style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;border:none;border-radius:10px;background:var(--acc);color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.8rem;cursor:pointer;margin-bottom:10px">+ Add photos<input type="file" accept="image/*" multiple onchange="poLoadMulti(this)" style="display:none"></label>
+    <label style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;border:none;border-radius:10px;background:var(--acc);color:var(--ink);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.8rem;cursor:pointer;margin-bottom:10px">+ Add photos<input type="file" accept="image/*" multiple onchange="poLoadMulti(this)" style="display:none"></label>
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <label class="poSlot" id="poSlot0" style="flex:1;height:66px;border:1px dashed var(--br);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background-size:cover;background-position:center"><span class="poSlotPlus" style="color:var(--t3);font-size:1.2rem;font-weight:700">+</span><input type="file" accept="image/*" onchange="poLoad(0,this)" style="display:none"></label>
       <label class="poSlot" id="poSlot1" style="flex:1;height:66px;border:1px dashed var(--br);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background-size:cover;background-position:center"><span class="poSlotPlus" style="color:var(--t3);font-size:1.2rem;font-weight:700">+</span><input type="file" accept="image/*" onchange="poLoad(1,this)" style="display:none"></label>
@@ -1370,19 +1394,19 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     <button id="poBABtn" onclick="poToggleBA()" style="width:100%;padding:9px;border:none;border-radius:9px;background:var(--s2);color:var(--t2);font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.76rem;cursor:pointer;margin-bottom:12px">Before / After labels: Off</button>
     <label id="poLogoLbl" style="display:flex;align-items:center;justify-content:center;padding:11px;border:1px dashed var(--br);border-radius:10px;color:var(--t2);font-size:.78rem;font-weight:700;cursor:pointer;margin-bottom:12px">+ Add your logo (optional)<input id="poLogoFile" type="file" accept="image/*" onchange="poLoadLogo(this)" style="display:none"></label>
     <div style="display:flex;gap:8px;margin-bottom:12px">
-      <button id="poStyleSpot" onclick="poSetStyle('spotlight')" style="flex:1;padding:9px;border:none;border-radius:9px;background:var(--acc);color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.76rem;cursor:pointer">Spotlight</button>
+      <button id="poStyleSpot" onclick="poSetStyle('spotlight')" style="flex:1;padding:9px;border:none;border-radius:9px;background:var(--acc);color:var(--ink);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.76rem;cursor:pointer">Spotlight</button>
       <button id="poStyleMin" onclick="poSetStyle('minimal')" style="flex:1;padding:9px;border:none;border-radius:9px;background:var(--s2);color:var(--t2);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.76rem;cursor:pointer">Minimal</button>
       <button id="poStyleBrand" onclick="poSetStyle('branded')" style="flex:1;padding:9px;border:none;border-radius:9px;background:var(--s2);color:var(--t2);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.76rem;cursor:pointer">Branded</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
       <label style="font-size:.8rem;color:var(--t2);font-weight:700">Brand colour</label>
-      <input type="color" value="#1fb888" oninput="_poColor=this.value;poRender()" style="width:46px;height:34px;border:none;background:none;padding:0;cursor:pointer">
+      <input type="color" value="#ff8a1e" oninput="_poColor=this.value;poRender()" style="width:46px;height:34px;border:none;background:none;padding:0;cursor:pointer">
     </div>
     <input id="poCTAtext" value="FREE QUOTES · MESSAGE US" oninput="_poCTAtext=this.value;poRender()" placeholder="Call to action" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;margin-bottom:10px;box-sizing:border-box">
     <input id="poTagText" value="JUST COMPLETED" oninput="_poTagText=this.value;poRender()" placeholder="Corner tag (leave blank to hide)" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;margin-bottom:12px;box-sizing:border-box">
     <input id="poHeadline" oninput="poRender()" placeholder="Headline (optional) — e.g. Kitchen fit · Exeter" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;margin-bottom:12px;box-sizing:border-box">
     <canvas id="poCanvas" width="1080" height="1350" style="width:100%;max-width:280px;display:block;margin:0 auto 12px;border-radius:12px;background:#0e1013"></canvas>
-    <button onclick="poShare()" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:11px;color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">Save / share post</button>
+    <button onclick="poShare()" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:11px;color:var(--ink);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">Save / share post</button>
     <button onclick="poProVersion()" style="width:100%;margin-top:9px;padding:13px;background:var(--s3);border:1px solid var(--br);border-radius:11px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">&#10024; Pro design version</button>
     <div id="poProResult" style="display:none;margin-top:12px"></div>
     <div style="height:1px;background:var(--br);margin:20px 0 16px"></div>
@@ -1414,7 +1438,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
         <input class="inp" id="qd-extra-amt" type="number" inputmode="decimal" placeholder="£" style="flex:1;margin-bottom:0">
       </div>
       <div id="qdExtraErr" style="color:var(--red);font-size:.72rem;min-height:14px;margin-top:6px"></div>
-      <button onclick="addQuoteExtra()" id="qdExtraBtn" style="width:100%;padding:12px;background:var(--acc);border:none;border-radius:11px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:700;color:#04231a;cursor:pointer">+ Add extra</button>
+      <button onclick="addQuoteExtra()" id="qdExtraBtn" style="width:100%;padding:12px;background:var(--acc);border:none;border-radius:11px;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;font-weight:700;color:var(--ink);cursor:pointer">+ Add extra</button>
     </div>
     <button onclick="viewQuotePdf(_qdId)" style="width:100%;padding:13px;background:var(--s3);color:var(--t2);border:none;border-radius:12px;font-family:'Hanken Grotesk',sans-serif;font-size:.84rem;font-weight:700;cursor:pointer">View / send PDF</button>
   </div>
@@ -1460,7 +1484,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <button onclick="sendChat()" style="width:44px;height:44px;border-radius:12px;background:var(--acc);border:none;color:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">→</button>
     </div>
   </div>
-  <button id="chatBtn" onclick="toggleChat()" style="display:none;position:fixed;bottom:90px;right:16px;width:56px;height:56px;border-radius:50%;background:var(--acc);border:none;color:#04231a;font-size:1.5rem;cursor:pointer;z-index:199;box-shadow:0 8px 24px -6px var(--acc-glow);transition:transform .12s var(--press)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:24px;height:24px;display:block"><path d="M21 12a8 8 0 0 1-11 7.4L4 21l1.6-6A8 8 0 1 1 21 12z" stroke-linejoin="round"/></svg></button>
+  <button id="chatBtn" onclick="toggleChat()" style="display:none;position:fixed;bottom:90px;right:16px;width:56px;height:56px;border-radius:50%;background:var(--acc);border:none;color:var(--ink);font-size:1.5rem;cursor:pointer;z-index:199;box-shadow:0 8px 24px -6px var(--acc-glow);transition:transform .12s var(--press)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:24px;height:24px;display:block"><path d="M21 12a8 8 0 0 1-11 7.4L4 21l1.6-6A8 8 0 1 1 21 12z" stroke-linejoin="round"/></svg></button>
 
   <div id="hfOverlay" class="idle">
     <div class="hf-top">
@@ -1539,14 +1563,14 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     <button class="ni" id="n-inbox" onclick="go('inbox')"><div class="ni-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:21px;height:21px;display:block"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linejoin="round"/></svg></div><div class="ni-lbl">Inbox</div></button>
   </nav>
 
-  <button id="helpFab" onclick="openHelp()" aria-label="Help" style="position:fixed;right:16px;bottom:80px;z-index:900;width:46px;height:46px;border-radius:50%;background:var(--acc);border:none;color:#04231a;font-family:'Archivo',sans-serif;font-weight:900;font-size:1.35rem;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.45);cursor:pointer">?</button>
+  <button id="helpFab" onclick="openHelp()" aria-label="Help" style="position:fixed;right:16px;bottom:80px;z-index:900;width:46px;height:46px;border-radius:50%;background:var(--acc);border:none;color:var(--ink);font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:1.35rem;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.45);cursor:pointer">?</button>
 
   <div id="helpModal" style="display:none;position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.55);align-items:flex-end;justify-content:center">
     <div style="width:100%;max-width:390px;height:82%;background:var(--s1);border-radius:18px 18px 0 0;display:flex;flex-direction:column;overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--br)">
         <div style="display:flex;align-items:center;gap:9px">
-          <div style="width:26px;height:26px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;color:#04231a;font-weight:900;font-family:'Archivo',sans-serif;font-size:.9rem">?</div>
-          <div style="font-family:'Archivo',sans-serif;font-weight:800;font-size:1rem">Help</div>
+          <div style="width:26px;height:26px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;color:var(--ink);font-weight:900;font-family:'Big Shoulders Display',sans-serif;font-size:.9rem">?</div>
+          <div style="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1rem">Help</div>
         </div>
         <button onclick="closeHelp()" style="background:none;border:none;color:var(--t3);font-size:1.5rem;line-height:1;cursor:pointer">&times;</button>
       </div>
@@ -1554,18 +1578,18 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       <div id="helpChips" style="padding:0 14px 6px;display:flex;flex-wrap:wrap;gap:7px"></div>
       <div style="display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--br)">
         <input id="helpInput" placeholder="Ask me anything about VanOffice..." onkeydown="if(event.key==='Enter')sendHelp()" style="flex:1;padding:11px 13px;background:var(--s3);border:1px solid var(--br);border-radius:10px;font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;color:var(--t1);outline:none">
-        <button onclick="sendHelp()" id="helpSendBtn" style="padding:0 16px;background:var(--acc);border:none;border-radius:10px;color:#04231a;font-weight:800;font-family:'Hanken Grotesk',sans-serif;cursor:pointer">Send</button>
+        <button onclick="sendHelp()" id="helpSendBtn" style="padding:0 16px;background:var(--acc);border:none;border-radius:10px;color:var(--ink);font-weight:800;font-family:'Hanken Grotesk',sans-serif;cursor:pointer">Send</button>
       </div>
     </div>
   </div>
 
   <div id="welcomeModal" style="display:none;position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center">
     <div style="width:100%;max-width:390px;max-height:90%;overflow-y:auto;background:var(--s1);border-radius:18px 18px 0 0;padding:24px 20px 22px">
-      <div style="font-family:'Archivo',sans-serif;font-weight:800;font-size:1.3rem;letter-spacing:-.02em">Welcome to VanOffice</div>
+      <div style="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.3rem;letter-spacing:-.02em">Welcome to VanOffice</div>
       <div style="font-size:.82rem;color:var(--t3);margin:6px 0 18px;line-height:1.5">Three quick things to get the most out of it on your phone.</div>
 
       <div style="display:flex;gap:12px;padding:14px;background:var(--s2);border:1px solid var(--br);border-radius:12px;margin-bottom:11px">
-        <div id="wlNumHome" style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--acc);color:#04231a;font-family:'Archivo',sans-serif;font-weight:900;font-size:.85rem;display:flex;align-items:center;justify-content:center">1</div>
+        <div id="wlNumHome" style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--acc);color:var(--ink);font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:.85rem;display:flex;align-items:center;justify-content:center">1</div>
         <div style="flex:1">
           <div style="font-weight:700;font-size:.92rem;margin-bottom:3px">Add to your Home Screen</div>
           <div id="wlHomeBody" style="font-size:.8rem;color:var(--t2);line-height:1.5"></div>
@@ -1573,25 +1597,25 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
       </div>
 
       <div style="display:flex;gap:12px;padding:14px;background:var(--s2);border:1px solid var(--br);border-radius:12px;margin-bottom:11px">
-        <div style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--acc);color:#04231a;font-family:'Archivo',sans-serif;font-weight:900;font-size:.85rem;display:flex;align-items:center;justify-content:center">2</div>
+        <div style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--acc);color:var(--ink);font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:.85rem;display:flex;align-items:center;justify-content:center">2</div>
         <div style="flex:1">
           <div style="font-weight:700;font-size:.92rem;margin-bottom:3px">Turn on notifications</div>
           <div style="font-size:.8rem;color:var(--t2);line-height:1.5;margin-bottom:9px">Get a buzz the moment a customer messages or calls, so you never miss a job.</div>
-          <button id="wlPushBtn" onclick="welcomeEnablePush()" style="padding:8px 16px;background:var(--acc);border:none;border-radius:9px;color:#04231a;font-weight:800;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;cursor:pointer">Turn on</button>
+          <button id="wlPushBtn" onclick="welcomeEnablePush()" style="padding:8px 16px;background:var(--acc);border:none;border-radius:9px;color:var(--ink);font-weight:800;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;cursor:pointer">Turn on</button>
           <div id="wlPushNote" style="font-size:.72rem;color:var(--t3);margin-top:7px;display:none"></div>
         </div>
       </div>
 
       <div id="wlStepBio" style="display:flex;gap:12px;padding:14px;background:var(--s2);border:1px solid var(--br);border-radius:12px;margin-bottom:18px">
-        <div style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--acc);color:#04231a;font-family:'Archivo',sans-serif;font-weight:900;font-size:.85rem;display:flex;align-items:center;justify-content:center">3</div>
+        <div style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--acc);color:var(--ink);font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:.85rem;display:flex;align-items:center;justify-content:center">3</div>
         <div style="flex:1">
           <div style="font-weight:700;font-size:.92rem;margin-bottom:3px">Set up Face ID</div>
           <div style="font-size:.8rem;color:var(--t2);line-height:1.5;margin-bottom:9px">Unlock with your face instead of typing your PIN every time.</div>
-          <button id="wlBioBtn" onclick="welcomeEnableBio()" style="padding:8px 16px;background:var(--acc);border:none;border-radius:9px;color:#04231a;font-weight:800;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;cursor:pointer">Turn on</button>
+          <button id="wlBioBtn" onclick="welcomeEnableBio()" style="padding:8px 16px;background:var(--acc);border:none;border-radius:9px;color:var(--ink);font-weight:800;font-family:'Hanken Grotesk',sans-serif;font-size:.82rem;cursor:pointer">Turn on</button>
         </div>
       </div>
 
-      <button onclick="closeWelcome()" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:11px;color:#04231a;font-weight:800;font-family:'Hanken Grotesk',sans-serif;font-size:.92rem;cursor:pointer">Done</button>
+      <button onclick="closeWelcome()" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:11px;color:var(--ink);font-weight:800;font-family:'Hanken Grotesk',sans-serif;font-size:.92rem;cursor:pointer">Done</button>
       <div onclick="closeWelcome()" style="text-align:center;font-size:.78rem;color:var(--t3);margin-top:12px;cursor:pointer">I'll do this later</div>
     </div>
   </div>
@@ -2043,7 +2067,7 @@ function renderJobs(items,filter){
         <div class="li-body">
           <div class="li-name">${item.client_name||'Unknown'}</div>
           <div class="li-detail">${item.job_type||''}${item.location?' · '+item.location:''}</div>
-          ${item.source?`<div style="margin-top:4px"><span style="font-size:.62rem;background:rgba(31,184,136,.15);color:var(--acc);padding:2px 7px;border-radius:6px;font-weight:600">via ${item.source}</span></div>`:''}
+          ${item.source?`<div style="margin-top:4px"><span style="font-size:.62rem;background:rgba(255,138,30,.15);color:var(--acc);padding:2px 7px;border-radius:6px;font-weight:600">via ${item.source}</span></div>`:''}
           ${preview?`<div class="li-detail" style="margin-top:3px;font-style:italic;color:var(--t3)">"${preview}"</div>`:''}
         </div>
         <div class="li-right">${statusBadge(item.status)}</div>
@@ -2074,7 +2098,7 @@ function renderJobsDone(quotes){
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${bookBtn}
-        <button onclick="makePostFromJob('${q.id}')" style="padding:7px 12px;background:var(--acc);border:none;border-radius:8px;color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">&#10024; Social post</button>
+        <button onclick="makePostFromJob('${q.id}')" style="padding:7px 12px;background:var(--acc);border:none;border-radius:8px;color:var(--ink);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">&#10024; Social post</button>
         <button onclick="makeInvoiceFromJob('${q.id}')" style="padding:7px 12px;background:var(--s2);border:none;border-radius:8px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">+ Invoice</button>
         ${doneBtn}
       </div>
@@ -2116,7 +2140,7 @@ function renderQuotesList(quotes){
                 : (st==='accepted')?'<span class="bdg b-grn">Accepted</span>'
                 : (st==='sent')?'<span class="bdg b-grn">Sent</span>'
                 : '<span class="bdg b-amb">Draft</span>';
-    const acceptBtn = done?'' : `<button onclick="event.stopPropagation();acceptQuote('${q.id}')" style="margin-top:5px;padding:6px 12px;background:var(--acc);border:none;border-radius:8px;color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">Mark accepted</button>`;
+    const acceptBtn = done?'' : `<button onclick="event.stopPropagation();acceptQuote('${q.id}')" style="margin-top:5px;padding:6px 12px;background:var(--acc);border:none;border-radius:8px;color:var(--ink);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.7rem;cursor:pointer">Mark accepted</button>`;
     return`<div class="li" onclick="openQuoteDrawer('${q.id}')" style="cursor:pointer"><div class="li-ico" style="background:var(--amb-d);color:var(--amb)">${ICO.quote}</div><div class="li-body"><div class="li-name">${q.client_name||'Unknown'}</div><div class="li-detail">${q.quote_number||''} · ${q.job_description||''}</div></div><div class="li-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><div class="li-amt">${total}</div>${badge}${acceptBtn}</div></div>`;
   }).join('');
 }
@@ -2703,7 +2727,7 @@ function renderFollowups(){
     var sub= it.type==='reactivate' ? ('Past customer'+(ageTxt?' \u00b7 '+ageTxt:'')) : ('Quote '+(tot?tot+' \u00b7 ':'')+(ageTxt?'sent '+ageTxt:'awaiting reply'));
     var badge= it.type==='reactivate'
       ? '<span style="font-size:.58rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--acc2);background:rgba(86,224,176,.14);padding:3px 7px;border-radius:6px;white-space:nowrap">Reactivate</span>'
-      : '<span style="font-size:.58rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);background:rgba(31,184,136,.14);padding:3px 7px;border-radius:6px;white-space:nowrap">Follow up</span>';
+      : '<span style="font-size:.58rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);background:rgba(255,138,30,.14);padding:3px 7px;border-radius:6px;white-space:nowrap">Follow up</span>';
     var waNum=_fuWaNumber(q.client_number);
     var rawNum=String(q.client_number||'').replace(/'/g,'');
     html+='<div id="fuCard'+i+'" style="background:var(--s2);border:1px solid var(--br);border-radius:14px;padding:14px;margin-bottom:11px">'+
@@ -2711,8 +2735,8 @@ function renderFollowups(){
       '<div style="font-size:.74rem;color:var(--t3);margin-bottom:10px">'+sub+'</div>'+
       '<textarea id="fuMsg'+i+'" rows="4" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--br);background:var(--s3);color:var(--t1);font-family:\'Hanken Grotesk\',sans-serif;font-size:.8rem;line-height:1.45;resize:vertical;margin-bottom:10px">'+_fuEsc(msg)+'</textarea>'+
       '<div style="display:flex;gap:8px">'+
-        '<button onclick="fuSend(\'wa\','+i+',\''+waNum+'\')" style="flex:1;padding:11px;background:#25D366;border:none;border-radius:10px;color:#04231a;font-family:\'Hanken Grotesk\',sans-serif;font-weight:800;font-size:.78rem;cursor:pointer">WhatsApp</button>'+
-        '<button onclick="fuSend(\'sms\','+i+',\''+rawNum+'\')" style="flex:1;padding:11px;background:var(--acc);border:none;border-radius:10px;color:#04231a;font-family:\'Hanken Grotesk\',sans-serif;font-weight:800;font-size:.78rem;cursor:pointer">Text</button>'+
+        '<button onclick="fuSend(\'wa\','+i+',\''+waNum+'\')" style="flex:1;padding:11px;background:#25D366;border:none;border-radius:10px;color:var(--ink);font-family:\'Hanken Grotesk\',sans-serif;font-weight:800;font-size:.78rem;cursor:pointer">WhatsApp</button>'+
+        '<button onclick="fuSend(\'sms\','+i+',\''+rawNum+'\')" style="flex:1;padding:11px;background:var(--acc);border:none;border-radius:10px;color:var(--ink);font-family:\'Hanken Grotesk\',sans-serif;font-weight:800;font-size:.78rem;cursor:pointer">Text</button>'+
         '<button onclick="fuDismiss('+i+')" style="padding:11px 13px;background:var(--s3);border:1px solid var(--br);border-radius:10px;color:var(--t3);font-family:\'Hanken Grotesk\',sans-serif;font-weight:700;font-size:.78rem;cursor:pointer">Not now</button>'+
       '</div>'+
     '</div>';
@@ -3101,7 +3125,7 @@ async function generateAd(job,location){
     window._postVariants=d.variants;
     box.innerHTML=d.variants.map((v,i)=>`<div style="background:var(--s2);border:1px solid var(--br);border-radius:12px;padding:14px;margin-bottom:11px">
       <div style="font-size:.84rem;line-height:1.55;white-space:pre-wrap;color:var(--t1)">${_escPost(v)}</div>
-      <button onclick="_copyPost(this,${i})" style="margin-top:11px;padding:9px 16px;background:var(--acc);border:none;border-radius:9px;color:#04231a;font-weight:800;font-size:.78rem;cursor:pointer">Copy</button>
+      <button onclick="_copyPost(this,${i})" style="margin-top:11px;padding:9px 16px;background:var(--acc);border:none;border-radius:9px;color:var(--ink);font-weight:800;font-size:.78rem;cursor:pointer">Copy</button>
     </div>`).join('');
   }catch(e){ box.innerHTML='<div style="color:var(--t3);font-size:.8rem;text-align:center;padding:20px">Something went wrong — try again.</div>'; }
 }
@@ -3111,17 +3135,17 @@ function _copyPost(btn,i){
 }
 
 /* ===== Photo-to-post image composer (client-side canvas) ===== */
-var _poImgs=[null,null,null,null],_poFiles=[null,null,null,null],_poBA=false,_poBiz='',_poTrade='',_poStyle='spotlight',_poLogo=null,_poColor='#1fb888',_poCTAtext='FREE QUOTES · MESSAGE US',_poTagText='JUST COMPLETED';
+var _poImgs=[null,null,null,null],_poFiles=[null,null,null,null],_poBA=false,_poBiz='',_poTrade='',_poStyle='spotlight',_poLogo=null,_poColor='#ff8a1e',_poCTAtext='FREE QUOTES · MESSAGE US',_poTagText='JUST COMPLETED';
 function _poOn(){
-  var h=(_poColor||'#1fb888').replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+  var h=(_poColor||'#ff8a1e').replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
   var r=parseInt(h.substr(0,2),16)||0,g=parseInt(h.substr(2,2),16)||0,b=parseInt(h.substr(4,2),16)||0;
-  return ((0.299*r+0.587*g+0.114*b)/255>0.5)?'#04231a':'#ffffff';
+  return ((0.299*r+0.587*g+0.114*b)/255>0.5)?'var(--ink)':'#ffffff';
 }
 function poSetStyle(s){
   _poStyle=s;
   var map={spotlight:'poStyleSpot',minimal:'poStyleMin',branded:'poStyleBrand'};
   ['poStyleSpot','poStyleMin','poStyleBrand'].forEach(function(id){var x=document.getElementById(id); if(x){x.style.background='var(--s2)';x.style.color='var(--t2)';}});
-  var on=document.getElementById(map[s]||'poStyleSpot'); if(on){on.style.background='var(--acc)';on.style.color='#04231a';}
+  var on=document.getElementById(map[s]||'poStyleSpot'); if(on){on.style.background='var(--acc)';on.style.color='var(--ink)';}
   poRender();
 }
 function poLoadLogo(input){
@@ -3134,7 +3158,7 @@ function poLoadLogo(input){
 function poToggleBA(){
   _poBA=!_poBA;
   var b=document.getElementById('poBABtn');
-  if(b){ b.textContent='Before / After labels: '+(_poBA?'On':'Off'); b.style.background=_poBA?'var(--acc)':'var(--s2)'; b.style.color=_poBA?'#04231a':'var(--t2)'; }
+  if(b){ b.textContent='Before / After labels: '+(_poBA?'On':'Off'); b.style.background=_poBA?'var(--acc)':'var(--s2)'; b.style.color=_poBA?'var(--ink)':'var(--t2)'; }
   poRender();
 }
 function poResetComposer(){
@@ -3349,7 +3373,7 @@ async function poProVersion(){
   try{
     var photo=_poDownscale(img,1400);
     var hlEl=document.getElementById('poHeadline');
-    var payload={ photo:photo, headline:hlEl?(hlEl.value||''):'', cta:_poCTAtext||'', tag:_poTagText||'', colour:_poColor||'#1fb888' };
+    var payload={ photo:photo, headline:hlEl?(hlEl.value||''):'', cta:_poCTAtext||'', tag:_poTagText||'', colour:_poColor||'#ff8a1e' };
     var res=await fetch('/api/pro-post?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     var data=await res.json();
     if(data&&data.not_configured){
@@ -3358,7 +3382,7 @@ async function poProVersion(){
     }
     if(data&&data.ok&&data.url){
       try{haptic('success');}catch(e){}
-      box.innerHTML='<img src="'+data.url+'" style="width:100%;max-width:280px;display:block;margin:0 auto 10px;border-radius:12px"><button onclick="poShareUrl(\''+data.url.replace(/'/g,"%27")+'\')" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:11px;color:#04231a;font-family:\'Hanken Grotesk\',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">Save / share pro post</button>';
+      box.innerHTML='<img src="'+data.url+'" style="width:100%;max-width:280px;display:block;margin:0 auto 10px;border-radius:12px"><button onclick="poShareUrl(\''+data.url.replace(/'/g,"%27")+'\')" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:11px;color:var(--ink);font-family:\'Hanken Grotesk\',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">Save / share pro post</button>';
     } else {
       box.innerHTML='<div style="font-size:.78rem;color:var(--red);padding:8px 4px">'+((data&&data.error)||'Couldn\u2019t create the pro design')+'</div>';
     }
@@ -3851,7 +3875,7 @@ function helpAddMsg(role, text){
   const b = document.createElement('div');
   const mine = role === 'user';
   b.style.cssText = 'max-width:85%;padding:10px 13px;border-radius:14px;font-size:.85rem;line-height:1.5;white-space:pre-wrap;word-wrap:break-word;' + (mine
-    ? 'align-self:flex-end;background:var(--acc);color:#04231a;border-bottom-right-radius:4px'
+    ? 'align-self:flex-end;background:var(--acc);color:var(--ink);border-bottom-right-radius:4px'
     : 'align-self:flex-start;background:var(--s3);color:var(--t1);border-bottom-left-radius:4px');
   b.textContent = text;
   wrap.appendChild(b);
@@ -4250,7 +4274,7 @@ function renderCal(){
       el.style.cursor='pointer';
       (function(y,m,day){ el.onclick=function(){ pickBookDay(y,m,day); }; })(cy,cm,d);
       const s=_bookingDraft.start, e=_bookingDraft.end||_bookingDraft.start;
-      if(s){ const t=new Date(cy,cm,d).getTime(); if(t>=s.getTime()&&t<=e.getTime()){ el.style.background='var(--acc)'; el.style.color='#04231a'; el.style.borderRadius='8px'; } }
+      if(s){ const t=new Date(cy,cm,d).getTime(); if(t>=s.getTime()&&t<=e.getTime()){ el.style.background='var(--acc)'; el.style.color='var(--ink)'; el.style.borderRadius='8px'; } }
     }
     g.appendChild(el);
   }
@@ -4292,7 +4316,7 @@ function renderBookBanner(){
     var s=_bookingDraft.start, e=_bookingDraft.end||s;
     var days=Math.round((e.getTime()-s.getTime())/86400000)+1;
     msg='<b>'+who+'</b> · '+_fmtD(s)+(days>1?(' → '+_fmtD(e)+' ('+days+' days)'):' (1 day) — tap another day to extend');
-    confirmBtn='<button onclick="confirmBooking()" style="padding:8px 16px;background:var(--acc);border:none;border-radius:9px;color:#04231a;font-family:\'Hanken Grotesk\',sans-serif;font-weight:800;font-size:.78rem;cursor:pointer">Confirm booking</button>';
+    confirmBtn='<button onclick="confirmBooking()" style="padding:8px 16px;background:var(--acc);border:none;border-radius:9px;color:var(--ink);font-family:\'Hanken Grotesk\',sans-serif;font-weight:800;font-size:.78rem;cursor:pointer">Confirm booking</button>';
   }
   var titleRow = isBlank ? '<input value="'+((_bookingDraft.client_name||'').replace(/"/g,'&quot;'))+'" oninput="if(_bookingDraft)_bookingDraft.client_name=this.value" placeholder="What\'s this? e.g. Boiler service, Mrs Lewis" style="width:100%;padding:9px 11px;border-radius:9px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:inherit;font-size:.82rem;margin-bottom:10px;box-sizing:border-box">' : '';
   var timeRow = _bookingDraft.start ? '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:.76rem;color:var(--t3)">Start time</span><input type="time" value="'+(_bookingDraft.time||'')+'" oninput="if(_bookingDraft)_bookingDraft.time=this.value" style="padding:7px 9px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:inherit;font-size:.8rem"></div>' : '';
@@ -5289,7 +5313,7 @@ function updateInboxBadge(){
   if(count>0){
     if(!dot){
       dot=document.createElement('div'); dot.id='navInboxBadge';
-      dot.style.cssText='position:absolute;top:4px;right:50%;transform:translateX(16px);min-width:17px;height:17px;border-radius:9px;background:var(--acc);color:#04231a;font-size:.58rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg)';
+      dot.style.cssText='position:absolute;top:4px;right:50%;transform:translateX(16px);min-width:17px;height:17px;border-radius:9px;background:var(--acc);color:var(--ink);font-size:.58rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg)';
       navBtn.style.position='relative'; navBtn.appendChild(dot);
     }
     dot.textContent=count>9?'9+':count;
@@ -5646,7 +5670,7 @@ function renderSetupWizard(profile){
   var dot=document.createElement('div');
   dot.style.cssText='width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc)';
   var h=document.createElement('div');
-  h.style.cssText="font-family:'Archivo',sans-serif;font-weight:800;font-size:1rem;letter-spacing:-.02em";
+  h.style.cssText="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1rem;letter-spacing:-.02em";
   h.textContent='Set up your WhatsApp bot';
   title.appendChild(dot); title.appendChild(h);
   card.appendChild(title);
@@ -5852,6 +5876,8 @@ function asstTypewriter(el,text,chat){
 function asstTyping(on){
   var chat=document.getElementById('asstChat');
   var ex=document.getElementById('asstTyping');
+  var ll=document.querySelector('.level-line');
+  if(ll){ if(on){ll.classList.add('busy');ll.classList.remove('settle');} else if(ll.classList.contains('busy')){ll.classList.remove('busy');ll.classList.add('settle');setTimeout(function(){ll.classList.remove('settle');},700);} }
   if(on){
     if(ex)return;
     var d=document.createElement('div'); d.className='asst-typing'; d.id='asstTyping';
@@ -6082,6 +6108,7 @@ function renderPulse(){
   if(bp)bp.style.width=pct(paid);
 }
 
+(function(){var b=document.getElementById('bootSplash');if(!b)return;setTimeout(function(){b.classList.add('done');setTimeout(function(){if(b.parentNode)b.remove();},600);},950);})();
 </script>
 </body>
 </html>
