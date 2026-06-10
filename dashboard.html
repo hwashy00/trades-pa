@@ -537,6 +537,23 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .asst-tool.rec{background:var(--acc);border-color:var(--acc);animation:asstPulse 1.1s ease-in-out infinite}
 .asst-tool.rec svg{color:var(--ink)}
 .asst-tool.rec span{color:var(--ink)}
+/* ── social post composer ── */
+.po-title{font-family:'Big Shoulders Display',sans-serif;font-size:1.35rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
+.po-drop{display:flex;flex-direction:column;align-items:center;gap:7px;padding:34px 18px;border:1.5px dashed rgba(255,138,30,.45);border-radius:16px;background:var(--acc-d);color:var(--acc2);cursor:pointer;text-align:center}
+.po-drop b{font-family:'Big Shoulders Display',sans-serif;font-size:1.15rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--t1)}
+.po-drop span{font-size:.72rem;color:var(--t3)}
+.po-canvas{width:100%;display:block;margin:0 auto 12px;border-radius:14px;background:#0e1013;border:1px solid var(--br)}
+.po-styles{display:flex;gap:8px;margin-bottom:10px}
+.po-styles button{flex:1;padding:10px;border:none;border-radius:10px;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:.86rem;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+.po-slots{display:flex;gap:8px;margin-bottom:14px;align-items:stretch}
+.poSlot{flex:1;height:54px;border:1px dashed var(--br);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background-size:cover;background-position:center}
+.poSlotPlus{color:var(--t3);font-size:1.1rem;font-weight:700}
+.po-ba{flex:1.6;border:none;border-radius:10px;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.66rem;cursor:pointer;line-height:1.3;padding:6px}
+.po-share{width:100%;padding:15px;background:var(--acc);border:none;border-radius:12px;color:var(--ink);font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:1.05rem;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,0 100%);filter:drop-shadow(0 4px 14px var(--acc-glow));margin-bottom:10px}
+.po-custom-btn{width:100%;padding:11px;background:none;border:1px solid var(--br);border-radius:11px;color:var(--t2);font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.8rem;cursor:pointer;margin-bottom:10px}
+.po-field{width:100%;padding:11px;border-radius:10px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;margin-bottom:10px;box-sizing:border-box}
+.po-logo{display:flex;align-items:center;justify-content:center;padding:11px;border:1px dashed var(--br);border-radius:10px;color:var(--t2);font-size:.78rem;font-weight:700;cursor:pointer;margin-bottom:10px}
+.po-pro{width:100%;padding:12px;background:var(--s3);border:1px solid var(--br);border-radius:11px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.82rem;cursor:pointer}
 .asst-mic.rec{background:var(--acc);color:var(--ink);border-color:var(--acc);animation:asstPulse 1.1s ease-in-out infinite}
 @keyframes asstPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,138,30,.45)}50%{box-shadow:0 0 0 7px rgba(255,138,30,0)}}
 .asst-typing{align-self:flex-start;display:flex;gap:4px;padding:13px 15px;background:var(--s2);border:1px solid var(--br2);border-radius:16px;border-bottom-left-radius:5px}
@@ -1395,37 +1412,52 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
   <div id="postModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:310" onclick="closePostModal()"></div>
   <div id="postModal" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:311;padding:22px 20px 40px;max-height:88vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <div style="font-size:1.05rem;font-weight:800">Social post</div>
+      <div class="po-title">Social post</div>
       <button onclick="closePostModal()" style="background:none;border:none;color:var(--t3);font-size:1.2rem;cursor:pointer">&#10005;</button>
     </div>
     <div id="poStats" style="display:none;font-size:.76rem;font-weight:700;background:rgba(255,138,30,.12);color:var(--acc);border-radius:10px;padding:9px 12px;margin-bottom:12px"></div>
-    <div id="poIntro" style="font-size:.78rem;color:var(--t3);line-height:1.5;margin-bottom:14px">Add a photo of the finished job (or a before &amp; after) and we'll brand it ready to post. Then grab a caption below.</div>
-    <div style="font-size:.72rem;color:var(--t3);margin-bottom:7px;line-height:1.5">Add up to 4 photos at once. The <b>first</b> becomes your branded cover; the rest post alongside it as a gallery.</div>
-    <label style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;border:none;border-radius:10px;background:var(--acc);color:var(--ink);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.8rem;cursor:pointer;margin-bottom:10px">+ Add photos<input type="file" accept="image/*" multiple onchange="poLoadMulti(this)" style="display:none"></label>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <label class="poSlot" id="poSlot0" style="flex:1;height:66px;border:1px dashed var(--br);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background-size:cover;background-position:center"><span class="poSlotPlus" style="color:var(--t3);font-size:1.2rem;font-weight:700">+</span><input type="file" accept="image/*" onchange="poLoad(0,this)" style="display:none"></label>
-      <label class="poSlot" id="poSlot1" style="flex:1;height:66px;border:1px dashed var(--br);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background-size:cover;background-position:center"><span class="poSlotPlus" style="color:var(--t3);font-size:1.2rem;font-weight:700">+</span><input type="file" accept="image/*" onchange="poLoad(1,this)" style="display:none"></label>
-      <label class="poSlot" id="poSlot2" style="flex:1;height:66px;border:1px dashed var(--br);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background-size:cover;background-position:center"><span class="poSlotPlus" style="color:var(--t3);font-size:1.2rem;font-weight:700">+</span><input type="file" accept="image/*" onchange="poLoad(2,this)" style="display:none"></label>
-      <label class="poSlot" id="poSlot3" style="flex:1;height:66px;border:1px dashed var(--br);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background-size:cover;background-position:center"><span class="poSlotPlus" style="color:var(--t3);font-size:1.2rem;font-weight:700">+</span><input type="file" accept="image/*" onchange="poLoad(3,this)" style="display:none"></label>
+
+    <!-- STATE A: no photos yet -->
+    <div id="poEmpty">
+      <div id="poIntro" style="font-size:.8rem;color:var(--t2);line-height:1.55;margin-bottom:14px">Add a photo of the finished job (or a before &amp; after) and we'll brand it ready to post. Then grab a caption below.</div>
+      <label class="po-drop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:30px;height:30px"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.4"/><path d="M8 7l1.5-3h5L16 7"/></svg>
+        <b>Add photos of the job</b>
+        <span>Up to 4 &middot; the first becomes your branded cover</span>
+        <input type="file" accept="image/*" multiple onchange="poLoadMulti(this)" style="display:none">
+      </label>
     </div>
-    <button id="poBABtn" onclick="poToggleBA()" style="width:100%;padding:9px;border:none;border-radius:9px;background:var(--s2);color:var(--t2);font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.76rem;cursor:pointer;margin-bottom:12px">Before / After labels: Off</button>
-    <label id="poLogoLbl" style="display:flex;align-items:center;justify-content:center;padding:11px;border:1px dashed var(--br);border-radius:10px;color:var(--t2);font-size:.78rem;font-weight:700;cursor:pointer;margin-bottom:12px">+ Add your logo (optional)<input id="poLogoFile" type="file" accept="image/*" onchange="poLoadLogo(this)" style="display:none"></label>
-    <div style="display:flex;gap:8px;margin-bottom:12px">
-      <button id="poStyleSpot" onclick="poSetStyle('spotlight')" style="flex:1;padding:9px;border:none;border-radius:9px;background:var(--acc);color:var(--ink);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.76rem;cursor:pointer">Spotlight</button>
-      <button id="poStyleMin" onclick="poSetStyle('minimal')" style="flex:1;padding:9px;border:none;border-radius:9px;background:var(--s2);color:var(--t2);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.76rem;cursor:pointer">Minimal</button>
-      <button id="poStyleBrand" onclick="poSetStyle('branded')" style="flex:1;padding:9px;border:none;border-radius:9px;background:var(--s2);color:var(--t2);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.76rem;cursor:pointer">Branded</button>
+
+    <!-- STATE B: editor, preview first -->
+    <div id="poEditor" style="display:none">
+      <canvas id="poCanvas" width="1080" height="1350" class="po-canvas"></canvas>
+      <div class="po-styles">
+        <button id="poStyleSpot" onclick="poSetStyle('spotlight')" style="background:var(--acc);color:var(--ink)">Spotlight</button>
+        <button id="poStyleMin" onclick="poSetStyle('minimal')" style="background:var(--s2);color:var(--t2)">Minimal</button>
+        <button id="poStyleBrand" onclick="poSetStyle('branded')" style="background:var(--s2);color:var(--t2)">Branded</button>
+      </div>
+      <div class="po-slots">
+        <label class="poSlot" id="poSlot0"><span class="poSlotPlus">+</span><input type="file" accept="image/*" onchange="poLoad(0,this)" style="display:none"></label>
+        <label class="poSlot" id="poSlot1"><span class="poSlotPlus">+</span><input type="file" accept="image/*" onchange="poLoad(1,this)" style="display:none"></label>
+        <label class="poSlot" id="poSlot2"><span class="poSlotPlus">+</span><input type="file" accept="image/*" onchange="poLoad(2,this)" style="display:none"></label>
+        <label class="poSlot" id="poSlot3"><span class="poSlotPlus">+</span><input type="file" accept="image/*" onchange="poLoad(3,this)" style="display:none"></label>
+        <button id="poBABtn" onclick="poToggleBA()" class="po-ba" style="background:var(--s2);color:var(--t2)">Before / After labels: Off</button>
+      </div>
+      <button onclick="poShare()" class="po-share">Share post</button>
+      <button id="poCustomBtn" onclick="poCustomToggle()" class="po-custom-btn">Customise <span id="poCustomArrow">&#9662;</span></button>
+      <div id="poCustom" style="display:none">
+        <input id="poHeadline" oninput="poRender()" placeholder="Headline &mdash; e.g. Kitchen fit &middot; Exeter" class="po-field">
+        <input id="poCTAtext" value="FREE QUOTES &middot; MESSAGE US" oninput="_poCTAtext=this.value;poRender()" placeholder="Call to action" class="po-field">
+        <input id="poTagText" value="JUST COMPLETED" oninput="_poTagText=this.value;poRender()" placeholder="Corner tag (blank to hide)" class="po-field">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <label style="font-size:.78rem;color:var(--t2);font-weight:700;flex:1">Brand colour</label>
+          <input type="color" value="#ff8a1e" oninput="_poColor=this.value;poRender()" style="width:46px;height:34px;border:none;background:none;padding:0;cursor:pointer">
+        </div>
+        <label id="poLogoLbl" class="po-logo">+ Add your logo (optional)<input id="poLogoFile" type="file" accept="image/*" onchange="poLoadLogo(this)" style="display:none"></label>
+        <button onclick="poProVersion()" class="po-pro">&#10024; Pro design version</button>
+        <div id="poProResult" style="display:none;margin-top:12px"></div>
+      </div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <label style="font-size:.8rem;color:var(--t2);font-weight:700">Brand colour</label>
-      <input type="color" value="#ff8a1e" oninput="_poColor=this.value;poRender()" style="width:46px;height:34px;border:none;background:none;padding:0;cursor:pointer">
-    </div>
-    <input id="poCTAtext" value="FREE QUOTES · MESSAGE US" oninput="_poCTAtext=this.value;poRender()" placeholder="Call to action" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;margin-bottom:10px;box-sizing:border-box">
-    <input id="poTagText" value="JUST COMPLETED" oninput="_poTagText=this.value;poRender()" placeholder="Corner tag (leave blank to hide)" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;margin-bottom:12px;box-sizing:border-box">
-    <input id="poHeadline" oninput="poRender()" placeholder="Headline (optional) — e.g. Kitchen fit · Exeter" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;margin-bottom:12px;box-sizing:border-box">
-    <canvas id="poCanvas" width="1080" height="1350" style="width:100%;max-width:280px;display:block;margin:0 auto 12px;border-radius:12px;background:#0e1013"></canvas>
-    <button onclick="poShare()" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:11px;color:var(--ink);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">Save / share post</button>
-    <button onclick="poProVersion()" style="width:100%;margin-top:9px;padding:13px;background:var(--s3);border:1px solid var(--br);border-radius:11px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">&#10024; Pro design version</button>
-    <div id="poProResult" style="display:none;margin-top:12px"></div>
     <div style="height:1px;background:var(--br);margin:20px 0 16px"></div>
     <div style="font-size:.88rem;font-weight:800;margin-bottom:6px">Captions</div>
     <div style="font-size:.76rem;color:var(--t3);line-height:1.5;margin-bottom:14px">Copy one to go with your image. Each ends with your quote link, so new enquiries land tagged "Facebook".</div>
@@ -3100,6 +3132,7 @@ function openInvoiceFromQuote(q){
 }
 var _poReady=false;
 function openPostModal(job, loc){
+  try{ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(function(){ try{poRender();}catch(e){} }); }catch(e){}
   document.getElementById('postModalOverlay').style.display='block';
   document.getElementById('postModal').style.display='block';
   document.getElementById('postVariants').innerHTML='<div style="color:var(--t3);font-size:.8rem;text-align:center;padding:20px">Writing your captions…</div>';
@@ -3223,7 +3256,8 @@ function _poRoundRect(ctx,x,y,w,h,r){
 }
 function _poRoundImg(ctx,img,x,y,w,h,r){ ctx.save(); _poRoundRect(ctx,x,y,w,h,r); ctx.clip(); _poCover(ctx,img,x,y,w,h); ctx.restore(); }
 function _poTag(ctx,text,x,y){
-  ctx.font='800 27px "Hanken Grotesk", sans-serif';
+  text=String(text||'').toUpperCase();
+  ctx.font='700 31px "Big Shoulders Display", "Hanken Grotesk", sans-serif';
   var w=ctx.measureText(text).width+36, h=50;
   ctx.fillStyle='rgba(14,16,19,0.82)'; _poRoundRect(ctx,x,y,w,h,11); ctx.fill();
   ctx.fillStyle=_poColor; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(text,x+18,y+h/2+1); ctx.textBaseline='alphabetic';
@@ -3275,8 +3309,8 @@ function _poBrandMarkOnLight(ctx,x,y,size){
   ctx.restore();
 }
 function _poCTA(ctx,x,bottomY){
-  var t=_poCTAtext||'FREE QUOTES';
-  ctx.font='800 29px "Hanken Grotesk", sans-serif';
+  var t=String(_poCTAtext||'FREE QUOTES').toUpperCase();
+  ctx.font='700 34px "Big Shoulders Display", "Hanken Grotesk", sans-serif';
   var w=ctx.measureText(t).width+52, h=72, y=bottomY-h;
   ctx.fillStyle=_poColor; _poRoundRect(ctx,x,y,w,h,14); ctx.fill();
   ctx.fillStyle=_poOn(); ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(t,x+26,y+h/2+1); ctx.textBaseline='alphabetic';
@@ -3342,6 +3376,9 @@ function _poRenderBranded(ctx,W,H){
   _poCTA(ctx,pad,H-pad);
 }
 function poRender(){
+  var has=_poImgs.some(Boolean);
+  var pe=document.getElementById('poEmpty'), pd=document.getElementById('poEditor');
+  if(pe&&pd){ pe.style.display=has?'none':'block'; pd.style.display=has?'block':'none'; }
   var c=document.getElementById('poCanvas'); if(!c||!c.getContext)return;
   var ctx=c.getContext('2d'), W=1080, H=1350;
   ctx.clearRect(0,0,W,H);
@@ -6125,6 +6162,7 @@ function renderPulse(){
   if(bp)bp.style.width=pct(paid);
 }
 
+function poCustomToggle(){var d=document.getElementById('poCustom'),a=document.getElementById('poCustomArrow');if(!d)return;var open=d.style.display==='none';d.style.display=open?'block':'none';if(a)a.innerHTML=open?'&#9652;':'&#9662;';}
 function asstToolsToggle(){var t=document.getElementById('asstTools'),p=document.getElementById('asstPlus');if(!t)return;var open=!t.classList.contains('open');t.classList.toggle('open',open);if(p)p.classList.toggle('open',open);try{haptic('light');}catch(e){}}
 (function(){var b=document.getElementById('bootSplash');if(!b)return;setTimeout(function(){b.classList.add('done');setTimeout(function(){if(b.parentNode)b.remove();},600);},950);})();
 </script>
