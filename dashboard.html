@@ -755,6 +755,10 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
           </div>
         </div>
       </div>
+      <button id="winBackBanner" onclick="go('followups')" style="display:none;width:100%;margin:0 0 12px;padding:13px 15px;background:rgba(31,184,136,.12);border:1px solid rgba(31,184,136,.3);border-radius:12px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;cursor:pointer;align-items:center;justify-content:space-between;gap:10px">
+        <span style="display:flex;align-items:center;gap:9px"><span style="font-size:1.05rem">&#128172;</span><span id="winBackText" style="font-weight:800;font-size:.84rem"></span></span>
+        <span style="color:var(--acc);font-size:1.15rem;line-height:1">&rsaquo;</span>
+      </button>
       <div class="asst-chat" id="asstChat"></div>
       <div class="asst-photo-stage" id="asstPhotoStage" style="display:none">
         <img id="asstStageImg" src="" alt="">
@@ -791,6 +795,12 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     <div id="s-jobsdone" class="scr">
       <div class="ph"><div class="ph-title">Jobs</div></div>
       <div class="sec"><div class="list" id="jobsDoneList"><div class="loading">Loading...</div></div></div>
+    </div>
+
+    <div id="s-followups" class="scr">
+      <div class="ph"><div class="ph-title">Win work back</div></div>
+      <div style="font-size:.78rem;color:var(--t3);line-height:1.5;padding:0 4px 14px">Quotes that have gone quiet, plus past customers worth a nudge. Each one opens a ready-written message you send from your own phone &mdash; no VanOffice number needed.</div>
+      <div class="sec"><div class="list" id="followupsList"><div class="loading">Loading...</div></div></div>
     </div>
 
     <div id="s-quotes" class="scr">
@@ -1373,6 +1383,8 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     <input id="poHeadline" oninput="poRender()" placeholder="Headline (optional) — e.g. Kitchen fit · Exeter" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;margin-bottom:12px;box-sizing:border-box">
     <canvas id="poCanvas" width="1080" height="1350" style="width:100%;max-width:280px;display:block;margin:0 auto 12px;border-radius:12px;background:#0e1013"></canvas>
     <button onclick="poShare()" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:11px;color:#04231a;font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">Save / share post</button>
+    <button onclick="poProVersion()" style="width:100%;margin-top:9px;padding:13px;background:var(--s3);border:1px solid var(--br);border-radius:11px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">&#10024; Pro design version</button>
+    <div id="poProResult" style="display:none;margin-top:12px"></div>
     <div style="height:1px;background:var(--br);margin:20px 0 16px"></div>
     <div style="font-size:.88rem;font-weight:800;margin-bottom:6px">Captions</div>
     <div style="font-size:.76rem;color:var(--t3);line-height:1.5;margin-bottom:14px">Copy one to go with your image. Each ends with your quote link, so new enquiries land tagged "Facebook".</div>
@@ -1841,6 +1853,7 @@ function _launchApp(data){
   const n=data.profile&&data.profile.owner_name?data.profile.owner_name[0].toUpperCase():'H';
   document.getElementById('avInit').textContent=n;
   renderCal();
+  try{updateWinBackBanner();}catch(e){}
   const _home=document.getElementById('s-home');
   if(_home){_home.classList.add('reveal');requestAnimationFrame(()=>requestAnimationFrame(()=>_home.classList.add('go')));setTimeout(()=>{_home.classList.remove('reveal','go');},1200);}
   const _nav=document.querySelector('.nav');if(_nav){_nav.classList.add('slideup');}
@@ -1875,6 +1888,7 @@ async function refreshApp(){
     safe(()=>renderInvoices(allInvoices,'all'));
     safe(()=>renderQuotesList(allQuotes));
     safe(()=>renderJobsDone(allQuotes));
+    safe(()=>updateWinBackBanner());
     safe(()=>renderPulse());
     safe(()=>renderCal());
     const nd=document.getElementById('notifDot'); if(nd) nd.style.display=(data.missed>0)?'block':'none';
@@ -2570,7 +2584,7 @@ function haptic(style='light'){
 }
 
 let _curIdx=0;
-const _navOrder={home:0,jobs:1,quotes:2,quotegen:2,jobsdone:3,invoices:5,expenses:5,calendar:5,designer:6,inbox:4,profile:7};
+const _navOrder={home:0,followups:0,jobs:1,quotes:2,quotegen:2,jobsdone:3,invoices:5,expenses:5,calendar:5,designer:6,inbox:4,profile:7};
 let _captureData=null;
 async function loadCaptureLink(){
   if(!userPhone||!userPin) return;
@@ -2628,6 +2642,7 @@ function go(name){
   const c=document.getElementById('content');if(c)c.scrollTop=0;
   if(name==='jobs')renderJobs(allEnquiries,currentFilter);
   if(name==='jobsdone')renderJobsDone(allQuotes);
+  if(name==='followups')renderFollowups();
   if(name==='quotes'){renderQuotesList(allQuotes);refreshQuotes();}
   if(name==='quotegen'){const qb=document.getElementById('n-quotes');if(qb)qb.classList.add('on');}
   if(name==='designer')initDesigner();
@@ -2637,6 +2652,81 @@ function go(name){
   if(name==='inbox'){ loadInbox(inboxConvs.length>0); loadPending(); }
   if(name==='profile'){loadAdminPanel();hfInitVoiceSettings();loadUsage();loadCaptureLink();if(typeof refreshPushState==='function')refreshPushState();if(typeof refreshBioState==='function')refreshBioState();}
 }
+
+/* ════════ WIN WORK BACK: quote follow-ups + past-customer reactivation ════════ */
+function _fuDigits(n){ return String(n||'').replace(/[^0-9]/g,''); }
+function _fuWaNumber(n){ var d=_fuDigits(n); if(d.indexOf('0')===0) return '44'+d.slice(1); return d; }
+function _fuEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _computeFollowups(){
+  var now=Date.now(), DAY=86400000;
+  var WON={accepted:1,booked:1,done:1,paid:1,invoiced:1}, LOST={rejected:1,lost:1,declined:1,cancelled:1};
+  var fu=[], re=[];
+  (allQuotes||[]).forEach(function(q){
+    if(!q.client_number)return;
+    var st=(q.status||'').toLowerCase().trim();
+    if(LOST[st])return;
+    var created=q.created_at?new Date(q.created_at).getTime():0;
+    var ageDays=created?(now-created)/DAY:0;
+    if(!WON[st] && ageDays>=3){ fu.push({q:q,age:ageDays,type:'followup'}); }
+    else if(st==='done' && ageDays>=60){ re.push({q:q,age:ageDays,type:'reactivate'}); }
+  });
+  fu.sort(function(a,b){return b.age-a.age;});
+  re.sort(function(a,b){return b.age-a.age;});
+  return {fu:fu.slice(0,15), re:re.slice(0,10)};
+}
+function updateWinBackBanner(){
+  var b=document.getElementById('winBackBanner'); if(!b)return;
+  var c=_computeFollowups(); var n=c.fu.length+c.re.length;
+  if(n>0){ var t=document.getElementById('winBackText'); if(t)t.textContent=n+' way'+(n>1?'s':'')+' to win work back'; b.style.display='flex'; }
+  else { b.style.display='none'; }
+}
+function _fuMsg(item, biz){
+  var q=item.q;
+  var first=((q.client_name||'').trim().split(' ')[0])||'there';
+  var job=(q.job_description||'').trim()||'the job';
+  if(item.type==='reactivate'){
+    return 'Hi '+first+', hope you\u2019re keeping well! It\u2019s '+(biz||'me')+' \u2014 I did your '+job+' for you a while back. Just checking in: if you\u2019ve got any other jobs that need doing, I\u2019d be glad to help. Cheers!';
+  }
+  return 'Hi '+first+', just following up on the quote I sent over for '+job+'. Happy to talk anything through or tweak it if needed \u2014 still keen to get it booked in for you.'+(biz?' Cheers, '+biz:' Cheers!');
+}
+function renderFollowups(){
+  var box=document.getElementById('followupsList'); if(!box)return;
+  var biz=(window._vanofficeProfile||{}).business_name||'';
+  var c=_computeFollowups();
+  var items=c.fu.concat(c.re);
+  if(!items.length){ box.innerHTML='<div style="color:var(--t3);font-size:.84rem;text-align:center;padding:34px 12px;line-height:1.55">Nothing to chase right now.<br>Quotes that go quiet for a few days will appear here automatically.</div>'; return; }
+  var html='';
+  items.forEach(function(it,i){
+    var q=it.q, msg=_fuMsg(it,biz);
+    var ageTxt=q.created_at?timeAgo(q.created_at):'';
+    var tot=q.total?('\u00a3'+q.total):'';
+    var sub= it.type==='reactivate' ? ('Past customer'+(ageTxt?' \u00b7 '+ageTxt:'')) : ('Quote '+(tot?tot+' \u00b7 ':'')+(ageTxt?'sent '+ageTxt:'awaiting reply'));
+    var badge= it.type==='reactivate'
+      ? '<span style="font-size:.58rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--acc2);background:rgba(86,224,176,.14);padding:3px 7px;border-radius:6px;white-space:nowrap">Reactivate</span>'
+      : '<span style="font-size:.58rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);background:rgba(31,184,136,.14);padding:3px 7px;border-radius:6px;white-space:nowrap">Follow up</span>';
+    var waNum=_fuWaNumber(q.client_number);
+    var rawNum=String(q.client_number||'').replace(/'/g,'');
+    html+='<div id="fuCard'+i+'" style="background:var(--s2);border:1px solid var(--br);border-radius:14px;padding:14px;margin-bottom:11px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px"><div style="font-weight:800;font-size:.92rem">'+_fuEsc(q.client_name||'Customer')+'</div>'+badge+'</div>'+
+      '<div style="font-size:.74rem;color:var(--t3);margin-bottom:10px">'+sub+'</div>'+
+      '<textarea id="fuMsg'+i+'" rows="4" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--br);background:var(--s3);color:var(--t1);font-family:\'Hanken Grotesk\',sans-serif;font-size:.8rem;line-height:1.45;resize:vertical;margin-bottom:10px">'+_fuEsc(msg)+'</textarea>'+
+      '<div style="display:flex;gap:8px">'+
+        '<button onclick="fuSend(\'wa\','+i+',\''+waNum+'\')" style="flex:1;padding:11px;background:#25D366;border:none;border-radius:10px;color:#04231a;font-family:\'Hanken Grotesk\',sans-serif;font-weight:800;font-size:.78rem;cursor:pointer">WhatsApp</button>'+
+        '<button onclick="fuSend(\'sms\','+i+',\''+rawNum+'\')" style="flex:1;padding:11px;background:var(--acc);border:none;border-radius:10px;color:#04231a;font-family:\'Hanken Grotesk\',sans-serif;font-weight:800;font-size:.78rem;cursor:pointer">Text</button>'+
+        '<button onclick="fuDismiss('+i+')" style="padding:11px 13px;background:var(--s3);border:1px solid var(--br);border-radius:10px;color:var(--t3);font-family:\'Hanken Grotesk\',sans-serif;font-weight:700;font-size:.78rem;cursor:pointer">Not now</button>'+
+      '</div>'+
+    '</div>';
+  });
+  box.innerHTML=html;
+}
+function fuSend(kind,i,num){
+  try{haptic('light');}catch(e){}
+  var ta=document.getElementById('fuMsg'+i); var msg=ta?ta.value:'';
+  var enc=encodeURIComponent(msg);
+  var url= kind==='wa' ? ('https://wa.me/'+num+'?text='+enc) : ('sms:'+num+'?&body='+enc);
+  var w=window.open(url,'_blank'); if(!w){ try{window.location.href=url;}catch(e){} }
+}
+function fuDismiss(i){ var el=document.getElementById('fuCard'+i); if(el)el.style.display='none'; try{haptic('light');}catch(e){} }
 
 /* ════════ ACCOUNTS: EXPENSES, MILEAGE, TAX SET-ASIDE ════════ */
 let acctData=null;
@@ -2914,10 +3004,17 @@ function makePostFromJob(id){
   if(!q)return;
   openPostModal(q.job_description||'', q.client_address||'');
 }
-function makeInvoiceFromJob(id){
-  var q=(allQuotes||[]).find(function(x){return String(x.id)===String(id);});
-  if(!q)return;
-  openInvoiceFromQuote(q);
+async function makeInvoiceFromJob(id){
+  try{ if(typeof haptic==='function')haptic(); }catch(e){}
+  try{
+    const res=await fetch('/api/quote/'+encodeURIComponent(id)+'/to-invoice?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST'});
+    const data=await res.json();
+    if(data&&data.ok&&(data.pdf_url||data.view_url)){
+      window.open(data.pdf_url||data.view_url,'_blank');
+    }else{
+      alert((data&&data.error)||'Could not create invoice');
+    }
+  }catch(e){ alert('Could not create invoice'); }
 }
 function _poNum(v){ return parseFloat(String(v==null?'':v).replace(/[£,\s]/g,''))||0; }
 function openInvoiceFromQuote(q){
@@ -3234,6 +3331,48 @@ function poShare(){
       files.forEach(function(f,idx){ var url=URL.createObjectURL(f); var a=document.createElement('a'); a.href=url; a.download=f.name||('photo'+(idx+1)+'.png'); document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(url);},2500); });
     }
   },'image/png');
+}
+
+function _poDownscale(img, maxDim){
+  var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+  var sc=Math.min(1, maxDim/Math.max(w,h||1));
+  var c=document.createElement('canvas'); c.width=Math.max(1,Math.round(w*sc)); c.height=Math.max(1,Math.round(h*sc));
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  return c.toDataURL('image/jpeg',0.85);
+}
+async function poProVersion(){
+  var img=_poImgs[0];
+  var box=document.getElementById('poProResult'); if(!box)return;
+  if(!img){ try{haptic('warning')}catch(e){} alert('Add a photo first.'); return; }
+  box.style.display='block';
+  box.innerHTML='<div style="color:var(--t3);font-size:.8rem;text-align:center;padding:16px">Designing your pro post… (a few seconds)</div>';
+  try{
+    var photo=_poDownscale(img,1400);
+    var hlEl=document.getElementById('poHeadline');
+    var payload={ photo:photo, headline:hlEl?(hlEl.value||''):'', cta:_poCTAtext||'', tag:_poTagText||'', colour:_poColor||'#1fb888' };
+    var res=await fetch('/api/pro-post?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    var data=await res.json();
+    if(data&&data.not_configured){
+      box.innerHTML='<div style="font-size:.78rem;color:var(--t3);line-height:1.55;padding:8px 4px">Pro designs aren\u2019t switched on yet \u2014 they need a Templated.io template connected. The post above is ready to share in the meantime.</div>';
+      return;
+    }
+    if(data&&data.ok&&data.url){
+      try{haptic('success');}catch(e){}
+      box.innerHTML='<img src="'+data.url+'" style="width:100%;max-width:280px;display:block;margin:0 auto 10px;border-radius:12px"><button onclick="poShareUrl(\''+data.url.replace(/'/g,"%27")+'\')" style="width:100%;padding:13px;background:var(--acc);border:none;border-radius:11px;color:#04231a;font-family:\'Hanken Grotesk\',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">Save / share pro post</button>';
+    } else {
+      box.innerHTML='<div style="font-size:.78rem;color:var(--red);padding:8px 4px">'+((data&&data.error)||'Couldn\u2019t create the pro design')+'</div>';
+    }
+  }catch(e){ box.innerHTML='<div style="font-size:.78rem;color:var(--red);padding:8px 4px">Couldn\u2019t create the pro design</div>'; }
+}
+async function poShareUrl(url){
+  var cap=(window._postVariants&&window._postVariants[0])||'';
+  try{ if(cap) navigator.clipboard.writeText(cap); }catch(e){}
+  try{
+    var resp=await fetch(url); var blob=await resp.blob();
+    var file=new File([blob],'vanoffice-post.png',{type:blob.type||'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],text:cap}); return; }
+  }catch(e){}
+  try{ var a=document.createElement('a'); a.href=url; a.target='_blank'; a.download='vanoffice-post.png'; document.body.appendChild(a); a.click(); a.remove(); }catch(e){ window.open(url,'_blank'); }
 }
 
 function openQuoteFromDrawer(){
