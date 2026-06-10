@@ -616,12 +616,183 @@ def run_invoice_chase():
     except Exception as e:
         print("run_invoice_chase error: " + str(e))
 
+# ─────────────────────────────────────────────────────────────
+# DAILY DEBRIEF — the assistant reports in at end of day.
+# Counterpart to the 7am briefing: what happened today, what's
+# owed, what's on tomorrow, and what it suggests chasing.
+# Never raises; per-profile failures are isolated.
+# ─────────────────────────────────────────────────────────────
+def _gbp(v):
+    try:
+        n = float(str(v).replace("£", "").replace(",", "").strip() or 0)
+    except Exception:
+        n = 0.0
+    if n == int(n):
+        return "£{:,.0f}".format(n)
+    return "£{:,.2f}".format(n)
+
+
+def _debrief_facts(sender):
+    """Gather today's facts for one tradesperson. Returns (facts dict, worth_sending bool)."""
+    today = datetime.date.today()
+    today_iso = today.isoformat()
+    tomorrow_iso = (today + datetime.timedelta(days=1)).isoformat()
+    stale_cutoff = (today - datetime.timedelta(days=3)).isoformat()
+
+    f = {"new_enquiries": [], "missed_calls": 0, "quotes_today": [], "quoted_today_total": 0.0,
+         "owed_total": 0.0, "owed_count": 0, "oldest_overdue": None,
+         "tomorrow": [], "stale_quotes": []}
+
+    try:
+        rows = supabase.table("enquiries").select("client_name,status,created_at").eq("sender", sender).gte("created_at", today_iso).execute().data or []
+        f["new_enquiries"] = [(r.get("client_name") or "Unknown caller") for r in rows]
+    except Exception as e:
+        print("debrief enquiries error:", e)
+    try:
+        rows = supabase.table("enquiries").select("id").eq("sender", sender).eq("status", "missed call").execute().data or []
+        f["missed_calls"] = len(rows)
+    except Exception as e:
+        print("debrief missed error:", e)
+    try:
+        rows = supabase.table("quotes").select("client_name,total,created_at,status").eq("sender", sender).gte("created_at", today_iso).execute().data or []
+        for q in rows:
+            f["quotes_today"].append(q.get("client_name") or "a customer")
+            try:
+                f["quoted_today_total"] += float(str(q.get("total") or 0).replace("£", "").replace(",", "") or 0)
+            except Exception:
+                pass
+    except Exception as e:
+        print("debrief quotes error:", e)
+    try:
+        rows = supabase.table("invoices").select("client_name,invoice_number,total,due_date,status").eq("sender", sender).in_("status", ["unpaid", "overdue"]).execute().data or []
+        f["owed_count"] = len(rows)
+        worst_days = -1
+        for inv in rows:
+            try:
+                f["owed_total"] += float(str(inv.get("total") or 0).replace("£", "").replace(",", "") or 0)
+            except Exception:
+                pass
+            try:
+                dd = datetime.date.fromisoformat(str(inv.get("due_date", ""))[:10])
+                days = (today - dd).days
+                if days > 0 and days > worst_days:
+                    worst_days = days
+                    f["oldest_overdue"] = {"who": inv.get("client_name") or ("invoice " + str(inv.get("invoice_number", ""))),
+                                           "amount": _gbp(inv.get("total", 0)), "days": days}
+            except Exception:
+                pass
+    except Exception as e:
+        print("debrief invoices error:", e)
+    try:
+        rows = supabase.table("bookings").select("client_name,job_type,time,date").eq("sender", sender).eq("date", tomorrow_iso).order("time").execute().data or []
+        f["tomorrow"] = [{"time": b.get("time") or "", "who": b.get("client_name") or "job", "what": b.get("job_type") or ""} for b in rows]
+    except Exception as e:
+        print("debrief bookings error:", e)
+    try:
+        rows = supabase.table("quotes").select("client_name,total,created_at").eq("sender", sender).eq("status", "sent").lte("created_at", stale_cutoff).order("created_at", desc=True).limit(3).execute().data or []
+        f["stale_quotes"] = [{"who": q.get("client_name") or "a customer", "amount": _gbp(q.get("total", 0))} for q in rows]
+    except Exception as e:
+        print("debrief stale quotes error:", e)
+
+    worth_sending = bool(f["new_enquiries"] or f["quotes_today"] or f["tomorrow"]
+                         or f["stale_quotes"] or f["missed_calls"] or f["owed_total"] > 0)
+    return f, worth_sending
+
+
+def _debrief_fallback_text(first_name, f):
+    """Deterministic template if the AI write-up fails. Never raises."""
+    lines = ["Evening " + first_name + " — end of day from your VanOffice:"]
+    if f["new_enquiries"]:
+        lines.append("• " + str(len(f["new_enquiries"])) + " new enquir" + ("y" if len(f["new_enquiries"]) == 1 else "ies") + " (" + ", ".join(f["new_enquiries"][:3]) + ")")
+    if f["missed_calls"]:
+        lines.append("• " + str(f["missed_calls"]) + " missed call" + (" still needs a reply" if f["missed_calls"] == 1 else "s still need a reply"))
+    if f["quotes_today"]:
+        lines.append("• Quoted " + _gbp(f["quoted_today_total"]) + " today (" + ", ".join(f["quotes_today"][:3]) + ")")
+    if f["stale_quotes"]:
+        sq = f["stale_quotes"][0]
+        lines.append("• " + sq["who"] + " hasn't replied to their " + sq["amount"] + " quote — worth a chase")
+    if f["owed_total"] > 0:
+        owed = "• You're owed " + _gbp(f["owed_total"]) + " across " + str(f["owed_count"]) + " invoice" + ("" if f["owed_count"] == 1 else "s")
+        if f["oldest_overdue"]:
+            owed += " (" + f["oldest_overdue"]["who"] + " is " + str(f["oldest_overdue"]["days"]) + " days over)"
+        lines.append(owed)
+    if f["tomorrow"]:
+        t = f["tomorrow"][0]
+        first = (t["time"] + " " if t["time"] else "") + t["who"] + ((" — " + t["what"]) if t["what"] else "")
+        extra = "" if len(f["tomorrow"]) == 1 else " +" + str(len(f["tomorrow"]) - 1) + " more"
+        lines.append("• Tomorrow: " + first + extra)
+    else:
+        lines.append("• Nothing in the diary tomorrow")
+    return "\n".join(lines)
+
+
+def send_daily_debrief():
+    """5:30pm UK: text every tradesperson a short end-of-day report."""
+    try:
+        profiles = supabase.table("profiles").select("*").execute().data or []
+    except Exception as e:
+        print("debrief profiles error:", e)
+        return
+    for profile in profiles:
+        try:
+            sender = profile.get("sender", "")
+            if not sender or not profile.get("phone"):
+                continue
+            facts, worth_sending = _debrief_facts(sender)
+            if not worth_sending:
+                continue
+            first_name = (profile.get("owner_name") or "boss").split(" ")[0]
+            msg = ""
+            try:
+                system = ("You write a short end-of-day SMS from a tradesperson's AI office assistant to its boss. "
+                          "Tone: capable PA who handled things all day — warm, plain English, slightly proud of the good numbers, direct about what needs attention. "
+                          "British English. Under 440 characters total. Use short lines or • bullets. No greetings like 'I hope', no sign-off, no emojis. "
+                          "Open with 'Evening {name} —' then the report. If a quote needs chasing or money is overdue, suggest the action plainly. "
+                          "Only mention things present in the data. Never invent figures.").replace("{name}", first_name)
+                resp = client.messages.create(model="claude-sonnet-4-5", max_tokens=300, system=system,
+                                              messages=[{"role": "user", "content": "Today's data as JSON:\n" + json.dumps(facts)}])
+                msg = (resp.content[0].text or "").strip()
+            except Exception as e:
+                print("debrief AI error:", e)
+            if not msg or len(msg) > 600:
+                msg = _debrief_fallback_text(first_name, facts)
+            notify_owner(profile, msg)
+            print("debrief sent to", sender)
+        except Exception as e:
+            print("debrief error for profile:", e)
+
+
+@app.route("/cron/daily-debrief", methods=["GET", "POST"])
+def cron_daily_debrief():
+    """Manual trigger for testing. Protected by CRON_KEY. Optional ?sender= to test one account."""
+    expected = os.environ.get("CRON_KEY", "")
+    if not expected or request.args.get("key", "") != expected:
+        return jsonify({"error": "Unauthorised"}), 401
+    only = request.args.get("sender", "")
+    if only:
+        try:
+            res = supabase.table("profiles").select("*").eq("sender", only).execute()
+            profile = res.data[0] if res.data else None
+            if not profile:
+                return jsonify({"error": "No profile for that sender"}), 404
+            facts, worth_sending = _debrief_facts(only)
+            first_name = (profile.get("owner_name") or "boss").split(" ")[0]
+            msg = _debrief_fallback_text(first_name, facts)
+            sent = notify_owner(profile, msg) if worth_sending else False
+            return jsonify({"facts": facts, "worth_sending": worth_sending, "sent": bool(sent), "preview": msg})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    send_daily_debrief()
+    return jsonify({"ok": True})
+
+
 scheduler = BackgroundScheduler()
 def _twilio_factory():
     return TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
 scheduler.add_job(lambda: send_intelligent_briefing(supabase, client, _twilio_factory), "cron", hour=7, minute=0)
 scheduler.add_job(scan_all_emails, "interval", minutes=15)
 scheduler.add_job(run_invoice_chase, "cron", hour=9, minute=0)
+scheduler.add_job(send_daily_debrief, "cron", hour=17, minute=30, timezone="Europe/London")
 scheduler.start()
 
 
