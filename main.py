@@ -927,8 +927,18 @@ def _debrief_facts(sender):
     except Exception as e:
         print("debrief bookings error:", e)
     try:
-        rows = supabase.table("quotes").select("client_name,total,created_at").eq("sender", sender).eq("status", "sent").lte("created_at", stale_cutoff).order("created_at", desc=True).limit(3).execute().data or []
-        f["stale_quotes"] = [{"who": q.get("client_name") or "a customer", "amount": _gbp(q.get("total", 0))} for q in rows]
+        rows = supabase.table("quotes").select("client_name,total,created_at,client_number,quote_number").eq("sender", sender).eq("status", "sent").lte("created_at", stale_cutoff).order("created_at", desc=True).limit(3).execute().data or []
+        f["stale_quotes"] = [{"who": q.get("client_name") or "a customer", "amount": _gbp(q.get("total", 0)),
+                              "number": _clean_num(q.get("client_number") or "")} for q in rows]
+        for sq in f["stale_quotes"]:
+            if not sq["number"] and sq["who"] != "a customer":
+                try:
+                    c = (supabase.table("client_contacts").select("client_number").eq("sender", sender)
+                         .ilike("name", "%" + sq["who"].split(" ")[0] + "%").limit(1).execute().data or [])
+                    if c:
+                        sq["number"] = _clean_num(c[0].get("client_number") or "")
+                except Exception:
+                    pass
     except Exception as e:
         print("debrief stale quotes error:", e)
 
@@ -1006,6 +1016,30 @@ def send_daily_debrief():
                 print("debrief AI error:", e)
             if not msg or len(msg) > 600:
                 msg = _debrief_fallback_text(first_name, facts)
+            # Make the stale-quote nudge actionable: park a ready-to-send chase
+            # so the owner can fire it with a one-word reply.
+            try:
+                chase = next((sq for sq in facts.get("stale_quotes", []) if sq.get("number")), None)
+                if chase:
+                    week_ago = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
+                    dupe = (supabase.table("pending_actions").select("id")
+                            .eq("sender", sender).eq("kind", "quote_chase")
+                            .eq("client_number", chase["number"])
+                            .gte("created_at", week_ago).limit(1).execute().data or [])
+                    if not dupe:
+                        cfirst = chase["who"].split(" ")[0] if chase["who"] != "a customer" else ""
+                        draft = ("Hi" + ((" " + cfirst) if cfirst else "") + ", just following up on the quote we sent over (" +
+                                 chase["amount"] + "). Any questions at all, give us a shout - happy to adjust bits if needed.")
+                        supabase.table("pending_actions").insert({
+                            "sender": sender, "client_number": chase["number"], "client_name": chase["who"],
+                            "twilio_number": profile.get("twilio_number", ""), "kind": "quote_chase",
+                            "customer_msg": "(no reply to their " + chase["amount"] + " quote)",
+                            "reason": "Quote unanswered for 3+ days - chase ready to go",
+                            "options": [draft, "Leave it"], "status": "pending"
+                        }).execute()
+                        msg += "\n\nReply 1 and I'll send " + (chase["who"] if chase["who"] != "a customer" else "them") + " the chase, 2 to leave it."
+            except Exception as e:
+                print("debrief chase setup error:", e)
             notify_owner(profile, msg)
             print("debrief sent to", sender)
         except Exception as e:
@@ -3631,6 +3665,24 @@ ASSISTANT_TOOLS = [
         "input_schema": {"type": "object", "properties": {}}
     },
     {
+        "name": "add_renewal",
+        "description": "Log a renewal or expiry date the tradesperson must not miss - insurance (public liability, van, tools), van MOT or tax, CSCS/SMSTS/Gas Safe/NICEIC cards and registrations, waste carrier licence. Reminders go out at 30/14/7/1/0 days. Use whenever the user mentions something expiring, renewing, or being due on a date.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "label": {"type": "string", "description": "What renews, e.g. 'Van MOT' or 'Public liability insurance'"},
+                "due_date": {"type": "string", "description": "Due date as YYYY-MM-DD"},
+                "notes": {"type": "string", "description": "Optional note, e.g. provider or policy number"}
+            },
+            "required": ["label", "due_date"]
+        }
+    },
+    {
+        "name": "list_renewals",
+        "description": "List the tradesperson's upcoming renewals and expiry dates (insurance, MOT, cards, licences) with days remaining.",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+    {
         "name": "draft_client_message",
         "description": "Draft (and, if the client's number is known, send) a short friendly WhatsApp message to a CLIENT on the tradesperson's behalf - e.g. to tell them when work can start, confirm a visit, or chase a decision. Use this when the user says things like 'tell her I can start Tuesday' or 'let him know I'll pop round Friday'. Always keep it warm, brief and professional in the tradesperson's voice.",
         "input_schema": {
@@ -3993,6 +4045,36 @@ def _assistant_execute_tool(name, ti, profile):
             return ("Summary: \u00a3" + str(int(unpaid_total)) + " unpaid across " + str(len(unpaid)) +
                     " invoices, " + str(len(bookings)) + " jobs in the diary, " + str(len(new_enq)) + " new enquiries.")
 
+        if name == "add_renewal":
+            label = (ti.get("label", "") or "").strip()
+            due = (ti.get("due_date", "") or "").strip()[:10]
+            if not label:
+                return "What is it that renews?"
+            try:
+                d = datetime.date.fromisoformat(due)
+            except Exception:
+                return "I need the date as YYYY-MM-DD - what's the exact due date?"
+            supabase.table("renewals").insert({
+                "sender": sender, "label": label, "due_date": due,
+                "notes": (ti.get("notes", "") or "").strip()
+            }).execute()
+            days = (d - datetime.date.today()).days
+            return ("Logged: " + label + " due " + d.strftime("%d %b %Y") + " (" + str(days) +
+                    " days away). I'll remind you at 30, 14, 7 and 1 day out, and on the day.")
+
+        if name == "list_renewals":
+            rows = (supabase.table("renewals").select("label,due_date").eq("sender", sender)
+                    .order("due_date").execute().data or [])
+            if not rows:
+                return "No renewals logged yet. Tell me things like 'van MOT due 14 March' and I'll track them."
+            today = datetime.date.today()
+            out = []
+            for r in rows:
+                d = datetime.date.fromisoformat(str(r.get("due_date", ""))[:10])
+                dl = (d - today).days
+                out.append(r.get("label", "") + " - " + d.strftime("%d %b") + (" (EXPIRED)" if dl < 0 else " (" + str(dl) + " days)"))
+            return "Renewals:\n" + "\n".join(out)
+
         if name == "respond_to_customer":
             msg = (ti.get("message", "") or "").strip()
             cn = (ti.get("client_name", "") or "").strip()
@@ -4150,7 +4232,7 @@ def _resolve_pending_action(profile, pa, choice, send_verbatim=False):
 
     # ── Missed-call drafts behave differently: tapping/replying with the draft
     # sends it word-for-word, and there are two no-send choices.
-    if (pa.get("kind") or "") == "missed_call":
+    if (pa.get("kind") or "") in ("missed_call", "quote_chase"):
         opts = pa.get("options") or []
         if isinstance(opts, str):
             try:
