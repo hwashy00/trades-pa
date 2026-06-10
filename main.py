@@ -1872,11 +1872,14 @@ Always be concise — this is WhatsApp. Never say you can't do something."""
     return str(resp)
 
 
+_recent_dial_attempts = {}  # caller -> timestamp of our last outbound dial to the owner (loop guard)
+
 @app.route("/call", methods=["POST"])
 def incoming_call():
     caller = request.form.get("From", "")
     called = request.form.get("To", "")
-    forwarded_from = request.form.get("ForwardedFrom", "")
+    # Carriers signal a diverted call in different ways; EE doesn't always send one.
+    forwarded_from = request.form.get("ForwardedFrom", "") or request.form.get("CalledVia", "")
     try:
         result = supabase.table("profiles").select("*").eq("twilio_number", called).execute()
         profile = result.data[0] if result.data else None
@@ -1885,11 +1888,24 @@ def incoming_call():
         profile = None
     from twilio.twiml.voice_response import VoiceResponse, Dial
     from urllib.parse import quote
+
+    # Loop guard: if we dialled the owner for this same caller in the last 45s and
+    # the call is arriving back at us, the owner's divert bounced our own dial —
+    # treat it as the missed call it is instead of dialling again forever.
+    import time as _time
+    _now = _time.time()
+    for _k in list(_recent_dial_attempts.keys()):
+        if _now - _recent_dial_attempts[_k] > 90:
+            _recent_dial_attempts.pop(_k, None)
+    bounced = caller in _recent_dial_attempts and (_now - _recent_dial_attempts.get(caller, 0)) < 45
+
     resp = VoiceResponse()
-    if profile and forwarded_from:
+    if profile and (forwarded_from or bounced):
         # Diverted from the trade's own phone (busy / no answer): this IS a missed
         # call already — re-dialling their phone would just bounce back here in a
         # loop. Triage the caller, then take a voicemail.
+        print("missed call detected:", "header" if forwarded_from else "loop-guard", caller)
+        _recent_dial_attempts.pop(caller, None)
         try:
             _handle_missed_call(profile, caller)
         except Exception as e:
@@ -1898,6 +1914,7 @@ def incoming_call():
         resp.record(action="/voicemail", method="POST", max_length=120, play_beep=True, timeout=4, trim="trim-silence")
         return str(resp)
     if profile and profile.get("phone"):
+        _recent_dial_attempts[caller] = _now
         resp.say("Please hold while we connect your call. Please note, calls may be recorded and transcribed for quality and training purposes.")
         rec_cb = "/call-recording?caller=" + quote(caller) + "&called=" + quote(called)
         dial = Dial(action="/call-status", method="POST", timeout=20,
