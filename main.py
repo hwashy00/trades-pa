@@ -306,6 +306,148 @@ def contact_name_for(owner_sender, client_number):
     return ""
 
 
+# ─────────────────────────────────────────────────────────────
+# MISSED-CALL TRIAGE
+# Caller-ID style filtering: personal list -> stay out of it,
+# known client -> personalised reply, unknown -> soft lead text.
+# In 'ask' mode (default) the reply is a DRAFT parked in
+# pending_actions for one-tap / reply-by-text approval.
+# Set profiles.missed_call_mode = 'auto' to send instantly.
+# ─────────────────────────────────────────────────────────────
+def _clean_num(n):
+    return str(n or "").replace("whatsapp:", "").strip()
+
+
+def _is_personal_contact(owner_sender, number):
+    """True if this caller is on the owner's personal (mates/family) list."""
+    try:
+        r = (supabase.table("personal_contacts").select("id,name")
+             .eq("sender", owner_sender).eq("phone", _clean_num(number))
+             .limit(1).execute().data or [])
+        if r:
+            return r[0].get("name") or "Someone on your personal list"
+    except Exception as e:
+        print("personal_contacts lookup error (table may not exist yet):", e)
+    return ""
+
+
+def _known_client_name(owner_sender, number):
+    """Return (is_known, name). Known = saved contact or existing chat history."""
+    num = _clean_num(number)
+    name = contact_name_for(owner_sender, num)
+    if name:
+        return True, name
+    try:
+        r = (supabase.table("client_chats").select("id")
+             .eq("sender_profile", owner_sender).eq("client_number", num)
+             .limit(1).execute().data or [])
+        if r:
+            return True, ""
+    except Exception as e:
+        print("client_chats lookup error:", e)
+    return False, ""
+
+
+def _client_context_hint(owner_sender, name):
+    """One short phrase about this client's live work, for the draft. Never raises."""
+    try:
+        if name:
+            q = (supabase.table("quotes").select("status,total,job_type")
+                 .eq("sender", owner_sender).ilike("client_name", "%" + name + "%")
+                 .order("created_at", desc=True).limit(1).execute().data or [])
+            if q:
+                st = (q[0].get("status") or "").lower()
+                jt = q[0].get("job_type") or "your job"
+                if st == "sent":
+                    return "the quote we sent for " + jt
+                if st in ("accepted", "booked"):
+                    return "the " + str(jt) + " job"
+            b = (supabase.table("bookings").select("date,job_type")
+                 .eq("sender", owner_sender).ilike("client_name", "%" + name + "%")
+                 .gte("date", datetime.date.today().isoformat())
+                 .order("date").limit(1).execute().data or [])
+            if b:
+                return "your booking on " + str(b[0].get("date", ""))
+    except Exception as e:
+        print("client context error:", e)
+    return ""
+
+
+def _missed_call_draft(profile, caller, is_client, client_name):
+    """Compose the reply draft for a missed caller. Deterministic fallback, AI polish for clients."""
+    owner_first = (profile.get("owner_name") or "the boss").split(" ")[0]
+    biz = profile.get("business_name") or "the business"
+    if not is_client:
+        return ("Hi, sorry we missed your call — " + owner_first + " is on the tools. "
+                "I'm the assistant at " + biz + ". If it's about a job, reply here with what "
+                "you need and roughly where you are, and I'll get things moving.")
+    first = (client_name or "").split(" ")[0]
+    hint = _client_context_hint(profile.get("sender", ""), client_name)
+    fallback = ("Hi" + ((" " + first) if first else "") + ", sorry " + owner_first +
+                " missed your call — I'm the assistant at " + biz + ". " +
+                (("Is this about " + hint + ", or something new? ") if hint else "What can we help with? ") +
+                "Reply here and I'll sort it.")
+    try:
+        sys_p = ("Write one short, warm SMS from a tradesperson's assistant to a known customer whose call was just missed. "
+                 "British English, no emojis, under 300 characters, no sign-off. Mention the live work naturally if given. Never invent details.")
+        ctx = json.dumps({"customer_first_name": first, "owner_first_name": owner_first,
+                          "business": biz, "live_work_hint": hint})
+        ai = client.messages.create(model="claude-sonnet-4-5", max_tokens=160, system=sys_p,
+                                    messages=[{"role": "user", "content": ctx}])
+        txt = (ai.content[0].text or "").strip()
+        if 20 < len(txt) < 320:
+            return txt
+    except Exception as e:
+        print("missed-call draft AI error:", e)
+    return fallback
+
+
+def _handle_missed_call(profile, caller):
+    """Triage one missed call. Sends / drafts / stays quiet as appropriate. Never raises."""
+    try:
+        sender = profile.get("sender", "")
+        caller = _clean_num(caller)
+        if not sender or not caller:
+            return "skipped"
+
+        # Tier 1: personal — stay out of it, just tell the owner.
+        pname = _is_personal_contact(sender, caller)
+        if pname:
+            notify_owner(profile, pname + " (" + caller + ") called — personal list, so I stayed out of it.")
+            return "personal"
+
+        # Tier 2 / 3: known client or unknown lead.
+        is_client, cname = _known_client_name(sender, caller)
+        draft = _missed_call_draft(profile, caller, is_client, cname)
+        who = (cname + " (" + caller + ")") if cname else (caller + (" (existing customer)" if is_client else " (new caller)"))
+        mode = (profile.get("missed_call_mode") or "ask").lower()
+
+        if mode == "auto":
+            res = send_to_client({"sender": sender, "twilio_number": profile.get("twilio_number", ""),
+                                  "business_name": profile.get("business_name", "")}, caller, draft)
+            if res.get("ok"):
+                notify_owner(profile, "Missed call from " + who + " — I've texted them:\n\n\u201c" + draft +
+                             "\u201d\n\nI'll let you know when they reply.")
+            else:
+                notify_owner(profile, "Missed call from " + who + " — I tried to text them but it failed. Worth a ring back.")
+            return "auto-sent"
+
+        # Ask-first (default): park the draft for approval.
+        supabase.table("pending_actions").insert({
+            "sender": sender, "client_number": caller, "client_name": cname,
+            "twilio_number": profile.get("twilio_number", ""), "kind": "missed_call",
+            "customer_msg": "(missed call — no message left yet)",
+            "reason": "Missed call" + (" from an existing customer" if is_client else " from a new number") + " — here's my draft reply",
+            "options": [draft, "Ignore", "That's a mate"], "status": "pending"
+        }).execute()
+        notify_owner(profile, "Missed call from " + who + ". My draft reply:\n\n\u201c" + draft +
+                     "\u201d\n\n1. Send it\n2. Ignore\n3. That's a mate\n\nReply with a number, or tell me what to say instead.")
+        return "drafted"
+    except Exception as e:
+        print("_handle_missed_call error:", e)
+        return "error"
+
+
 def contact_number_for(owner_sender, name):
     """Resolve a client name to their saved number (partial match, owner-scoped)."""
     name = (name or "").strip()
@@ -1734,6 +1876,7 @@ Always be concise — this is WhatsApp. Never say you can't do something."""
 def incoming_call():
     caller = request.form.get("From", "")
     called = request.form.get("To", "")
+    forwarded_from = request.form.get("ForwardedFrom", "")
     try:
         result = supabase.table("profiles").select("*").eq("twilio_number", called).execute()
         profile = result.data[0] if result.data else None
@@ -1743,6 +1886,17 @@ def incoming_call():
     from twilio.twiml.voice_response import VoiceResponse, Dial
     from urllib.parse import quote
     resp = VoiceResponse()
+    if profile and forwarded_from:
+        # Diverted from the trade's own phone (busy / no answer): this IS a missed
+        # call already — re-dialling their phone would just bounce back here in a
+        # loop. Triage the caller, then take a voicemail.
+        try:
+            _handle_missed_call(profile, caller)
+        except Exception as e:
+            print("forwarded missed-call triage error:", e)
+        resp.say("Sorry, we can't take your call right now. Please leave a short message after the tone and we'll get back to you.")
+        resp.record(action="/voicemail", method="POST", max_length=120, play_beep=True, timeout=4, trim="trim-silence")
+        return str(resp)
     if profile and profile.get("phone"):
         resp.say("Please hold while we connect your call. Please note, calls may be recorded and transcribed for quality and training purposes.")
         rec_cb = "/call-recording?caller=" + quote(caller) + "&called=" + quote(called)
@@ -1766,16 +1920,15 @@ def call_status():
     called = request.form.get("To", "")
     resp = VoiceResponse()
     if dial_status != "completed":
-        # Missed — text the caller back, then take a voicemail we'll transcribe.
+        # Missed — triage the caller (personal / known client / new lead),
+        # then take a voicemail we'll transcribe.
         try:
-            account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-            auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-            twilio_client = TwilioClient(account_sid, auth_token)
-            twilio_client.messages.create(
-                body="Hi, sorry I missed your call! I'm on site at the moment. Send me a quick message about the job and I'll get back to you as soon as I can.",
-                from_=called, to=caller)
+            result = supabase.table("profiles").select("*").eq("twilio_number", called).execute()
+            profile = result.data[0] if result.data else None
+            if profile:
+                _handle_missed_call(profile, caller)
         except Exception as e:
-            print("Missed-call SMS error: " + str(e))
+            print("Missed-call triage error: " + str(e))
         resp.say("Sorry, we can't take your call right now. Please leave a short message after the tone and we'll get back to you.")
         resp.record(action="/voicemail", method="POST", max_length=120, play_beep=True, timeout=4, trim="trim-silence")
     return str(resp)
@@ -3864,6 +4017,40 @@ def _resolve_pending_action(profile, pa, choice, send_verbatim=False):
     booking if the choice confirmed a time. Returns {ok, sent, booked, error}."""
     client_number = pa.get("client_number", "")
     pid = pa.get("id")
+
+    # ── Missed-call drafts behave differently: tapping/replying with the draft
+    # sends it word-for-word, and there are two no-send choices.
+    if (pa.get("kind") or "") == "missed_call":
+        opts = pa.get("options") or []
+        if isinstance(opts, str):
+            try:
+                opts = json.loads(opts)
+            except Exception:
+                opts = [opts]
+        draft = str(opts[0]) if opts else ""
+        c = (choice or "").strip().lower()
+        if c in ("ignore", "leave it", "no", "skip"):
+            if pid is not None:
+                supabase.table("pending_actions").update({
+                    "status": "dismissed", "resolved_at": datetime.datetime.now().isoformat()
+                }).eq("id", pid).execute()
+            return {"ok": True, "sent": None, "booked": None}
+        if "mate" in c or c in ("personal", "family", "friend"):
+            try:
+                supabase.table("personal_contacts").insert({
+                    "sender": profile.get("sender", ""), "phone": _clean_num(client_number),
+                    "name": pa.get("client_name") or ""
+                }).execute()
+            except Exception as e:
+                print("personal_contacts insert error (run the setup SQL?):", e)
+            if pid is not None:
+                supabase.table("pending_actions").update({
+                    "status": "dismissed", "resolved_at": datetime.datetime.now().isoformat()
+                }).eq("id", pid).execute()
+            return {"ok": True, "sent": None, "booked": None}
+        if draft and " ".join(choice.split()) == " ".join(draft.split()):
+            send_verbatim = True
+            choice = draft
 
     if send_verbatim:
         customer_message = choice
