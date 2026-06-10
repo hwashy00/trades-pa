@@ -2695,6 +2695,180 @@ def create_invoice():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/quote/<quote_id>/to-invoice", methods=["POST"])
+def quote_to_invoice(quote_id):
+    """Clone a quote (line items + extras + client + total) into an invoice and
+    return its styled PDF URL. The invoice renders through the SAME template as the
+    quote via build_quote_html(is_invoice=True) — identical look, just INVOICE."""
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        sender = profile.get("sender", "")
+        qrows = (supabase.table("quotes").select("*").eq("id", quote_id)
+                 .eq("sender", sender).limit(1).execute().data or [])
+        if not qrows:
+            return jsonify({"error": "Quote not found"}), 404
+        q = qrows[0]
+        total_str = str(q.get("total", "0"))
+        # Reuse an existing matching invoice so repeated taps don't spawn duplicates
+        try:
+            existing = (supabase.table("invoices").select("*").eq("sender", sender)
+                        .eq("client_name", q.get("client_name", "")).eq("total", total_str)
+                        .limit(1).execute().data or [])
+        except Exception:
+            existing = []
+        if existing:
+            inv = existing[0]
+            iid = inv.get("id")
+            return jsonify({"ok": True, "invoice": inv, "invoice_id": iid,
+                            "pdf_url": "/generate-invoice-pdf/" + str(iid),
+                            "view_url": "/invoice-view/" + str(iid)})
+        inv_count = supabase.table("invoices").select("id").eq("sender", sender).execute()
+        inv_num = "INV-" + str(len(inv_count.data) + 1).zfill(3)
+        due = (datetime.date.today() + datetime.timedelta(days=30)).strftime("%d %B %Y")
+        invoice = {
+            "sender": sender,
+            "client_name": q.get("client_name", ""),
+            "client_address": q.get("client_address", ""),
+            "job_description": q.get("job_description", ""),
+            "total": total_str,
+            "subtotal": str(q.get("subtotal", q.get("total", "0"))),
+            "vat": "0",
+            "line_items": q.get("line_items", []),
+            "status": "unpaid",
+            "invoice_number": inv_num,
+            "due_date": due,
+            "client_number": q.get("client_number", ""),
+            "invoice_text": ""
+        }
+        res = supabase.table("invoices").insert(invoice).execute()
+        saved = res.data[0] if res.data else invoice
+        iid = saved.get("id")
+        return jsonify({"ok": True, "invoice": saved, "invoice_id": iid,
+                        "pdf_url": "/generate-invoice-pdf/" + str(iid),
+                        "view_url": "/invoice-view/" + str(iid)})
+    except Exception as e:
+        print("Quote to invoice error: " + str(e))
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+# --- Pro post designs via Templated.io --------------------------------------
+# Photos are held in memory for a few minutes and served at a public URL so
+# Templated's renderer can fetch them. No external storage needed.
+_post_photo_cache = {}
+
+@app.route("/post-photo/<pid>")
+def serve_post_photo(pid):
+    import time as _t
+    item = _post_photo_cache.get(pid)
+    if not item:
+        return "Not found", 404
+    raw, mime, exp = item
+    if _t.time() > exp:
+        _post_photo_cache.pop(pid, None)
+        return "Expired", 404
+    return Response(raw, mimetype=mime or "image/jpeg")
+
+
+@app.route("/api/pro-post", methods=["POST"])
+def pro_post():
+    """Render a professionally-designed social post via a Templated.io template.
+    Requires env vars TEMPLATED_API_KEY and TEMPLATED_TEMPLATE_ID. The template
+    should contain layers named: photo (image), business, headline, cta, tag,
+    and optionally logo (image)."""
+    import base64 as _b64, time as _t, uuid as _uuid, requests as req
+    try:
+        phone = format_phone(request.args.get("phone", "").strip())
+        pin = request.args.get("pin", "").strip()
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        api_key = os.environ.get("TEMPLATED_API_KEY", "")
+        template_id = os.environ.get("TEMPLATED_TEMPLATE_ID", "")
+        if not api_key or not template_id:
+            return jsonify({"ok": False, "not_configured": True,
+                            "error": "Pro designs aren't switched on yet."})
+        data = request.json or {}
+        headline = (data.get("headline") or "").strip()
+        cta = (data.get("cta") or "FREE QUOTES \u00b7 MESSAGE US").strip()
+        tag = (data.get("tag") or "").strip()
+        colour = (data.get("colour") or "#1fb888").strip()
+        business = profile.get("business_name", "") or profile.get("trade", "")
+
+        # Host the photo briefly so Templated can fetch it by URL
+        photo_url = ""
+        photo_b64 = data.get("photo", "") or ""
+        if photo_b64:
+            b64 = photo_b64
+            mime = "image/jpeg"
+            if photo_b64.startswith("data:") and "," in photo_b64:
+                header, b64 = photo_b64.split(",", 1)
+                try:
+                    mime = header.split(":", 1)[1].split(";", 1)[0] or "image/jpeg"
+                except Exception:
+                    mime = "image/jpeg"
+            try:
+                raw = _b64.b64decode(b64)
+            except Exception:
+                raw = b""
+            if raw:
+                pid = _uuid.uuid4().hex
+                _post_photo_cache[pid] = (raw, mime, _t.time() + 300)
+                photo_url = request.host_url.rstrip("/") + "/post-photo/" + pid
+
+        layers = {
+            "business": {"text": business},
+            "headline": {"text": headline},
+            "cta": {"text": cta},
+            "tag": {"text": tag},
+        }
+        if photo_url:
+            layers["photo"] = {"image_url": photo_url}
+        logo = profile.get("logo", "")
+        if logo and str(logo).startswith("http"):
+            layers["logo"] = {"image_url": logo}
+
+        body = {"template": template_id, "format": "png", "layers": layers}
+        r = req.post("https://api.templated.io/v1/render",
+                     headers={"Authorization": "Bearer " + api_key,
+                              "Content-Type": "application/json"},
+                     json=body, timeout=60)
+        if r.status_code not in (200, 201):
+            return jsonify({"ok": False, "error": "Render failed (" + str(r.status_code) + ")"})
+        rj = r.json()
+        url = rj.get("url", "")
+        status = rj.get("status", "")
+        rid = rj.get("id", "")
+        tries = 0
+        while (not url or status == "PENDING") and rid and tries < 6:
+            _t.sleep(1.3)
+            try:
+                gr = req.get("https://api.templated.io/v1/render/" + str(rid),
+                             headers={"Authorization": "Bearer " + api_key}, timeout=30)
+                if gr.status_code == 200:
+                    gj = gr.json()
+                    url = gj.get("url", url)
+                    status = gj.get("status", status)
+                    if status == "COMPLETED" and url:
+                        break
+            except Exception:
+                pass
+            tries += 1
+        if not url:
+            return jsonify({"ok": False, "error": "Still processing \u2014 try again in a moment."})
+        return jsonify({"ok": True, "url": url})
+    except Exception as e:
+        print("Pro post error: " + str(e))
+        print(traceback.format_exc())
+        return jsonify({"ok": False, "error": str(e)})
+
+
 @app.route("/api/invoices/<int:invoice_id>/mark-paid", methods=["POST"])
 def mark_invoice_paid(invoice_id):
     try:
