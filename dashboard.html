@@ -3191,7 +3191,7 @@ var _poImgs=[null,null,null,null],_poFiles=[null,null,null,null],_poBA=false,_po
 function _poOn(){
   var h=(_poColor||'#ff8a1e').replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
   var r=parseInt(h.substr(0,2),16)||0,g=parseInt(h.substr(2,2),16)||0,b=parseInt(h.substr(4,2),16)||0;
-  return ((0.299*r+0.587*g+0.114*b)/255>0.5)?'var(--ink)':'#ffffff';
+  return ((0.299*r+0.587*g+0.114*b)/255>0.5)?'#2a1503':'#ffffff';
 }
 function poSetStyle(s){
   _poStyle=s;
