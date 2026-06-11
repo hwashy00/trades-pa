@@ -3084,7 +3084,8 @@ async function makeInvoiceFromJob(id){
     const res=await fetch('/api/quote/'+encodeURIComponent(id)+'/to-invoice?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST'});
     const data=await res.json();
     if(data&&data.ok&&(data.pdf_url||data.view_url)){
-      window.open(data.pdf_url||data.view_url,'_blank');
+      try{ if(data.invoice&&typeof allInvoices!=='undefined')allInvoices.unshift(data.invoice); }catch(e){}
+      invoiceReady((data.invoice&&data.invoice.invoice_number)||'', data.pdf_url||'', data.view_url||'');
     }else{
       alert((data&&data.error)||'Could not create invoice');
     }
@@ -3747,8 +3748,8 @@ async function submitInvoiceModal(){
     if(data.ok){
       allInvoices.unshift(data.invoice);
       closeInvoiceModal();
-      window.open('/generate-invoice-pdf/'+data.invoice.id,'_blank');
       go('invoices');
+      invoiceReady(data.invoice.invoice_number||'','/generate-invoice-pdf/'+data.invoice.id,'/invoice-view/'+data.invoice.id);
     }else{
       document.getElementById('invModalErr').textContent=data.error||'Could not create invoice';
     }
@@ -6268,6 +6269,17 @@ function renderPulse(){
 }
 
 function poCustomToggle(){var d=document.getElementById('poCustom'),a=document.getElementById('poCustomArrow');if(!d)return;var open=d.style.display==='none';d.style.display=open?'block':'none';if(a)a.innerHTML=open?'&#9652;':'&#9662;';}
+function invoiceReady(invNum,pdfUrl,viewUrl){
+  var old=document.getElementById('invReadySheet'); if(old)old.remove();
+  var d=document.createElement('div'); d.id='invReadySheet';
+  d.style.cssText="position:fixed;bottom:0;left:0;right:0;max-width:390px;margin:0 auto;background:var(--s1);border-radius:20px 20px 0 0;z-index:400;padding:22px 20px 38px;border-top:1px solid var(--br);box-shadow:0 -10px 40px rgba(0,0,0,.5)";
+  var h='<div style="font-family:\'Big Shoulders Display\',sans-serif;font-size:1.3rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px">Invoice ready</div>'
+   +'<div style="font-size:.82rem;color:var(--t2);margin-bottom:16px">'+(invNum?invNum+' ':'')+'created and saved to your invoices.</div>';
+  if(pdfUrl) h+='<button class="btn-cta" style="margin-bottom:10px" onclick="window.open(\''+pdfUrl+'\',\'_blank\')">View PDF</button>';
+  if(viewUrl) h+='<button style="width:100%;padding:13px;background:var(--s2);border:1px solid var(--br);border-radius:12px;color:var(--t1);font-weight:700;font-size:.85rem;cursor:pointer;margin-bottom:10px" onclick="window.open(\''+viewUrl+'\',\'_blank\')">View in browser</button>';
+  h+='<button style="width:100%;padding:12px;background:none;border:none;color:var(--t3);font-weight:700;font-size:.8rem;cursor:pointer" onclick="document.getElementById(\'invReadySheet\').remove()">Done</button>';
+  d.innerHTML=h; document.body.appendChild(d);
+}
 function asstToolsToggle(){var t=document.getElementById('asstTools'),p=document.getElementById('asstPlus');if(!t)return;var open=!t.classList.contains('open');t.classList.toggle('open',open);if(p)p.classList.toggle('open',open);try{haptic('light');}catch(e){}}
 (function(){var b=document.getElementById('bootSplash');if(!b)return;setTimeout(function(){b.classList.add('done');setTimeout(function(){if(b.parentNode)b.remove();},600);},950);})();
 </script>
