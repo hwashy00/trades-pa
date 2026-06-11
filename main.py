@@ -4773,7 +4773,7 @@ def api_generate_ad():
         variants = [(v if link in v else (v + "\n" + link)) for v in variants][:3]
         if not variants:
             variants = ["Another job done by " + biz + "! Get in touch for a free quote:\n" + link]
-        return jsonify({"ok": True, "variants": variants, "link": link, "business": biz, "trade": trade, "logo": profile.get("logo") or ""})
+        return jsonify({"ok": True, "variants": variants, "link": link, "business": biz, "trade": trade, "logo": profile.get("logo") or "", "phone": profile.get("twilio_number") or ""})
     except Exception as e:
         print("api_generate_ad error:", e)
         return jsonify({"error": str(e)}), 500
