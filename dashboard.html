@@ -3407,31 +3407,54 @@ function _poRenderShowcase(ctx,W,H){
   ctx.textAlign='center'; ctx.fillStyle='#ffffff';
   ctx.font='800 54px "Big Shoulders Display", "Hanken Grotesk", sans-serif';
   ctx.fillText(String(_poBiz||'Your business').toUpperCase(),W/2,ly+mark+52);
-  // collage band
-  var imgY=headH, imgH=H-headH-panelH-footH;
+  // collage band - height adapts to the photos' shape so landscape shots
+  // aren't brutally cropped; the title panel absorbs the slack.
+  var imgY=headH, maxImgH=H-headH-panelH-footH, imgH=maxImgH;
   var imgs=_poImgs.filter(Boolean);
+  function _ar(im){ var w=im.naturalWidth||im.width||1, h=im.naturalHeight||im.height||1; return h/w; }
   if(_poBA && imgs.length>=2){
     var g=6, half=Math.floor((W-g)/2);
+    var want=Math.round(half*Math.max(_ar(imgs[0]),_ar(imgs[1])));
+    imgH=Math.max(500,Math.min(maxImgH,want));
     _poCover(ctx,imgs[0],0,imgY,half,imgH); _poCover(ctx,imgs[1],half+g,imgY,W-half-g,imgH);
     _poRibbon(ctx,'BEFORE',0,imgY+22,'#b3382f'); _poRibbon(ctx,'AFTER',half+g,imgY+22,_poColor);
   } else {
+    if(imgs.length===1){ imgH=Math.max(560,Math.min(maxImgH,Math.round(W*_ar(imgs[0])))); }
     _poDrawCollage(ctx,0,imgY,W,imgH,0);
   }
-  // title panel
+  // title panel (fills whatever the photos didn't use)
   var py=imgY+imgH;
+  panelH=H-py-footH;
   ctx.fillStyle=dark; ctx.fillRect(0,py,W,panelH);
   var hlEl=document.getElementById('poHeadline');
-  var hl=((hlEl&&hlEl.value.trim())||_poJob||'Another quality job').toUpperCase();
+  var rawJob=String(_poJob||'').trim();
+  var hl=((hlEl&&hlEl.value.trim())||(rawJob&&rawJob.length<=34?rawJob:'')||'Another quality job').toUpperCase();
   ctx.textAlign='center'; ctx.fillStyle='#ffffff';
-  _poFitC(ctx,hl,W-120,64,'800'); ctx.fillText(hl,W/2,py+86);
+  var hy=py+86;
+  ctx.font='800 60px "Big Shoulders Display", "Hanken Grotesk", sans-serif';
+  if(ctx.measureText(hl).width>W-120){
+    var ws=hl.split(' '), l1='', l2='';
+    for(var wi=0;wi<ws.length;wi++){ if((l1+' '+ws[wi]).trim().length<=hl.length/2||!l1){ l1=(l1+' '+ws[wi]).trim(); } else { l2=(l2+' '+ws[wi]).trim(); } }
+    var hsz=Math.min(_poFitC(ctx,l1,W-120,54,'800'),_poFitC(ctx,l2,W-120,54,'800'));
+    ctx.font='800 '+hsz+'px "Big Shoulders Display", "Hanken Grotesk", sans-serif';
+    hy=py+66; ctx.fillText(l1,W/2,hy); ctx.fillText(l2,W/2,hy+hsz+6); hy=hy+hsz+6;
+  } else {
+    _poFitC(ctx,hl,W-120,60,'800'); ctx.fillText(hl,W/2,hy);
+  }
   var sub=String(_poTagText||'').toUpperCase();
-  if(sub){ ctx.font='700 28px "Big Shoulders Display", "Hanken Grotesk", sans-serif'; ctx.fillStyle=_poColor; ctx.fillText(sub.split('').join('\u200a'),W/2,py+132); }
-  // divider
+  if(sub){
+    ctx.save();
+    try{ ctx.letterSpacing='5px'; }catch(e){}
+    ctx.font='700 27px "Big Shoulders Display", "Hanken Grotesk", sans-serif'; ctx.fillStyle=_poColor;
+    ctx.fillText(sub,W/2,hy+46);
+    ctx.restore();
+  }
+  // divider + icon row anchored to the BOTTOM of the panel so spacing stays balanced
+  var iy=H-footH-118;
   ctx.strokeStyle='rgba(255,255,255,0.14)'; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.moveTo(70,py+168); ctx.lineTo(W-70,py+168); ctx.stroke();
-  // icon row
+  ctx.beginPath(); ctx.moveTo(70,iy-64); ctx.lineTo(W-70,iy-64); ctx.stroke();
   var feats=[['hammer','QUALITY','CRAFTSMANSHIP'],['shield','FULLY','INSURED'],['clock','TIDY &','ON TIME'],['tick','BUILT','TO LAST']];
-  var col=W/4, iy=py+232;
+  var col=W/4;
   for(var i=0;i<4;i++){
     var cx=col*i+col/2;
     _poIcon(ctx,feats[i][0],cx,iy,34);
