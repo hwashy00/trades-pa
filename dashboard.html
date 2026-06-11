@@ -1066,6 +1066,15 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 
         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
 
+          <div id="ds-showcase" onclick="pickDesignStyle('showcase')" style="border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center">
+            <div style="background:#141b2c;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:900;color:#ff8a1e;letter-spacing:.5px;font-family:'Big Shoulders Display',sans-serif">SHOW</div>
+            <div style="padding:10px 14px;flex:1">
+              <div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:2px">Showcase</div>
+              <div style="font-size:.65rem;color:var(--t3)">Matches your social posts — trust icons, bold header</div>
+            </div>
+            <div id="ds-showcase-tick" style="margin-right:14px;color:var(--acc);font-size:1rem;visibility:hidden">&#10003;</div>
+          </div>
+
           <div id="ds-gold" onclick="pickDesignStyle('gold')" style="border:1.5px solid var(--acc);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center;gap:0">
             <div style="background:#1a1a1a;width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:900;color:#c9a84c;letter-spacing:.5px">GOLD</div>
             <div style="padding:10px 14px;flex:1">
@@ -3764,7 +3773,7 @@ let designerStyle = 'gold';
 
 function pickDesignStyle(s){
   designerStyle = s;
-  const styles = ['gold','navy','slate','green','mono'];
+  const styles = ['showcase','gold','navy','slate','green','mono'];
   styles.forEach(style=>{
     const el = document.getElementById('ds-'+style);
     const tick = document.getElementById('ds-'+style+'-tick');
