@@ -1432,9 +1432,10 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     <div id="poEditor" style="display:none">
       <canvas id="poCanvas" width="1080" height="1350" class="po-canvas"></canvas>
       <div class="po-styles">
-        <button id="poStyleSpot" onclick="poSetStyle('spotlight')" style="background:var(--acc);color:var(--ink)">Spotlight</button>
+        <button id="poStyleSpot" onclick="poSetStyle('spotlight')" style="background:var(--s2);color:var(--t2)">Spotlight</button>
         <button id="poStyleMin" onclick="poSetStyle('minimal')" style="background:var(--s2);color:var(--t2)">Minimal</button>
         <button id="poStyleBrand" onclick="poSetStyle('branded')" style="background:var(--s2);color:var(--t2)">Branded</button>
+        <button id="poStyleShow" onclick="poSetStyle('showcase')" style="background:var(--acc);color:var(--ink)">Showcase</button>
       </div>
       <div class="po-slots">
         <label class="poSlot" id="poSlot0"><span class="poSlotPlus">+</span><input type="file" accept="image/*" onchange="poLoad(0,this)" style="display:none"></label>
@@ -3132,6 +3133,7 @@ function openInvoiceFromQuote(q){
 }
 var _poReady=false;
 function openPostModal(job, loc){
+  _poJob=(job||'');
   try{ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(function(){ try{poRender();}catch(e){} }); }catch(e){}
   document.getElementById('postModalOverlay').style.display='block';
   document.getElementById('postModal').style.display='block';
@@ -3170,7 +3172,7 @@ async function generateAd(job,location){
       body:JSON.stringify({job_type:job,location:location})
     });
     const d=await r.json();
-    if(d){ _poBiz=d.business||_poBiz||''; _poTrade=d.trade||''; if(d.logo && !_poLogo){ var lg=new Image(); lg.onload=function(){ _poLogo=lg; poRender(); }; lg.src=d.logo; } if(typeof poRender==='function')poRender(); }
+    if(d){ _poBiz=d.business||_poBiz||''; _poTrade=d.trade||''; _poPhone=d.phone||_poPhone||''; if(d.logo && !_poLogo){ var lg=new Image(); lg.onload=function(){ _poLogo=lg; poRender(); }; lg.src=d.logo; } if(typeof poRender==='function')poRender(); }
     if(!d||!d.ok||!d.variants||!d.variants.length){ box.innerHTML='<div style="color:var(--t3);font-size:.8rem;text-align:center;padding:20px">Couldn\'t write a caption just now — try again.</div>'; return; }
     window._postVariants=d.variants;
     box.innerHTML=d.variants.map((v,i)=>`<div style="background:var(--s2);border:1px solid var(--br);border-radius:12px;padding:14px;margin-bottom:11px">
@@ -3185,7 +3187,7 @@ function _copyPost(btn,i){
 }
 
 /* ===== Photo-to-post image composer (client-side canvas) ===== */
-var _poImgs=[null,null,null,null],_poFiles=[null,null,null,null],_poBA=false,_poBiz='',_poTrade='',_poStyle='spotlight',_poLogo=null,_poColor='#ff8a1e',_poCTAtext='FREE QUOTES · MESSAGE US',_poTagText='JUST COMPLETED';
+var _poImgs=[null,null,null,null],_poFiles=[null,null,null,null],_poBA=false,_poBiz='',_poTrade='',_poStyle='showcase',_poPhone='',_poJob='',_poLogo=null,_poColor='#ff8a1e',_poCTAtext='FREE QUOTES · MESSAGE US',_poTagText='JUST COMPLETED';
 function _poOn(){
   var h=(_poColor||'#ff8a1e').replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
   var r=parseInt(h.substr(0,2),16)||0,g=parseInt(h.substr(2,2),16)||0,b=parseInt(h.substr(4,2),16)||0;
@@ -3193,8 +3195,8 @@ function _poOn(){
 }
 function poSetStyle(s){
   _poStyle=s;
-  var map={spotlight:'poStyleSpot',minimal:'poStyleMin',branded:'poStyleBrand'};
-  ['poStyleSpot','poStyleMin','poStyleBrand'].forEach(function(id){var x=document.getElementById(id); if(x){x.style.background='var(--s2)';x.style.color='var(--t2)';}});
+  var map={spotlight:'poStyleSpot',minimal:'poStyleMin',branded:'poStyleBrand',showcase:'poStyleShow'};
+  ['poStyleSpot','poStyleMin','poStyleBrand','poStyleShow'].forEach(function(id){var x=document.getElementById(id); if(x){x.style.background='var(--s2)';x.style.color='var(--t2)';}});
   var on=document.getElementById(map[s]||'poStyleSpot'); if(on){on.style.background='var(--acc)';on.style.color='var(--ink)';}
   poRender();
 }
@@ -3375,6 +3377,85 @@ function _poRenderBranded(ctx,W,H){
   if(hl){ _poFit(ctx,hl,W-pad*2,40,'700'); ctx.fillStyle='#1a1d23'; ctx.fillText(hl,pad,fy+20); }
   _poCTA(ctx,pad,H-pad);
 }
+
+function _poNat(p){ p=String(p||'').replace(/^\+44/,'0').replace(/\s+/g,''); return p.length===11?p.replace(/(\d{5})(\d{3})(\d{3})/,'$1 $2 $3'):p; }
+function _poIcon(ctx,kind,cx,cy,r){
+  ctx.save(); ctx.strokeStyle=_poColor; ctx.lineWidth=5; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+  var s=r*0.52;
+  ctx.beginPath();
+  if(kind==='hammer'){ ctx.moveTo(cx-s*0.9,cy+s); ctx.lineTo(cx+s*0.2,cy-s*0.1); ctx.moveTo(cx-s*0.2,cy-s*0.55); ctx.lineTo(cx+s*0.75,cy+s*0.35); ctx.moveTo(cx+s*0.05,cy-s*0.85); ctx.lineTo(cx+s*1.0,cy+s*0.05); }
+  else if(kind==='shield'){ ctx.moveTo(cx,cy-s); ctx.lineTo(cx+s*0.85,cy-s*0.55); ctx.lineTo(cx+s*0.85,cy+s*0.15); ctx.quadraticCurveTo(cx+s*0.8,cy+s*0.85,cx,cy+s*1.05); ctx.quadraticCurveTo(cx-s*0.8,cy+s*0.85,cx-s*0.85,cy+s*0.15); ctx.lineTo(cx-s*0.85,cy-s*0.55); ctx.closePath(); }
+  else if(kind==='clock'){ ctx.moveTo(cx,cy-s*0.7); ctx.lineTo(cx,cy); ctx.lineTo(cx+s*0.55,cy+s*0.3); }
+  else { ctx.moveTo(cx-s*0.7,cy); ctx.lineTo(cx-s*0.15,cy+s*0.55); ctx.lineTo(cx+s*0.8,cy-s*0.5); }
+  ctx.stroke(); ctx.restore();
+}
+function _poRibbon(ctx,text,x,y,col){
+  ctx.save(); ctx.font='700 30px "Big Shoulders Display", "Hanken Grotesk", sans-serif';
+  var w=ctx.measureText(text).width+44, h=52;
+  ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+w,y); ctx.lineTo(x+w-16,y+h); ctx.lineTo(x,y+h); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#ffffff'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(text,x+18,y+h/2+1);
+  ctx.restore(); ctx.textBaseline='alphabetic';
+}
+function _poRenderShowcase(ctx,W,H){
+  var dark='#141b2c', headH=210, footH=64, panelH=350;
+  ctx.fillStyle=dark; ctx.fillRect(0,0,W,H);
+  // header: logo + business name, centred
+  var ly=26, mark=92;
+  if(_poLogo){ var lw=_poLogo.naturalWidth||1, lh=_poLogo.naturalHeight||1, sc=mark/Math.max(lw,lh); ctx.drawImage(_poLogo,(W-lw*sc)/2,ly,lw*sc,lh*sc); }
+  else { _poBrandMark(ctx,(W-mark)/2,ly,mark); }
+  ctx.textAlign='center'; ctx.fillStyle='#ffffff';
+  ctx.font='800 54px "Big Shoulders Display", "Hanken Grotesk", sans-serif';
+  ctx.fillText(String(_poBiz||'Your business').toUpperCase(),W/2,ly+mark+52);
+  // collage band
+  var imgY=headH, imgH=H-headH-panelH-footH;
+  var imgs=_poImgs.filter(Boolean);
+  if(_poBA && imgs.length>=2){
+    var g=6, half=Math.floor((W-g)/2);
+    _poCover(ctx,imgs[0],0,imgY,half,imgH); _poCover(ctx,imgs[1],half+g,imgY,W-half-g,imgH);
+    _poRibbon(ctx,'BEFORE',0,imgY+22,'#b3382f'); _poRibbon(ctx,'AFTER',half+g,imgY+22,_poColor);
+  } else {
+    _poDrawCollage(ctx,0,imgY,W,imgH,0);
+  }
+  // title panel
+  var py=imgY+imgH;
+  ctx.fillStyle=dark; ctx.fillRect(0,py,W,panelH);
+  var hlEl=document.getElementById('poHeadline');
+  var hl=((hlEl&&hlEl.value.trim())||_poJob||'Another quality job').toUpperCase();
+  ctx.textAlign='center'; ctx.fillStyle='#ffffff';
+  _poFitC(ctx,hl,W-120,64,'800'); ctx.fillText(hl,W/2,py+86);
+  var sub=String(_poTagText||'').toUpperCase();
+  if(sub){ ctx.font='700 28px "Big Shoulders Display", "Hanken Grotesk", sans-serif'; ctx.fillStyle=_poColor; ctx.fillText(sub.split('').join('\u200a'),W/2,py+132); }
+  // divider
+  ctx.strokeStyle='rgba(255,255,255,0.14)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(70,py+168); ctx.lineTo(W-70,py+168); ctx.stroke();
+  // icon row
+  var feats=[['hammer','QUALITY','CRAFTSMANSHIP'],['shield','FULLY','INSURED'],['clock','TIDY &','ON TIME'],['tick','BUILT','TO LAST']];
+  var col=W/4, iy=py+232;
+  for(var i=0;i<4;i++){
+    var cx=col*i+col/2;
+    _poIcon(ctx,feats[i][0],cx,iy,34);
+    ctx.font='700 22px "Hanken Grotesk", sans-serif'; ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.textAlign='center';
+    ctx.fillText(feats[i][1],cx,iy+66); ctx.fillText(feats[i][2],cx,iy+92);
+    if(i<3){ ctx.strokeStyle='rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.moveTo(col*(i+1),iy-34); ctx.lineTo(col*(i+1),iy+92); ctx.stroke(); }
+  }
+  // footer strip
+  var fy=H-footH;
+  ctx.fillStyle=_poColor; ctx.fillRect(0,fy,W,footH);
+  var bits=[String(_poBiz||'').toUpperCase()];
+  if(_poTrade) bits.push(String(_poTrade).toUpperCase());
+  if(_poPhone) bits.push(_poNat(_poPhone));
+  ctx.fillStyle=_poOn(); ctx.textAlign='center';
+  ctx.font='700 30px "Big Shoulders Display", "Hanken Grotesk", sans-serif';
+  var ft=bits.filter(Boolean).join('  \u2022  ');
+  ctx.fillText(ft,W/2,fy+footH/2+11);
+  ctx.textAlign='left';
+}
+function _poFitC(ctx,text,maxW,size,weight){
+  var s=size;
+  do{ ctx.font=weight+' '+s+'px "Big Shoulders Display", "Hanken Grotesk", sans-serif'; if(ctx.measureText(text).width<=maxW) break; s-=3; }while(s>26);
+  return s;
+}
 function poRender(){
   var has=_poImgs.some(Boolean);
   var pe=document.getElementById('poEmpty'), pd=document.getElementById('poEditor');
@@ -3386,6 +3467,7 @@ function poRender(){
   ctx.textAlign='left'; ctx.textBaseline='alphabetic';
   if(_poStyle==='minimal') _poRenderMinimal(ctx,W,H);
   else if(_poStyle==='branded') _poRenderBranded(ctx,W,H);
+  else if(_poStyle==='showcase') _poRenderShowcase(ctx,W,H);
   else _poRenderSpotlight(ctx,W,H);
 }
 function poShare(){
