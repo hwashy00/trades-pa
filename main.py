@@ -1149,6 +1149,26 @@ def build_quote_html(quote, profile, template, is_invoice=False):
     base_style = "<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter',Arial,sans-serif;font-size:14px;background:#fff;width:210mm;min-height:297mm}</style>"
     font_link = '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Big+Shoulders+Display:wght@700;800&display=swap" rel="stylesheet">'
     bs = "font-family:'Big Shoulders Display',Arial,sans-serif;"
+    def _ts_icon(path, acc2):
+        return ('<div style="width:32px;height:32px;border-radius:50%;border:2px solid ' + acc2 + ';display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px">'
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="' + acc2 + '" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">' + path + '</svg></div>')
+    def _trust_strip(acc2, light=False):
+        feats = [('<path d="M3 21l8-8M9 7l8 8M12 4l8 8"/>', 'Quality Craftsmanship'),
+                 ('<path d="M12 3l8 3v6c0 4.5-3.4 7.8-8 9-4.6-1.2-8-4.5-8-9V6l8-3z"/>', 'Fully Insured'),
+                 ('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>', 'Tidy &amp; On Time'),
+                 ('<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5.5-6"/>', 'Built To Last')]
+        lab = '#777' if light else 'rgba(255,255,255,0.85)'
+        bgst = '' if light else 'background:' + dark + ';'
+        cells = ''
+        for i, (pth, lb) in enumerate(feats):
+            bl = ('border-left:1px solid ' + ('#eee' if light else 'rgba(255,255,255,0.1)') + ';') if i else ''
+            cells += ('<td width="25%" style="text-align:center;padding:12px 6px 14px;' + bl + '">' + _ts_icon(pth, acc2) +
+                      '<div style="' + bs + 'font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:' + lab + '">' + lb + '</div></td>')
+        return ('<table width="100%" cellpadding="0" cellspacing="0" style="' + bgst + '">'
+                '<tr><td colspan="4" style="padding:0 24px"><div style="height:2px;background:linear-gradient(90deg,' + acc2 + ',rgba(0,0,0,0))"></div></td></tr>'
+                '<tr>' + cells + '</tr></table>')
+    trust_dark = _trust_strip(accent, light=False)
+    trust_light = _trust_strip(accent, light=True)
 
     if design_style in ("gold", "george", "custom_html"):
         logo_html = f'<img src="{logo_data}" style="width:64px;height:64px;object-fit:contain;margin-bottom:8px;display:block">' if logo_data else f'<div style="font-size:22px;font-weight:900;color:{accent}">{biz_name[:2].upper()}</div>'
@@ -1165,7 +1185,7 @@ def build_quote_html(quote, profile, template, is_invoice=False):
 <div style="{bs}font-size:42px;font-weight:800;color:{accent};letter-spacing:0.05em;margin-bottom:14px">{doc_label}</div>
 <div style="width:100%;height:1px;background:{accent};margin-bottom:10px;opacity:0.4"></div>
 {contact_html}</td></tr></table>
-<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark}"><tr><td colspan="4" style="padding:0 24px"><div style="height:2px;background:linear-gradient(90deg,{accent},rgba(0,0,0,0))"></div></td></tr><tr><td width="25%" style="text-align:center;padding:12px 6px 14px;"><div style="width:34px;height:34px;border-radius:50%;border:2px solid {accent};display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{accent}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l8-8M9 7l8 8M12 4l8 8"/></svg></div><div style="{bs}font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:rgba(255,255,255,0.85)">Quality Craftsmanship</div></td><td width="25%" style="text-align:center;padding:12px 6px 14px;border-left:1px solid rgba(255,255,255,0.1);"><div style="width:34px;height:34px;border-radius:50%;border:2px solid {accent};display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{accent}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 7.8-8 9-4.6-1.2-8-4.5-8-9V6l8-3z"/></svg></div><div style="{bs}font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:rgba(255,255,255,0.85)">Fully Insured</div></td><td width="25%" style="text-align:center;padding:12px 6px 14px;border-left:1px solid rgba(255,255,255,0.1);"><div style="width:34px;height:34px;border-radius:50%;border:2px solid {accent};display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{accent}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div><div style="{bs}font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:rgba(255,255,255,0.85)">Tidy &amp; On Time</div></td><td width="25%" style="text-align:center;padding:12px 6px 14px;border-left:1px solid rgba(255,255,255,0.1);"><div style="width:34px;height:34px;border-radius:50%;border:2px solid {accent};display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{accent}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5.5-6"/></svg></div><div style="{bs}font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:rgba(255,255,255,0.85)">Built To Last</div></td></tr></table>
+{trust_dark}
 <table width="100%" cellpadding="0" cellspacing="0"><tr>
 <td width="60%" style="padding:22px 28px;vertical-align:top;border-right:1px solid #e8dfc8">
 <div style="font-size:11px;margin-bottom:5px"><span style="color:{accent};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">Date: </span>{today_str}</div>
@@ -1207,7 +1227,7 @@ def build_quote_html(quote, profile, template, is_invoice=False):
 <td style="padding:22px 28px;vertical-align:middle">
 <div style="display:flex;justify-content:space-between;align-items:center">
 <div style="display:flex;align-items:center;gap:14px">{logo_html}
-<div><div style="font-size:20px;font-weight:900;color:#fff">{biz_name}</div>
+<div><div style="{bs}font-size:25px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:0.03em">{biz_name}</div>
 <div style="font-size:9px;color:rgba(255,255,255,0.6);letter-spacing:0.1em;text-transform:uppercase;margin-top:3px">{trade}</div></div></div>
 <div style="background:{accent};padding:10px 18px;border-radius:6px;text-align:center">
 <div style="font-size:13px;font-weight:900;color:{dark};letter-spacing:0.08em">{doc_label}</div>
@@ -1274,7 +1294,7 @@ def build_quote_html(quote, profile, template, is_invoice=False):
 <td style="padding:22px 28px">
 <div style="display:flex;justify-content:space-between;align-items:center">
 <div style="display:flex;align-items:center;gap:14px">{logo_html}
-<div><div style="font-size:20px;font-weight:900;color:#fff">{biz_name}</div>
+<div><div style="{bs}font-size:25px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:0.03em">{biz_name}</div>
 <div style="font-size:9px;color:rgba(255,255,255,0.5);letter-spacing:0.1em;text-transform:uppercase;margin-top:3px">{trade}</div></div></div>
 <div style="text-align:right;font-size:10px;color:rgba(255,255,255,0.6);line-height:2">{"<br>".join([v for v in [phone_num, email, location] if v])}</div></div>
 <div style="height:2px;background:{accent};border-radius:2px;margin-top:14px"></div></td></tr></table>
@@ -1301,6 +1321,66 @@ def build_quote_html(quote, profile, template, is_invoice=False):
 <div style="font-size:11px;font-weight:700;color:{accent};margin-left:20px">Thank you</div></td></tr></table>
 </body></html>"""
 
+    elif design_style == "showcase":
+        hh = accent.lstrip('#')
+        if len(hh) == 3:
+            hh = hh[0]*2 + hh[1]*2 + hh[2]*2
+        try:
+            _r, _g, _b = int(hh[0:2], 16), int(hh[2:4], 16), int(hh[4:6], 16)
+        except Exception:
+            _r, _g, _b = 255, 138, 30
+        ink = '#1f1402' if (0.299*_r + 0.587*_g + 0.114*_b)/255 > 0.5 else '#ffffff'
+        sdark = '#141b2c'
+        logo_html = f'<img src="{logo_data}" style="width:54px;height:54px;object-fit:contain">' if logo_data else ""
+        scope_html = "".join([
+            '<table cellpadding="0" cellspacing="0" style="margin-bottom:11px"><tr>'
+            f'<td style="width:24px;height:24px;border-radius:50%;background:{accent};color:{ink};font-size:11px;font-weight:800;text-align:center;vertical-align:middle">{i+1}</td>'
+            f'<td style="padding-left:12px;font-size:13px;color:#333;line-height:1.6">{item}</td></tr></table>'
+            for i, item in enumerate(scope_items_used)])
+        inc_html = "".join([f'<div style="font-size:12px;color:#444;padding:4px 0;line-height:1.6"><span style="color:{accent};font-weight:800">&#10003;</span>&nbsp; {item}</div>' for item in inclusion_items])
+        sc_note = f'<div style="border-left:3px solid {accent};background:#fbf7f1;padding:11px 14px;margin:6px 0 18px"><div style="{bs}font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a1a;margin-bottom:3px">Please note</div><div style="font-size:10.5px;color:#555;line-height:1.6">{note}</div></div>' if show_note else ""
+        footer_bits = "&nbsp;&nbsp;&#8226;&nbsp;&nbsp;".join([v for v in [biz_name.upper(), (trade or "").upper(), phone_num] if v])
+        return f"""<!DOCTYPE html><html><head><meta charset="UTF-8">{font_link}{base_style}</head><body>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{sdark}"><tr>
+<td style="padding:24px 30px;vertical-align:middle">
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="vertical-align:middle">{logo_html}</td>
+<td style="vertical-align:middle;padding-left:14px">
+<div style="{bs}font-size:30px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:0.03em;line-height:1.05">{biz_name}</div>
+<div style="{bs}font-size:11px;font-weight:700;color:{accent};letter-spacing:0.18em;text-transform:uppercase;margin-top:4px">{trade}</div></td>
+<td style="text-align:right;vertical-align:middle">
+<div style="{bs}font-size:40px;font-weight:800;color:{accent};text-transform:uppercase;letter-spacing:0.04em;line-height:1">{doc_label}</div>
+<div style="font-size:10px;color:rgba(255,255,255,0.55);margin-top:5px;letter-spacing:0.06em">{ref_num} &nbsp;&#8226;&nbsp; {today_str}</div></td>
+</tr></table></td></tr></table>
+{trust_dark}
+<div style="padding:28px 30px 0">
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px"><tr>
+<td><div style="{bs}font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#999">Prepared for</div>
+<div style="font-size:14px;font-weight:700;color:#111;margin-top:3px">{client_full}</div>{due_line}</td>
+</tr></table>
+<div style="height:2px;background:linear-gradient(90deg,{accent},rgba(0,0,0,0));margin-bottom:18px"></div>
+<div style="{bs}font-size:16px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#1a1a1a;margin-bottom:14px">Scope of works</div>
+{scope_html}{sc_note}
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{sdark};margin:8px 0 20px"><tr>
+<td style="padding:16px 22px"><div style="{bs}font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.6)">Total price</div></td>
+<td style="padding:16px 22px;text-align:right"><div style="{bs}font-size:42px;font-weight:800;color:{accent};line-height:1">&#163;{total}</div></td>
+</tr></table>
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td width="50%" style="vertical-align:top;padding-right:16px">
+<div style="{bs}font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a1a;margin-bottom:8px">Inclusions</div>{inc_html}</td>
+<td width="50%" style="vertical-align:top;padding-left:16px;border-left:1px solid #eee">
+<div style="{bs}font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a1a;margin-bottom:6px">Lead time</div>
+<div style="font-size:11px;color:#555;line-height:1.65;margin-bottom:14px">{lead_time}</div>
+<div style="{bs}font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a1a;margin-bottom:6px">Payment terms</div>
+<div style="font-size:11px;color:#555;line-height:1.65">{payment_terms}</div></td>
+</tr></table>
+<div style="font-size:9px;color:#bbb;text-align:center;margin:24px 0 14px">{commitment}</div>
+</div>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{accent}"><tr>
+<td style="padding:14px;text-align:center"><div style="{bs}font-size:15px;font-weight:700;letter-spacing:0.06em;color:{ink}">{footer_bits}</div></td>
+</tr></table>
+</body></html>"""
+
     else:
         logo_html = f'<img src="{logo_data}" style="width:48px;height:48px;object-fit:contain">' if logo_data else ""
         scope_html = "".join([f'<div style="font-size:13px;color:#333;padding:10px 0;border-bottom:0.5px solid #f0f0f0;line-height:1.7">— {item}</div>' for item in scope_items_used])
@@ -1308,10 +1388,10 @@ def build_quote_html(quote, profile, template, is_invoice=False):
         return f"""<!DOCTYPE html><html><head><meta charset="UTF-8">{font_link}{base_style}</head><body style="padding:36px">
 <div style="display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:12px;border-bottom:0.5px solid #ddd;margin-bottom:18px">
 <div style="display:flex;align-items:center;gap:12px">{logo_html}
-<div><div style="font-size:22px;font-weight:900;color:#111;letter-spacing:-0.04em">{biz_name}</div>
+<div><div style="{bs}font-size:26px;font-weight:800;color:#111;letter-spacing:0.02em;text-transform:uppercase">{biz_name}</div>
 <div style="font-size:9px;color:#ccc;margin-top:2px;letter-spacing:0.06em">{trade}</div></div></div>
 <div style="text-align:right">
-<div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em">{doc_label} · {ref_num}</div>
+<div style="{bs}font-size:22px;font-weight:800;color:{accent};text-transform:uppercase;letter-spacing:0.05em">{doc_label}</div><div style="font-size:9px;color:#bbb;letter-spacing:0.08em;margin-top:2px">{ref_num}</div>
 <div style="font-size:10px;color:#bbb;margin-top:3px;line-height:1.8">{"<br>".join([v for v in [today_str, phone_num, email] if v])}</div></div></div>
 <div style="margin-bottom:18px">
 <div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Prepared for</div>
@@ -1321,14 +1401,15 @@ def build_quote_html(quote, profile, template, is_invoice=False):
 {scope_html}{note_html}
 <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0;margin-top:20px;border-top:0.5px solid #ddd">
 <div><div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em">Total</div>{vat_html}</div>
-<div style="font-size:36px;font-weight:900;color:#111;letter-spacing:-0.04em">&#163;{total}</div></div>
+<div style="{bs}font-size:44px;font-weight:800;color:#111;letter-spacing:0.01em">&#163;{total}</div></div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:12px;padding-top:12px;border-top:0.5px solid #ddd">
 <div><div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Inclusions</div>{inc_html}</div>
 <div><div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Lead Time</div>
 <div style="font-size:10px;color:#555;line-height:1.6">{lead_time}</div>
 <div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:0.1em;margin-top:10px;margin-bottom:4px">Payment</div>
 <div style="font-size:10px;color:#555;line-height:1.6">{payment_terms}</div></div></div>
-<div style="margin-top:24px;padding-top:10px;border-top:0.5px solid #eee;font-size:9px;color:#ccc;text-align:center">{commitment}</div>
+<div style="margin-top:20px">{trust_light}</div>
+<div style="margin-top:8px;padding-top:10px;border-top:0.5px solid #eee;font-size:9px;color:#ccc;text-align:center">{commitment}</div>
 </body></html>"""
 
 
@@ -2506,7 +2587,8 @@ def serve_invoice_pdf(invoice_id):
     except Exception as e:
         print("Invoice PDF error: " + str(e))
         print(traceback.format_exc())
-        return "Error generating invoice PDF: " + str(e), 500
+        # Never dead-end: show the styled HTML invoice instead (printable/shareable).
+        return redirect("/invoice-view/" + str(invoice_id))
 
 
 @app.route("/sms", methods=["POST"])
