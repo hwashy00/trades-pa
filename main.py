@@ -1147,7 +1147,8 @@ def build_quote_html(quote, profile, template, is_invoice=False):
     note_html = f'<div style="border:1.5px solid {accent};border-radius:5px;padding:10px 12px;margin-top:14px;background:#fffef5"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">PLEASE NOTE</div><div style="font-size:10px;color:#555;line-height:1.6">{note}</div></div>' if show_note else ""
 
     base_style = "<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Inter',Arial,sans-serif;font-size:14px;background:#fff;width:210mm;min-height:297mm}</style>"
-    font_link = '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">'
+    font_link = '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Big+Shoulders+Display:wght@700;800&display=swap" rel="stylesheet">'
+    bs = "font-family:'Big Shoulders Display',Arial,sans-serif;"
 
     if design_style in ("gold", "george", "custom_html"):
         logo_html = f'<img src="{logo_data}" style="width:64px;height:64px;object-fit:contain;margin-bottom:8px;display:block">' if logo_data else f'<div style="font-size:22px;font-weight:900;color:{accent}">{biz_name[:2].upper()}</div>'
@@ -1157,26 +1158,27 @@ def build_quote_html(quote, profile, template, is_invoice=False):
         return f"""<!DOCTYPE html><html><head><meta charset="UTF-8">{font_link}{base_style}</head><body>
 <table width="100%" cellpadding="0" cellspacing="0" style="background:{dark}"><tr>
 <td width="50%" style="padding:32px 36px;border-right:2px solid {accent};vertical-align:middle">{logo_html}
-<div style="font-size:20px;font-weight:900;color:{accent};letter-spacing:0.02em;margin-top:6px">{biz_name}</div>
+<div style="{bs}font-size:27px;font-weight:800;color:{accent};letter-spacing:0.03em;text-transform:uppercase;margin-top:6px">{biz_name}</div>
 <div style="font-size:9px;color:{accent};letter-spacing:0.14em;text-transform:uppercase;margin-top:4px;opacity:0.85">{trade}</div>
 <div style="width:50px;height:1.5px;background:{accent};margin-top:10px"></div></td>
 <td width="50%" style="padding:24px 28px;vertical-align:middle">
-<div style="font-size:30px;font-weight:900;color:{accent};letter-spacing:0.08em;margin-bottom:14px">{doc_label}</div>
+<div style="{bs}font-size:42px;font-weight:800;color:{accent};letter-spacing:0.05em;margin-bottom:14px">{doc_label}</div>
 <div style="width:100%;height:1px;background:{accent};margin-bottom:10px;opacity:0.4"></div>
 {contact_html}</td></tr></table>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{dark}"><tr><td colspan="4" style="padding:0 24px"><div style="height:2px;background:linear-gradient(90deg,{accent},rgba(0,0,0,0))"></div></td></tr><tr><td width="25%" style="text-align:center;padding:12px 6px 14px;"><div style="width:34px;height:34px;border-radius:50%;border:2px solid {accent};display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{accent}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l8-8M9 7l8 8M12 4l8 8"/></svg></div><div style="{bs}font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:rgba(255,255,255,0.85)">Quality Craftsmanship</div></td><td width="25%" style="text-align:center;padding:12px 6px 14px;border-left:1px solid rgba(255,255,255,0.1);"><div style="width:34px;height:34px;border-radius:50%;border:2px solid {accent};display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{accent}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 7.8-8 9-4.6-1.2-8-4.5-8-9V6l8-3z"/></svg></div><div style="{bs}font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:rgba(255,255,255,0.85)">Fully Insured</div></td><td width="25%" style="text-align:center;padding:12px 6px 14px;border-left:1px solid rgba(255,255,255,0.1);"><div style="width:34px;height:34px;border-radius:50%;border:2px solid {accent};display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{accent}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div><div style="{bs}font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:rgba(255,255,255,0.85)">Tidy &amp; On Time</div></td><td width="25%" style="text-align:center;padding:12px 6px 14px;border-left:1px solid rgba(255,255,255,0.1);"><div style="width:34px;height:34px;border-radius:50%;border:2px solid {accent};display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{accent}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5.5-6"/></svg></div><div style="{bs}font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:rgba(255,255,255,0.85)">Built To Last</div></td></tr></table>
 <table width="100%" cellpadding="0" cellspacing="0"><tr>
 <td width="60%" style="padding:22px 28px;vertical-align:top;border-right:1px solid #e8dfc8">
 <div style="font-size:11px;margin-bottom:5px"><span style="color:{accent};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">Date: </span>{today_str}</div>
 <div style="font-size:11px;margin-bottom:5px"><span style="color:{accent};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">Ref: </span>{ref_num}</div>
 <div style="font-size:11px;margin-bottom:16px"><span style="color:{accent};font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.06em">Client: </span>{client_full}</div>
 {due_line}<div style="font-size:11px;color:#444;line-height:1.7;margin-bottom:18px">{intro}</div>
-<div style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:0.04em;color:#1a1a1a;border-bottom:2px solid {accent};padding-bottom:8px;margin-bottom:12px">Scope of Works</div>
+<div style="{bs}font-size:17px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#1a1a1a;border-bottom:2px solid {accent};padding-bottom:8px;margin-bottom:12px">Scope of Works</div>
 {scope_html}{note_html}</td>
 <td width="40%" style="padding:20px 18px;background:#f9f7f0;vertical-align:top">
 <div style="text-align:center;padding-bottom:18px;margin-bottom:18px;border-bottom:1.5px solid {accent}">
 <div style="width:52px;height:52px;border-radius:50%;border:2.5px solid {accent};display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:{accent};margin-bottom:8px">&#163;</div>
 <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:{accent};display:block;margin-bottom:6px">Total Price</div>
-<div style="font-size:30px;font-weight:900;color:#1a1a1a;letter-spacing:-0.02em">&#163;{total}</div>{vat_html}</div>
+<div style="{bs}font-size:40px;font-weight:800;color:#1a1a1a;letter-spacing:0.01em">&#163;{total}</div>{vat_html}</div>
 <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:{accent};margin-bottom:12px;text-align:center">Inclusions</div>
 {inc_html}
 <div style="margin-top:18px;border-top:1px solid #333;padding-top:12px">
