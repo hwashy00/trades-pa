@@ -2323,7 +2323,7 @@ function initAuth(){
     if(bioEnabled() && webauthnSupported()){
       // show the PIN screen as an unlock screen; Face ID fires automatically on open.
       showPinScreen();
-      var sub=document.querySelector('#screenPin .logo-sub'); if(sub) sub.textContent='Look at your phone to unlock';
+      var sub=document.querySelector('#screenPin .logo-sub'); if(sub) sub.textContent='Your assistant gets its own dedicated number. It answers the calls you miss, replies to enquiry texts and voice notes, and gets jobs moving while you\u2019re on the tools \u2014 and you keep your own number exactly as it is.';
       var b=document.getElementById('faceIdBtn'); if(b) b.style.display='inline-flex';
       _armBioTap();                                     // first tap anywhere triggers it if iOS blocks auto
       setTimeout(function(){ bioUnlock(true); }, 400);  // attempt automatically on open
@@ -5831,6 +5831,21 @@ function renderSetupWizard(profile){
   var tw=profile.twilio_number||'';
   if(tw && !tw.startsWith('pending'))return; // active — no wizard
 
+  var dismissed=false;
+  try{ dismissed=localStorage.getItem('vo_setup_dismissed')==='1'; }catch(e){}
+  if(dismissed){
+    var mini=document.createElement('div');
+    mini.id='setupWizard';
+    mini.style.cssText='display:flex;align-items:center;gap:10px;padding:12px 16px;margin-bottom:14px;background:var(--acc-d);border:1px solid rgba(255,138,30,.3);border-radius:13px;cursor:pointer';
+    mini.innerHTML='<div style="width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc);flex-shrink:0"></div>'
+      +'<div style="flex:1;font-size:.8rem;font-weight:700;color:var(--t1)">'+(tw.indexOf('pending')===0?'Your assistant\u2019s number is being set up\u2026':'Switch on your assistant\u2019s number')+'</div>'
+      +'<div style="color:var(--acc2);font-size:.9rem">\u2192</div>';
+    mini.onclick=function(){ try{localStorage.removeItem('vo_setup_dismissed');}catch(e){} renderSetupWizard(profile); };
+    var hm=document.getElementById('s-home');
+    if(hm) hm.prepend(mini);
+    return;
+  }
+
   var card=document.createElement('div');
   card.id='setupWizard'; card.className='setup-card';
 
@@ -5840,8 +5855,13 @@ function renderSetupWizard(profile){
   dot.style.cssText='width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc)';
   var h=document.createElement('div');
   h.style.cssText="font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1rem;letter-spacing:-.02em";
-  h.textContent='Set up your WhatsApp bot';
-  title.appendChild(dot); title.appendChild(h);
+  h.textContent='Switch on your assistant\u2019s number';
+  var x=document.createElement('button');
+  x.setAttribute('aria-label','Dismiss');
+  x.style.cssText='margin-left:auto;background:none;border:none;color:var(--t3);font-size:1.05rem;cursor:pointer;padding:4px 6px;line-height:1';
+  x.innerHTML='\u2715';
+  x.onclick=function(ev){ ev.stopPropagation(); try{localStorage.setItem('vo_setup_dismissed','1');}catch(e){} renderSetupWizard(profile); };
+  title.appendChild(dot); title.appendChild(h); title.appendChild(x);
   card.appendChild(title);
 
   var sub=document.createElement('div');
@@ -5852,9 +5872,9 @@ function renderSetupWizard(profile){
   var steps=document.createElement('div');
   steps.className='setup-steps';
   [
-    ['1','We supply a number','You get a brand-new dedicated number for your bot — nothing to buy or change.'],
-    ['2','We configure','We register it on WhatsApp and connect your bot for you.'],
-    ['3','Go live','You get a text when your bot is active — usually within a few hours.']
+    ['1','We supply a number','A brand-new dedicated number for your assistant \u2014 nothing to buy, nothing to change.'],
+    ['2','We connect it','We wire it up so calls and texts to it are answered by your assistant instantly.'],
+    ['3','Go live','You get a text when it\u2019s active \u2014 usually within a few hours. One dial code then sends your missed calls to it.']
   ].forEach(function(s){
     var st=document.createElement('div'); st.className='setup-step';
     var n=document.createElement('div'); n.className='setup-step-n'; n.textContent=s[0];
@@ -5867,7 +5887,7 @@ function renderSetupWizard(profile){
 
   if(tw.startsWith('pending')){
     var pend=document.createElement('div'); pend.className='setup-pending';
-    pend.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round"/></svg><div><div style="font-weight:700;color:var(--grn);font-size:.86rem">Setup requested</div><div style="font-size:.75rem;color:var(--t3);margin-top:3px">We\'re sorting your dedicated number. You\'ll get a text when your bot is live \u2014 usually within a few hours.</div></div>';
+    pend.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round"/></svg><div><div style="font-weight:700;color:var(--grn);font-size:.86rem">Setup requested</div><div style="font-size:.75rem;color:var(--t3);margin-top:3px">We\'re sorting your dedicated number. You\'ll get a text when it\u2019s live \u2014 usually within a few hours.</div></div>';
     card.appendChild(pend);
 
     var resend=document.createElement('div');
@@ -5878,7 +5898,7 @@ function renderSetupWizard(profile){
   } else {
     var note=document.createElement('div');
     note.style.cssText='font-size:.74rem;color:var(--t3);margin:14px 0 4px;line-height:1.5';
-    note.textContent='No rush, though — you can build quotes, send invoices and use your assistant right now without a number. Switch the bot on whenever you\u2019re ready.';
+    note.textContent='No rush, though — you can build quotes, send invoices and use your assistant right now without a number. Switch it on whenever you\u2019re ready.';
     card.appendChild(note);
 
     var err=document.createElement('div');
