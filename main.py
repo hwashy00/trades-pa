@@ -78,6 +78,56 @@ def _within_whatsapp_window(last_inbound_dt):
     except Exception:
         return False
 
+
+# ─────────────────────────────────────────────────────────────
+# WHATSAPP CLOUD API (Meta direct) — replaces Twilio for WhatsApp.
+# Free customer-initiated conversations, no per-message markup.
+# Voice + SMS stay on Twilio; only WhatsApp moves here.
+# Config via env vars so test number -> real number is a value swap.
+# ─────────────────────────────────────────────────────────────
+WA_CLOUD_TOKEN = os.environ.get("WHATSAPP_TOKEN", "")
+WA_CLOUD_PHONE_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
+WA_CLOUD_VERIFY = os.environ.get("WHATSAPP_VERIFY_TOKEN", "")
+WA_CLOUD_API = "https://graph.facebook.com/v21.0"
+
+def wa_cloud_enabled():
+    return bool(WA_CLOUD_TOKEN and WA_CLOUD_PHONE_ID)
+
+def send_whatsapp_cloud(to_number, message):
+    """Send a free-form WhatsApp text via Meta Cloud API. Returns True/False.
+    Works inside the 24h customer-service window; never raises."""
+    try:
+        import requests as _req
+        to = _strip_wa(to_number).lstrip("+")
+        url = WA_CLOUD_API + "/" + WA_CLOUD_PHONE_ID + "/messages"
+        headers = {"Authorization": "Bearer " + WA_CLOUD_TOKEN, "Content-Type": "application/json"}
+        payload = {"messaging_product": "whatsapp", "to": to, "type": "text",
+                   "text": {"preview_url": False, "body": message}}
+        r = _req.post(url, headers=headers, json=payload, timeout=20)
+        if r.status_code in (200, 201):
+            return True
+        print("send_whatsapp_cloud non-200:", r.status_code, r.text[:300])
+        return False
+    except Exception as e:
+        print("send_whatsapp_cloud error:", e)
+        return False
+
+def fetch_wa_cloud_media(media_id):
+    """Resolve a Cloud API media id to its bytes. Returns (content_bytes, mime) or (None, None)."""
+    try:
+        import requests as _req
+        headers = {"Authorization": "Bearer " + WA_CLOUD_TOKEN}
+        meta = _req.get(WA_CLOUD_API + "/" + str(media_id), headers=headers, timeout=20).json()
+        media_url = meta.get("url")
+        mime = meta.get("mime_type", "")
+        if not media_url:
+            return None, None
+        media = _req.get(media_url, headers=headers, timeout=30)
+        return media.content, mime
+    except Exception as e:
+        print("fetch_wa_cloud_media error:", e)
+        return None, None
+
 def send_to_client(profile, client_number, message, prefer=None):
     """
     Send a message to a client on the right channel, with SMS fallback.
@@ -105,6 +155,11 @@ def send_to_client(profile, client_number, message, prefer=None):
 
         def _send(channel):
             if channel == "whatsapp":
+                if wa_cloud_enabled():
+                    ok = send_whatsapp_cloud(clean_to, message)
+                    if not ok:
+                        raise Exception("whatsapp cloud send failed")
+                    return True
                 return tc.messages.create(body=message, from_="whatsapp:" + clean_from, to="whatsapp:" + clean_to)
             return tc.messages.create(body=message, from_=clean_from, to=clean_to)
 
@@ -1659,6 +1714,115 @@ def generate_invoice_pdf(invoice, profile, template):
     doc.build(story)
     buffer.seek(0)
     return buffer
+
+
+@app.route("/whatsapp-cloud", methods=["GET", "POST"])
+def whatsapp_cloud():
+    """Meta Cloud API webhook. GET = verification handshake. POST = inbound message.
+    Translates Meta's JSON into the Twilio-style fields the existing bot brain expects,
+    runs that brain, and sends its reply back out via the Cloud API."""
+    # ---- Verification handshake (Meta pings this once when you save the webhook) ----
+    if request.method == "GET":
+        mode = request.args.get("hub.mode", "")
+        token = request.args.get("hub.verify_token", "")
+        challenge = request.args.get("hub.challenge", "")
+        if mode == "subscribe" and token == WA_CLOUD_VERIFY:
+            return challenge, 200
+        return "Verification failed", 403
+
+    # ---- Inbound message ----
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        entry = (data.get("entry") or [{}])[0]
+        change = (entry.get("changes") or [{}])[0]
+        value = change.get("value", {})
+        messages = value.get("messages") or []
+        if not messages:
+            return "ok", 200  # status callbacks etc. — ack and ignore
+        msg = messages[0]
+        from_number = msg.get("from", "")          # customer's number, no +
+        msg_type = msg.get("type", "text")
+        text_body = ""
+        media_id = None
+        media_kind = None
+        if msg_type == "text":
+            text_body = (msg.get("text") or {}).get("body", "")
+        elif msg_type == "audio":
+            media_id = (msg.get("audio") or {}).get("id"); media_kind = "audio"
+        elif msg_type == "image":
+            media_id = (msg.get("image") or {}).get("id"); media_kind = "image"
+        elif msg_type == "interactive":
+            inter = msg.get("interactive", {})
+            text_body = (inter.get("button_reply") or inter.get("list_reply") or {}).get("title", "")
+        else:
+            text_body = ""
+
+        reply_text = _run_bot_for_cloud(from_number, text_body, media_id, media_kind)
+        if reply_text:
+            send_whatsapp_cloud(from_number, reply_text)
+        return "ok", 200
+    except Exception as e:
+        print("whatsapp_cloud inbound error:", e)
+        import traceback; print(traceback.format_exc())
+        return "ok", 200  # always 200 so Meta doesn't disable the webhook
+
+
+def _run_bot_for_cloud(from_number, text_body, media_id, media_kind):
+    """Bridge Cloud API messages into a reply. For this first live test it runs a
+    self-contained Claude responder so we can verify the round-trip end to end.
+    Once the pipe is proven, this widens to the full quote/booking flow that the
+    /whatsapp route implements."""
+    try:
+        sender = "+" + str(from_number).lstrip("+")
+        # Voice note -> transcribe via Whisper
+        if media_kind == "audio" and media_id:
+            content, mime = fetch_wa_cloud_media(media_id)
+            if content:
+                try:
+                    from openai import OpenAI
+                    apath = "/tmp/wac_" + str(from_number) + ".ogg"
+                    with open(apath, "wb") as f:
+                        f.write(content)
+                    oc = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+                    with open(apath, "rb") as af:
+                        text_body = oc.audio.transcriptions.create(model="whisper-1", file=af).text.strip()
+                    print("cloud voice transcribed:", text_body)
+                except Exception as e:
+                    print("cloud voice transcribe error:", e)
+                    return "Sorry, I couldn't make out that voice note - could you type it instead?"
+        if media_kind == "image":
+            return "Thanks for the photo! Send me a quick description of the job and I'll help you get a price together."
+
+        if not text_body:
+            return "Hi! Send me a message about the job you need and I'll help you out."
+
+        profile = get_user_profile(sender)
+        biz = (profile or {}).get("business_name", "the business")
+        trade = (profile or {}).get("trade", "trade")
+        sys_p = ("You are the friendly assistant for " + str(biz) + ", a UK " + str(trade) + " business, "
+                 "replying to a customer on WhatsApp. Keep replies short, warm, plain British English, no emojis. "
+                 "Help them describe their job so it can be quoted. If they ask about price, say you'll get the owner to confirm "
+                 "an exact figure and take their job details. Never invent prices or confirm bookings yourself.")
+        if sender not in conversation_history:
+            conversation_history[sender] = []
+        conversation_history[sender].append({"role": "user", "content": text_body})
+        conversation_history[sender] = conversation_history[sender][-12:]
+        ai = client.messages.create(model="claude-sonnet-4-5", max_tokens=400,
+                                    system=sys_p, messages=conversation_history[sender])
+        reply = (ai.content[0].text or "").strip()
+        conversation_history[sender].append({"role": "assistant", "content": reply})
+        # log inbound (best-effort)
+        try:
+            biz_num = (profile or {}).get("twilio_number", "") if profile else ""
+            supabase.table("client_chats").insert({"twilio_number": _strip_wa(biz_num), "client_number": _strip_wa(sender),
+                "message": text_body, "direction": "inbound", "sender_profile": (profile or {}).get("sender", ""), "channel": "whatsapp"}).execute()
+        except Exception:
+            pass
+        return reply or "Got it - one moment."
+    except Exception as e:
+        print("_run_bot_for_cloud error:", e)
+        import traceback; print(traceback.format_exc())
+        return "Thanks for your message - I'll get back to you shortly."
 
 
 @app.route("/whatsapp", methods=["POST"])
