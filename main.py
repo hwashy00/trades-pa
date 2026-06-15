@@ -508,7 +508,12 @@ def _handle_missed_call(profile, caller):
 # own line in profiles.voicemail_greeting; if they haven't, we build a branded
 # default from their business_name so every number sounds like *their* business
 # (e.g. GW Plastering's number greets callers as GW Plastering, not generically).
-VOICE_NAME = "Polly.Amy"  # British English (Amazon Polly). Swap to Polly.Brian for a male voice.
+# British English Text-to-Speech voice for every spoken call prompt.
+# Tiers, cheapest→best:  Standard (robotic) · Neural (natural, GA) · Generative (most human, beta).
+# Just change this one string and redeploy — no Twilio Console setup needed.
+#   Female (neural): Polly.Amy-Neural    Male (neural): Polly.Brian-Neural / Polly.Arthur-Neural
+#   Most human (gen): Polly.Amy-Generative  ·  Google.en-GB-Chirp3-HD-Aoede
+VOICE_NAME = "Polly.Amy-Neural"
 
 
 def _voicemail_greeting(profile):
