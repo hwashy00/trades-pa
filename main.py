@@ -513,7 +513,7 @@ def _handle_missed_call(profile, caller):
 # Just change this one string and redeploy — no Twilio Console setup needed.
 #   Female (neural): Polly.Amy-Neural    Male (neural): Polly.Brian-Neural / Polly.Arthur-Neural
 #   Most human (gen): Polly.Amy-Generative  ·  Google.en-GB-Chirp3-HD-Aoede
-VOICE_NAME = "Polly.Amy-Neural"
+VOICE_NAME = "Polly.Brian-Neural"
 
 
 def _voicemail_greeting(profile):
