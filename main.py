@@ -503,6 +503,28 @@ def _handle_missed_call(profile, caller):
         return "error"
 
 
+# ── Per-trade voicemail greeting ──────────────────────────────────────────
+# Spoken to a caller who's been diverted to voicemail. Each trade can set their
+# own line in profiles.voicemail_greeting; if they haven't, we build a branded
+# default from their business_name so every number sounds like *their* business
+# (e.g. GW Plastering's number greets callers as GW Plastering, not generically).
+VOICE_NAME = "Polly.Amy"  # British English (Amazon Polly). Swap to Polly.Brian for a male voice.
+
+
+def _voicemail_greeting(profile):
+    """Return the spoken greeting for a diverted/voicemail call, branded per trade."""
+    if profile:
+        custom = (profile.get("voicemail_greeting") or "").strip()
+        if custom:
+            return custom
+        biz = (profile.get("business_name") or "").strip()
+        if biz:
+            return ("You've reached " + biz + ". We can't take your call right now, but if you "
+                    "leave a short message after the tone we'll get straight back to you.")
+    return ("Sorry, we can't take your call right now. Please leave a short message after the "
+            "tone and we'll get back to you.")
+
+
 def contact_number_for(owner_sender, name):
     """Resolve a client name to their saved number (partial match, owner-scoped)."""
     name = (name or "").strip()
@@ -2304,12 +2326,12 @@ def incoming_call():
             _handle_missed_call(profile, caller)
         except Exception as e:
             print("forwarded missed-call triage error:", e)
-        resp.say("Sorry, we can't take your call right now. Please leave a short message after the tone and we'll get back to you.")
+        resp.say(_voicemail_greeting(profile), voice=VOICE_NAME)
         resp.record(action="/voicemail", method="POST", max_length=120, play_beep=True, timeout=4, trim="trim-silence")
         return str(resp)
     if profile and profile.get("phone"):
         _recent_dial_attempts[caller] = _now
-        resp.say("Please hold while we connect your call. Please note, calls may be recorded and transcribed for quality and training purposes.")
+        resp.say("Please hold while we connect your call. Please note, calls may be recorded and transcribed for quality and training purposes.", voice=VOICE_NAME)
         rec_cb = "/call-recording?caller=" + quote(caller) + "&called=" + quote(called)
         dial = Dial(action="/call-status", method="POST", timeout=20,
                     record="record-from-answer-dual",
@@ -2319,7 +2341,7 @@ def incoming_call():
         dial.number(profile.get("phone"))
         resp.append(dial)
     else:
-        resp.say("Sorry, we are unable to connect your call right now. Please try again later.")
+        resp.say("Sorry, we are unable to connect your call right now. Please try again later.", voice=VOICE_NAME)
     return str(resp)
 
 
@@ -2333,6 +2355,7 @@ def call_status():
     if dial_status != "completed":
         # Missed — triage the caller (personal / known client / new lead),
         # then take a voicemail we'll transcribe.
+        profile = None
         try:
             result = supabase.table("profiles").select("*").eq("twilio_number", called).execute()
             profile = result.data[0] if result.data else None
@@ -2340,7 +2363,7 @@ def call_status():
                 _handle_missed_call(profile, caller)
         except Exception as e:
             print("Missed-call triage error: " + str(e))
-        resp.say("Sorry, we can't take your call right now. Please leave a short message after the tone and we'll get back to you.")
+        resp.say(_voicemail_greeting(profile), voice=VOICE_NAME)
         resp.record(action="/voicemail", method="POST", max_length=120, play_beep=True, timeout=4, trim="trim-silence")
     return str(resp)
 
@@ -2353,7 +2376,7 @@ def voicemail():
     called = request.form.get("To", "")
     recording_url = request.form.get("RecordingUrl", "")
     resp = VoiceResponse()
-    resp.say("Thanks, we've got that and we'll be in touch shortly. Goodbye.")
+    resp.say("Thanks, we've got that and we'll be in touch shortly. Goodbye.", voice=VOICE_NAME)
     try:
         result = supabase.table("profiles").select("*").eq("twilio_number", called).execute()
         profile = result.data[0] if result.data else None
