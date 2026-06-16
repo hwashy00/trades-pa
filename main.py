@@ -5148,6 +5148,77 @@ def api_generate_ad():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/social-post", methods=["POST"])
+def api_social_post():
+    """Write ONE ready-to-post social caption from a short description and/or a
+    photo of a just-finished job. Photo-aware: if a photo is sent, Claude looks at
+    it and references the finished work. Ends with the owner's Facebook quote link."""
+    phone = format_phone(request.args.get("phone", "").strip())
+    pin = request.args.get("pin", "")
+    if not phone or not pin:
+        return jsonify({"error": "Phone and PIN required"}), 401
+    try:
+        result = supabase.table("profiles").select("*").eq("phone", phone).execute()
+        if not result.data or str(result.data[0].get("pin", "")) != str(pin):
+            return jsonify({"error": "Unauthorised"}), 401
+        profile = result.data[0]
+        data = request.get_json(force=True, silent=True) or {}
+        desc = (data.get("description", "") or "").strip()
+        photo_b64 = data.get("photo", "") or ""
+        vibe = (data.get("vibe", "") or "default").strip()
+        if not desc and not photo_b64:
+            return jsonify({"ok": False, "error": "Add a quick description or a photo first."})
+
+        biz = profile.get("business_name") or "our business"
+        trade = profile.get("trade") or ""
+        slug = ensure_capture_slug(profile)
+        link = request.url_root.rstrip("/") + "/q/" + slug + "?src=fb"
+
+        vibe_line = ""
+        if vibe == "different":
+            vibe_line = "Take a noticeably DIFFERENT angle or opening from the obvious one. "
+        elif vibe == "short":
+            vibe_line = "Keep it very short \u2014 one punchy line. "
+
+        sys = ("You write ONE ready-to-post social caption for a UK tradesperson to put on their OWN "
+               "Facebook/Instagram, showing off a job they've just finished, to win more local work.\n"
+               "Business: " + biz + (". Trade: " + trade if trade else "") + ".\n"
+               "Voice: a real, down-to-earth tradesperson \u2014 warm and proud of the work, never corporate or salesy. "
+               "1-3 short sentences. A couple of tasteful emojis are fine. " + vibe_line +
+               "If a photo is provided, look at it and naturally mention what stands out about the finished work. "
+               "Never include customer names or personal details. Never invent prices, guarantees, or details you can't see. "
+               "End with a short call to action for a free quote, then this exact link on its own final line: " + link + "\n"
+               "Return ONLY the caption text \u2014 no preamble, no surrounding quotes, no list of options.")
+
+        content = []
+        if photo_b64:
+            b64 = photo_b64
+            mime = "image/jpeg"
+            if photo_b64.startswith("data:") and "," in photo_b64:
+                header, b64 = photo_b64.split(",", 1)
+                try:
+                    mime = header.split(":", 1)[1].split(";", 1)[0] or "image/jpeg"
+                except Exception:
+                    mime = "image/jpeg"
+            content.append({"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}})
+        content.append({"type": "text", "text": (desc or "Here's a photo of the job I just finished. Write the post.")})
+
+        ai = client.messages.create(model="claude-sonnet-4-5", max_tokens=400, system=sys,
+                                    messages=[{"role": "user", "content": content}])
+        caption = ai.content[0].text.strip()
+        if link not in caption:
+            caption = caption + "\n" + link
+        try:
+            track_usage(profile.get("sender", ""), "text")
+        except Exception:
+            pass
+        return jsonify({"ok": True, "caption": caption, "link": link})
+    except Exception as e:
+        print("api_social_post error:", e)
+        print(traceback.format_exc())
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
 @app.route("/api/usage", methods=["GET"])
 def api_usage():
     try:
