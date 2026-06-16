@@ -546,6 +546,33 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .asst-tool.rec svg{color:var(--ink)}
 .asst-tool.rec span{color:var(--ink)}
 /* ── social post composer ── */
+.sp-sub{font-size:.82rem;color:var(--t2);line-height:1.55;margin-bottom:15px}
+.sp-photos{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.sp-add{width:74px;height:74px;border-radius:14px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--s2);border:1.5px dashed var(--br);color:var(--t3);cursor:pointer}
+.sp-add svg{width:22px;height:22px}
+.sp-add span{font-size:.6rem;font-weight:700}
+.sp-thumb{width:74px;height:74px;border-radius:14px;flex-shrink:0;position:relative;background-size:cover;background-position:center;border:1px solid var(--br)}
+.sp-thumb button{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:var(--bg);border:1px solid var(--br);color:var(--t1);font-size:.85rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.sp-label{font-size:.82rem;font-weight:800;color:var(--t1);margin-bottom:8px}
+.sp-desc,.sp-caption{width:100%;box-sizing:border-box;background:var(--s2);border:1px solid var(--br);border-radius:14px;padding:13px 15px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.9rem;line-height:1.5;outline:none;resize:none}
+.sp-desc:focus,.sp-caption:focus{border-color:var(--acc)}
+.sp-desc::placeholder{color:var(--t4)}
+.sp-mic{width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--s2);border:1px solid var(--br);border-radius:13px;padding:12px;color:var(--t2);font-family:'Hanken Grotesk',sans-serif;font-size:.84rem;font-weight:700;cursor:pointer;transition:.15s}
+.sp-mic svg{width:18px;height:18px}
+.sp-mic.rec{background:var(--acc-d);border-color:rgba(255,138,30,.4);color:var(--acc2)}
+.sp-mic.rec svg{animation:spmic 1s infinite}
+@keyframes spmic{0%,100%{opacity:1}50%{opacity:.35}}
+.sp-gen{width:100%;margin-top:18px;padding:15px;background:var(--acc);border:none;border-radius:14px;color:var(--ink);font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.05rem;letter-spacing:.03em;text-transform:uppercase;cursor:pointer;transition:transform .12s var(--press),filter .15s}
+.sp-gen:active{transform:scale(.97)}
+.sp-gen:disabled{filter:grayscale(.4) brightness(.7);cursor:default}
+.sp-photos-strip{display:flex;gap:8px;overflow-x:auto;margin-bottom:16px}
+.sp-photos-strip img{width:88px;height:88px;border-radius:12px;object-fit:cover;flex-shrink:0;border:1px solid var(--br)}
+.sp-actions{display:flex;gap:9px;margin-top:11px}
+.sp-act{flex:1;padding:13px;border-radius:12px;border:1px solid var(--br);background:var(--s2);color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:.84rem;cursor:pointer;transition:transform .12s var(--press)}
+.sp-act.primary{background:var(--acc);color:var(--ink);border-color:var(--acc)}
+.sp-act.ghost{background:none;color:var(--t3);font-weight:700}
+.sp-act:active{transform:scale(.97)}
+
 .po-title{font-family:'Big Shoulders Display',sans-serif;font-size:1.35rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
 .po-drop{display:flex;flex-direction:column;align-items:center;gap:7px;padding:34px 18px;border:1.5px dashed rgba(255,138,30,.45);border-radius:16px;background:var(--acc-d);color:var(--acc2);cursor:pointer;text-align:center}
 .po-drop b{font-family:'Big Shoulders Display',sans-serif;font-size:1.15rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--t1)}
@@ -875,6 +902,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
         </label>
         <button class="asst-tool" onclick="hfOpen()" title="Hands-free voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg><span>Hands-free</span></button>
         <button class="asst-tool" id="asstDictBtn" onclick="asstMicToggle()" title="Voice note → text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 9v6M9 5v14M13 8v8M17 6v12M21 10v4"/></svg><span>Dictate</span></button>
+        <button class="asst-tool" onclick="asstToolsToggle();openPostModal('','')" title="Make a social post"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4l1.7 4.6L18 10l-4.3 1.4L12 16l-1.7-4.6L6 10l4.3-1.4z" stroke-linejoin="round"/><path d="M19 5v2.4M20.2 6.2h-2.4" stroke-linecap="round"/></svg><span>Make a post</span></button>
       </div>
       <div class="asst-bar">
         <button class="asst-plus" id="asstPlus" onclick="asstToolsToggle()" title="Tools"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -1476,52 +1504,37 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
     </div>
     <div id="poStats" style="display:none;font-size:.76rem;font-weight:700;background:rgba(255,138,30,.12);color:var(--acc);border-radius:10px;padding:9px 12px;margin-bottom:12px"></div>
 
-    <!-- STATE A: no photos yet -->
-    <div id="poEmpty">
-      <div id="poIntro" style="font-size:.8rem;color:var(--t2);line-height:1.55;margin-bottom:14px">Add a photo of the finished job (or a before &amp; after) and we'll brand it ready to post. Then grab a caption below.</div>
-      <label class="po-drop">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:30px;height:30px"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.4"/><path d="M8 7l1.5-3h5L16 7"/></svg>
-        <b>Add photos of the job</b>
-        <span>Up to 4 &middot; the first becomes your branded cover</span>
-        <input type="file" accept="image/*" multiple onchange="poLoadMulti(this)" style="display:none">
-      </label>
+    <!-- SIMPLE POST FLOW -->
+    <div id="spInput">
+      <div class="sp-sub">Just finished a job? Add a photo or two, say what you did (type or record a voice note), and I’ll write the post for you.</div>
+      <div class="sp-photos" id="spPhotos">
+        <label class="sp-add" id="spAddTile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.3"/><path d="M8 7l1.4-3h5.2L16 7"/></svg>
+          <span>Add photos</span>
+          <input type="file" accept="image/*" multiple onchange="spAddPhotos(this)" style="display:none">
+        </label>
+      </div>
+      <div class="sp-label">What did you get done?</div>
+      <textarea id="spDesc" class="sp-desc" rows="3" placeholder="e.g. Finished a full re-skim on a lounge ceiling in Exeter today — came up lovely and smooth"></textarea>
+      <button type="button" class="sp-mic" id="spMic" onclick="spToggleRec()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg>
+        <span id="spMicTxt">Record a voice note instead</span>
+      </button>
+      <button type="button" class="sp-gen" id="spGenBtn" onclick="spGenerate(false)">Write my post</button>
     </div>
-
-    <!-- STATE B: editor, preview first -->
-    <div id="poEditor" style="display:none">
-      <canvas id="poCanvas" width="1080" height="1350" class="po-canvas"></canvas>
-      <div class="po-styles">
-        <button id="poStyleSpot" onclick="poSetStyle('spotlight')" style="background:var(--s2);color:var(--t2)">Spotlight</button>
-        <button id="poStyleMin" onclick="poSetStyle('minimal')" style="background:var(--s2);color:var(--t2)">Minimal</button>
-        <button id="poStyleBrand" onclick="poSetStyle('branded')" style="background:var(--s2);color:var(--t2)">Branded</button>
-        <button id="poStyleShow" onclick="poSetStyle('showcase')" style="background:var(--acc);color:var(--ink)">Showcase</button>
+    <div id="spResult" style="display:none">
+      <div class="sp-photos-strip" id="spResultPhotos"></div>
+      <div class="sp-label">Your post — tweak anything, then copy or share</div>
+      <textarea id="spCaption" class="sp-caption" rows="7"></textarea>
+      <div class="sp-actions">
+        <button type="button" class="sp-act primary" onclick="spCopy(this)">Copy caption</button>
+        <button type="button" class="sp-act" id="spShareBtn" onclick="spShare()">Share</button>
       </div>
-      <div class="po-slots">
-        <label class="poSlot" id="poSlot0"><span class="poSlotPlus">+</span><input type="file" accept="image/*" onchange="poLoad(0,this)" style="display:none"></label>
-        <label class="poSlot" id="poSlot1"><span class="poSlotPlus">+</span><input type="file" accept="image/*" onchange="poLoad(1,this)" style="display:none"></label>
-        <label class="poSlot" id="poSlot2"><span class="poSlotPlus">+</span><input type="file" accept="image/*" onchange="poLoad(2,this)" style="display:none"></label>
-        <label class="poSlot" id="poSlot3"><span class="poSlotPlus">+</span><input type="file" accept="image/*" onchange="poLoad(3,this)" style="display:none"></label>
-        <button id="poBABtn" onclick="poToggleBA()" class="po-ba" style="background:var(--s2);color:var(--t2)">Before / After labels: Off</button>
-      </div>
-      <button onclick="poShare()" class="po-share">Share post</button>
-      <button id="poCustomBtn" onclick="poCustomToggle()" class="po-custom-btn">Customise <span id="poCustomArrow">&#9662;</span></button>
-      <div id="poCustom" style="display:none">
-        <input id="poHeadline" oninput="poRender()" placeholder="Headline &mdash; e.g. Kitchen fit &middot; Exeter" class="po-field">
-        <input id="poCTAtext" value="FREE QUOTES &middot; MESSAGE US" oninput="_poCTAtext=this.value;poRender()" placeholder="Call to action" class="po-field">
-        <input id="poTagText" value="JUST COMPLETED" oninput="_poTagText=this.value;poRender()" placeholder="Corner tag (blank to hide)" class="po-field">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-          <label style="font-size:.78rem;color:var(--t2);font-weight:700;flex:1">Brand colour</label>
-          <input type="color" value="#ff8a1e" oninput="_poColor=this.value;poRender()" style="width:46px;height:34px;border:none;background:none;padding:0;cursor:pointer">
-        </div>
-        <label id="poLogoLbl" class="po-logo">+ Add your logo (optional)<input id="poLogoFile" type="file" accept="image/*" onchange="poLoadLogo(this)" style="display:none"></label>
-        <button onclick="poProVersion()" class="po-pro">&#10024; Pro design version</button>
-        <div id="poProResult" style="display:none;margin-top:12px"></div>
+      <div class="sp-actions">
+        <button type="button" class="sp-act ghost" onclick="spGenerate(true)">Try another version</button>
+        <button type="button" class="sp-act ghost" onclick="spReset()">Start over</button>
       </div>
     </div>
-    <div style="height:1px;background:var(--br);margin:20px 0 16px"></div>
-    <div style="font-size:.88rem;font-weight:800;margin-bottom:6px">Captions</div>
-    <div style="font-size:.76rem;color:var(--t3);line-height:1.5;margin-bottom:14px">Copy one to go with your image. Each ends with your quote link, so new enquiries land tagged "Facebook".</div>
-    <div id="postVariants"><div style="color:var(--t3);font-size:.8rem;text-align:center;padding:20px">Writing your post…</div></div>
   </div>
 
   <!-- QUOTE EDITOR / EXTRAS DRAWER -->
@@ -3151,19 +3164,11 @@ function openInvoiceFromQuote(q){
 }
 var _poReady=false;
 function openPostModal(job, loc){
-  _poJob=(job||'');
-  try{ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(function(){ try{poRender();}catch(e){} }); }catch(e){}
   document.getElementById('postModalOverlay').style.display='block';
   document.getElementById('postModal').style.display='block';
-  document.getElementById('postVariants').innerHTML='<div style="color:var(--t3);font-size:.8rem;text-align:center;padding:20px">Writing your captions…</div>';
-  var intro=document.getElementById('poIntro');
-  if(intro) intro.innerHTML = _poReady
-    ? '&#127881; <b>Job done!</b> Your post is ready — add a photo or two and tap share. We\'ve written the caption and branded it for you.'
-    : 'Add a photo of the finished job (or a before &amp; after) and we\'ll brand it ready to post. Then grab a caption below.';
-  _poReady=false;
-  var hl=document.getElementById('poHeadline'); if(hl)hl.value='';
-  poResetComposer();
-  generateAd(job,loc);
+  spReset();
+  var pre=(job||'').trim(); var lc=(loc||'').trim(); if(lc) pre+=(pre?' \u2014 ':'')+lc;
+  var d=document.getElementById('spDesc'); if(d) d.value=pre;
   loadPostStats();
 }
 async function loadPostStats(){
@@ -3178,8 +3183,127 @@ async function loadPostStats(){
   }catch(e){ el.style.display='none'; }
 }
 function closePostModal(){
+  if(spRecOn){ try{ spStopRec(true); }catch(e){} }
   document.getElementById('postModalOverlay').style.display='none';
   document.getElementById('postModal').style.display='none';
+}
+var spImgs=[]; var spRec=null, spStream=null, spChunks=[], spRecOn=false, spMime='';
+function spReset(){
+  spImgs=[];
+  var inp=document.getElementById('spInput'); if(inp) inp.style.display='block';
+  var res=document.getElementById('spResult'); if(res) res.style.display='none';
+  var d=document.getElementById('spDesc'); if(d) d.value='';
+  spRenderPhotos();
+}
+function spRenderPhotos(){
+  var wrap=document.getElementById('spPhotos'); if(!wrap) return;
+  wrap.querySelectorAll('.sp-thumb').forEach(function(n){ n.remove(); });
+  var add=document.getElementById('spAddTile');
+  spImgs.forEach(function(src,i){
+    var t=document.createElement('div'); t.className='sp-thumb'; t.style.backgroundImage='url('+src+')';
+    var x=document.createElement('button'); x.type='button'; x.innerHTML='&times;';
+    x.onclick=function(){ spImgs.splice(i,1); spRenderPhotos(); };
+    t.appendChild(x); if(add){ wrap.insertBefore(t,add); } else { wrap.appendChild(t); }
+  });
+  if(add) add.style.display = spImgs.length>=4 ? 'none' : 'flex';
+}
+function spAddPhotos(input){
+  var files=Array.prototype.slice.call(input.files||[]); input.value='';
+  files.forEach(function(f){
+    if(spImgs.length>=4) return;
+    var rd=new FileReader();
+    rd.onload=function(e){ spDownscale(e.target.result,function(small){ if(spImgs.length<4){ spImgs.push(small); spRenderPhotos(); } }); };
+    rd.readAsDataURL(f);
+  });
+}
+function spDownscale(dataUrl,cb){
+  var img=new Image();
+  img.onload=function(){
+    var max=1280,w=img.width,h=img.height;
+    if(w>max||h>max){ if(w>h){ h=Math.round(h*max/w); w=max; } else { w=Math.round(w*max/h); h=max; } }
+    try{ var c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); cb(c.toDataURL('image/jpeg',0.82)); }
+    catch(e){ cb(dataUrl); }
+  };
+  img.onerror=function(){ cb(dataUrl); };
+  img.src=dataUrl;
+}
+async function spToggleRec(){
+  if(spRecOn){ spStopRec(); return; }
+  try{ if(!spStream||!spStream.active) spStream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ alert('Microphone not available \u2014 you can type instead.'); return; }
+  spMime=(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported('audio/webm'))?'audio/webm'
+        :(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported('audio/mp4'))?'audio/mp4':'';
+  try{ spRec=spMime?new MediaRecorder(spStream,{mimeType:spMime}):new MediaRecorder(spStream); }
+  catch(e){ try{ spRec=new MediaRecorder(spStream); }catch(e2){ alert('Recording not supported here \u2014 type instead.'); return; } }
+  spChunks=[];
+  spRec.ondataavailable=function(ev){ if(ev.data&&ev.data.size) spChunks.push(ev.data); };
+  spRec.onstop=function(){ spHandleAudio(); };
+  spRec.start(); spRecOn=true;
+  var b=document.getElementById('spMic'); if(b) b.classList.add('rec');
+  var t=document.getElementById('spMicTxt'); if(t) t.textContent='Tap to stop';
+  try{ haptic('light'); }catch(e){}
+}
+function spStopRec(silent){
+  spRecOn=false;
+  var b=document.getElementById('spMic'); if(b) b.classList.remove('rec');
+  var t=document.getElementById('spMicTxt'); if(t) t.textContent='Record a voice note instead';
+  try{ if(spRec&&spRec.state!=='inactive'){ if(silent) spRec.onstop=null; spRec.stop(); } }catch(e){}
+  if(silent){ try{ if(spStream){ spStream.getTracks().forEach(function(tr){tr.stop();}); spStream=null; } }catch(e){} }
+}
+async function spHandleAudio(){
+  var t=document.getElementById('spMicTxt'); if(t) t.textContent='Transcribing\u2026';
+  try{ if(spStream){ spStream.getTracks().forEach(function(tr){tr.stop();}); spStream=null; } }catch(e){}
+  if(!spChunks.length){ if(t) t.textContent='Record a voice note instead'; return; }
+  var blob=new Blob(spChunks,{type:spMime||'audio/webm'});
+  var fd=new FormData(); fd.append('audio',blob,'note.'+(((spMime||'').indexOf('mp4')>-1)?'mp4':'webm'));
+  try{
+    var r=await fetch('/api/stt?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{method:'POST',body:fd});
+    var d=await r.json(); var txt=((d&&d.text)||'').trim();
+    if(txt){ var ta=document.getElementById('spDesc'); ta.value=(ta.value?ta.value.trim()+' ':'')+txt; }
+    else { alert('Didn\u2019t catch that \u2014 try again or type it.'); }
+  }catch(e){ alert('Could not transcribe \u2014 type it instead.'); }
+  if(t) t.textContent='Record a voice note instead';
+}
+async function spGenerate(regen){
+  var dEl=document.getElementById('spDesc'); var desc=(dEl?dEl.value:'').trim();
+  if(!desc && !spImgs.length){ alert('Add a photo or a quick description first.'); return; }
+  var btn=document.getElementById('spGenBtn');
+  if(regen){ var cap=document.getElementById('spCaption'); if(cap) cap.value='Writing\u2026'; }
+  else if(btn){ btn.disabled=true; btn.textContent='Writing\u2026'; }
+  try{
+    var r=await fetch('/api/social-post?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({description:desc,photo:spImgs[0]||'',vibe:regen?'different':'default'})
+    });
+    var d=await r.json();
+    if(!d||!d.ok||!d.caption){ alert((d&&d.error)||'Couldn\u2019t write it just now \u2014 try again.'); }
+    else { spShowResult(d.caption); }
+  }catch(e){ alert('Something went wrong \u2014 try again.'); }
+  if(btn){ btn.disabled=false; btn.textContent='Write my post'; }
+}
+function spShowResult(caption){
+  document.getElementById('spInput').style.display='none';
+  document.getElementById('spResult').style.display='block';
+  document.getElementById('spCaption').value=caption;
+  var strip=document.getElementById('spResultPhotos'); strip.innerHTML='';
+  spImgs.forEach(function(src){ var im=new Image(); im.src=src; strip.appendChild(im); });
+  strip.style.display=spImgs.length?'flex':'none';
+  try{ haptic('success'); }catch(e){}
+}
+function spCopy(btn){
+  var t=document.getElementById('spCaption').value||'';
+  navigator.clipboard.writeText(t).then(function(){ var o=btn.textContent; btn.textContent='Copied!'; setTimeout(function(){ btn.textContent=o; },1300); try{haptic('success');}catch(e){} });
+}
+async function spShare(){
+  var text=document.getElementById('spCaption').value||'';
+  try{
+    var files=[];
+    for(var i=0;i<spImgs.length;i++){ try{ var bl=await (await fetch(spImgs[i])).blob(); files.push(new File([bl],'job'+(i+1)+'.jpg',{type:bl.type||'image/jpeg'})); }catch(e){} }
+    if(files.length && navigator.canShare && navigator.canShare({files:files})){ await navigator.share({files:files,text:text}); return; }
+    if(navigator.share){ await navigator.share({text:text}); return; }
+  }catch(e){ if(e&&e.name==='AbortError') return; }
+  try{ await navigator.clipboard.writeText(text); alert('Caption copied. Open Facebook or Instagram, pick your photos, and paste the caption.'); }
+  catch(e){ alert('Copy the caption, then post it with your photos.'); }
 }
 function _escPost(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 async function generateAd(job,location){
