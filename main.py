@@ -2931,6 +2931,52 @@ def incoming_sms():
                      "NEEDYOU:reason=customer proposed a time, confirm it or suggest another"
                      "|options=Confirm the time,Suggest another time,I\u2019ll reply myself")
 
+        # Strip ALL control tags so the customer only sees the human-readable reply.
+        # Cut at the EARLIEST tag so nothing leaks if several are present.
+        _cut = len(reply)
+        for _tag in ("NEWJOB:", "NEEDYOU:", "BOOKED:", "ESCALATE:", "CONTACT:"):
+            _i = reply.find(_tag)
+            if _i != -1:
+                _cut = min(_cut, _i)
+        clean_reply = reply[:_cut].strip()
+        if not clean_reply:
+            clean_reply = "Thanks for your message \u2014 we\u2019ll be in touch shortly."
+
+        # ── SEND THE REPLY NOW, over the Twilio REST API (NOT the TwiML reply) ──
+        # This handler makes one or more Claude calls and may be fetching a customer
+        # photo, so it can run past Twilio's ~15s webhook timeout. When that happened,
+        # Twilio dropped the TwiML <Message> reply but the outbound row had already been
+        # written to the inbox \u2014 so the thread showed a reply the customer never got.
+        # Sending over REST decouples delivery from the webhook timing, and
+        # send_to_client only logs to the inbox AFTER a successful send, so the chat
+        # thread can never show a message the customer didn't actually receive.
+        delivered = False
+        try:
+            send_res = send_to_client(profile, client_number, clean_reply, prefer="sms")
+            delivered = bool(send_res.get("ok"))
+            if delivered:
+                track_usage(sender, "sms")
+            else:
+                print("incoming_sms REST send failed:", send_res.get("error"))
+        except Exception as _se:
+            print("incoming_sms send error:", _se)
+
+        # Last resort only: if the REST send genuinely failed, fall back to the TwiML
+        # reply so the customer still hears back, and log it so the thread matches.
+        if not delivered:
+            resp.message(clean_reply)
+            try:
+                supabase.table("client_chats").insert({
+                    "twilio_number": twilio_number, "client_number": client_number,
+                    "message": clean_reply, "direction": "outbound",
+                    "sender_profile": sender, "channel": "sms"
+                }).execute()
+            except Exception as _le:
+                print("incoming_sms fallback log error:", _le)
+
+        # ── Everything below is secondary bookkeeping. It does NOT change what the
+        #    customer sees, so it runs AFTER the reply has already gone out. ──
+
         # Check if client is confirming payment
         overdue = supabase.table("invoices").select("*").eq("sender", sender).in_("status", ["unpaid", "overdue"]).execute()
         client_invoices = [i for i in (overdue.data or []) if i.get("client_number") == client_number]
@@ -3022,29 +3068,6 @@ def incoming_sms():
                              "\n\nReply with a number, or just tell me what to do.")
             except Exception as e:
                 print("NEEDYOU parse error:", e)
-
-        # Strip ALL control tags so the customer only sees the human-readable reply.
-        # Cut at the EARLIEST tag so nothing leaks if several are present.
-        _cut = len(reply)
-        for _tag in ("NEWJOB:", "NEEDYOU:", "BOOKED:", "ESCALATE:", "CONTACT:"):
-            _i = reply.find(_tag)
-            if _i != -1:
-                _cut = min(_cut, _i)
-        clean_reply = reply[:_cut].strip()
-        if not clean_reply:
-            clean_reply = "Thanks for your message \u2014 we\u2019ll be in touch shortly."
-
-        # Save outgoing message
-        supabase.table("client_chats").insert({
-            "twilio_number": twilio_number,
-            "client_number": client_number,
-            "message": clean_reply,
-            "direction": "outbound",
-            "sender_profile": sender,
-            "channel": "sms"
-        }).execute()
-
-        resp.message(clean_reply)
 
     except Exception as e:
         print("SMS handler error: " + str(e))
