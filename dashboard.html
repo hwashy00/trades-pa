@@ -452,7 +452,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .thread-typing{align-self:flex-start;display:flex;gap:4px;padding:11px 14px;background:var(--s2);border:1px solid var(--br2);border-radius:18px;border-bottom-left-radius:6px;margin-top:4px}
 .thread-typing span{width:6px;height:6px;border-radius:50%;background:var(--t3);animation:asstdot 1.2s infinite}
 .thread-typing span:nth-child(2){animation-delay:.2s}.thread-typing span:nth-child(3){animation-delay:.4s}
-.thread-reply{flex-shrink:0;padding:10px 12px 26px;background:linear-gradient(180deg,transparent,var(--bg) 22%);display:flex;gap:8px;align-items:flex-end}
+.thread-reply{flex-shrink:0;position:relative;padding:10px 12px 26px;background:linear-gradient(180deg,transparent,var(--bg) 22%);display:flex;gap:8px;align-items:flex-end}
 .reply-ta{flex:1;padding:11px 15px;background:var(--s2);border:1px solid var(--br);border-radius:22px;color:var(--t1);font-family:Hanken\ Grotesk,sans-serif;font-size:.9rem;outline:none;resize:none;min-height:44px;max-height:120px;overflow-y:auto;transition:border-color .2s;line-height:1.4}
 .reply-ta:focus{border-color:var(--acc)}
 .reply-send{width:46px;height:46px;border-radius:50%;background:var(--acc);border:none;color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform .12s var(--press),opacity .15s}
@@ -1608,7 +1608,7 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
             <button onclick="qReply('Happy to quote that — leave it with me.')">Happy to quote</button>
           </div>
           <div class="thread-reply">
-            <textarea class="reply-ta" id="replyTa" placeholder="Message..." rows="1" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendReply();}"></textarea>
+            <textarea class="reply-ta" id="replyTa" placeholder="Message..." rows="1" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'" onfocus="setTimeout(function(){var e=document.getElementById('threadMsgs');if(e)e.scrollTop=e.scrollHeight;},300)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendReply();}"></textarea>
             <button class="reply-send" onclick="sendReply()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 12l16-8-6 16-3-7-7-1z" stroke-linejoin="round"/></svg></button>
           </div>
         </div>
@@ -5697,21 +5697,38 @@ function filterInbox(q){
   if(nores) nores.style.display=(q&&shown===0)?'block':'none';
 }
 
-function renderThread(messages){
+function renderThread(messages, opts){
+  opts = opts || {};
   const el=document.getElementById('threadMsgs');
+  const msgs = messages || [];
+  // Remember where we are so a background refresh doesn't yank the view around.
+  const distBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+  const nearBottom = distBottom < 80;
+  const prevRendered = parseInt(el.dataset.rendered||'0');
+  // Only newly-arrived bubbles should animate in. On the initial paint, or a poll
+  // that redraws history, the older bubbles stay put — otherwise the whole thread
+  // re-pops every few seconds and looks broken.
+  const animateFrom = (opts.animate===false) ? msgs.length : prevRendered;
   el.innerHTML='';
   let lastDay='', lastDir='', lastT=0;
-  (messages||[]).forEach(m=>{
+  msgs.forEach((m,i)=>{
     const out=m.direction==='outbound';
     const t=new Date(m.created_at).getTime();
     const day=dayLabel(m.created_at);
-    if(day!==lastDay){ const d=document.createElement('div'); d.className='tday'; d.textContent=day; el.appendChild(d); lastDay=day; lastDir=''; }
+    if(day!==lastDay){ const d=document.createElement('div'); d.className='tday'; d.textContent=day; el.appendChild(d); lastDay=day; lastDir=''; lastT=0; }
     const grouped=(m.direction===lastDir)&&(t-lastT<120000); // same sender within 2 min
     const row=document.createElement('div');
     row.className='trow '+(out?'out':'in')+(grouped?' grouped':'');
     const bubble=document.createElement('div'); bubble.className='tmsg'; bubble.textContent=m.message;
+    if(i<animateFrom) bubble.style.animation='none';
     row.appendChild(bubble);
-    if(!grouped || true){
+    // Time + tick only on the LAST message of a run (same sender, within 2 min,
+    // same day). Stacking a timestamp under every bubble looked cluttered.
+    const nxt=msgs[i+1];
+    const isTail = !nxt || nxt.direction!==m.direction
+      || (new Date(nxt.created_at).getTime()-t)>=120000
+      || dayLabel(nxt.created_at)!==day;
+    if(isTail){
       const meta=document.createElement('div'); meta.className='tmeta';
       meta.innerHTML=msgTime(m.created_at)+(out?' <span class="tick ok">'+ICO.check+'</span>':'');
       row.appendChild(meta);
@@ -5719,7 +5736,12 @@ function renderThread(messages){
     el.appendChild(row);
     lastDir=m.direction; lastT=t;
   });
-  el.scrollTop=el.scrollHeight;
+  el.dataset.rendered=String(msgs.length);
+  el.dataset.count=String(msgs.length);
+  // Jump to newest only when asked (open / after sending) or if you were already
+  // near the bottom; otherwise hold your scroll position so reading isn't interrupted.
+  if(opts.forceBottom || nearBottom){ el.scrollTop=el.scrollHeight; }
+  else { el.scrollTop = el.scrollHeight - el.clientHeight - distBottom; }
 }
 
 function openThread(num,nameEnc){
@@ -5735,6 +5757,7 @@ function openThread(num,nameEnc){
   document.getElementById('inboxListView').style.display='none';
   document.getElementById('inboxThreadView').style.display='flex';
   const msgsEl=document.getElementById('threadMsgs');
+  msgsEl.dataset.rendered='0'; msgsEl.dataset.count='';
   msgsEl.innerHTML='<div class="thread-typing" style="margin:auto"><span></span><span></span><span></span></div>';
   fetchThread(num,true);
   document.getElementById('replyTa').value='';
@@ -5753,10 +5776,9 @@ function fetchThread(num,initial){
     if(inboxCurrentClient!==num) return; // user navigated away
     const msgs=d.messages||[];
     const el=document.getElementById('threadMsgs');
-    // only re-render if message count changed (avoid scroll jump on poll)
+    // Skip if nothing changed, so a background poll doesn't redraw needlessly.
     if(!initial && el.dataset.count==String(msgs.length)) return;
-    el.dataset.count=String(msgs.length);
-    renderThread(msgs);
+    renderThread(msgs, initial ? {forceBottom:true, animate:false} : {animate:true});
     if(msgs.length){ markSeen(num, msgs[msgs.length-1].created_at); }
   }).catch(e=>console.warn('thread',e));
 }
@@ -5775,6 +5797,20 @@ function qReply(text){
   ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px';
 }
 
+function showReplyError(text){
+  const bar=document.querySelector('.thread-reply');
+  if(!bar) return;
+  let pill=document.getElementById('replyErrPill');
+  if(!pill){
+    pill=document.createElement('div'); pill.id='replyErrPill';
+    pill.style.cssText='position:absolute;left:12px;right:12px;bottom:calc(100% - 6px);background:var(--red,#e5484d);color:#fff;font-family:Hanken Grotesk,sans-serif;font-size:.78rem;font-weight:600;padding:9px 13px;border-radius:12px;text-align:center;box-shadow:0 6px 18px -6px rgba(0,0,0,.5);z-index:6;animation:msgPop .2s var(--spring)';
+    bar.appendChild(pill);
+  }
+  pill.textContent=text||'Couldn\u2019t send \u2014 message put back in the box. Try again.';
+  clearTimeout(pill._t);
+  pill._t=setTimeout(()=>{ if(pill) pill.remove(); }, 4000);
+}
+
 async function sendReply(){
   const ta=document.getElementById('replyTa');
   const msg=ta.value.trim();
@@ -5782,31 +5818,38 @@ async function sendReply(){
   if(!inboxCurrentClient){ return; }
   haptic('light');
   const btn=document.querySelector('.reply-send');
-  if(btn) btn.style.opacity='0.5';
-  ta.value=''; ta.style.height='';
+  if(btn){ btn.style.opacity='0.5'; btn.disabled=true; }
+  ta.value=''; ta.style.height='auto';
   const el=document.getElementById('threadMsgs');
   // optimistic bubble
   const row=document.createElement('div'); row.className='trow out';
   const bubble=document.createElement('div'); bubble.className='tmsg'; bubble.textContent=msg;
   const meta=document.createElement('div'); meta.className='tmeta';
-  meta.innerHTML='Sending… <span class="tick sent">'+ICO.check+'</span>';
+  meta.innerHTML='Sending\u2026 <span class="tick sent">'+ICO.check+'</span>';
   row.appendChild(bubble); row.appendChild(meta);
   el.appendChild(row); el.scrollTop=el.scrollHeight;
-  const nowCount=parseInt(el.dataset.count||'0')+1; el.dataset.count=String(nowCount);
+  // keep render state in sync so the next poll doesn't re-pop the whole thread
+  const newCount=parseInt(el.dataset.count||'0')+1;
+  el.dataset.count=String(newCount); el.dataset.rendered=String(newCount);
   try{
     const url='/api/reply-client?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin);
     const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_number:inboxCurrentClient,message:msg})});
     const d=await res.json();
-    if(d.ok){
+    if(d && d.ok){
       meta.innerHTML=msgTime(new Date().toISOString())+' <span class="tick ok">'+ICO.check+'</span>';
       haptic('success');
-    } else {
-      meta.innerHTML='<span class="tick err">Failed</span>'; bubble.style.opacity='0.6'; haptic('error');
-    }
+    } else { throw new Error((d&&d.error)||'send failed'); }
   }catch(e){
-    meta.innerHTML='<span class="tick err">Failed — check connection</span>'; bubble.style.opacity='0.6'; haptic('error');
+    // Roll back cleanly: drop the un-sent bubble, fix the counts, and put the
+    // message back in the box so nothing is silently lost.
+    row.remove();
+    const back=Math.max(0,parseInt(el.dataset.count||'1')-1);
+    el.dataset.count=String(back); el.dataset.rendered=String(back);
+    ta.value=msg; ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px';
+    showReplyError();
+    haptic('error');
   }
-  if(btn) btn.style.opacity='1';
+  if(btn){ btn.style.opacity='1'; btn.disabled=false; }
 }
 
 // ── live inbox polling while on the inbox list ──
