@@ -128,10 +128,11 @@ def fetch_wa_cloud_media(media_id):
         print("fetch_wa_cloud_media error:", e)
         return None, None
 
-def send_to_client(profile, client_number, message, prefer=None):
+def send_to_client(profile, client_number, message, prefer=None, author="bot"):
     """
     Send a message to a client on the right channel, with SMS fallback.
     prefer: optional 'whatsapp' or 'sms' to force a starting preference.
+    author: 'bot' (assistant replied automatically) or 'owner' (you decided/typed it).
     Returns dict: {ok, channel, error}.
     """
     try:
@@ -179,13 +180,20 @@ def send_to_client(profile, client_number, message, prefer=None):
                 print("send_to_client sms failed:", repr(primary_err))
                 return {"ok": False, "channel": None, "error": str(primary_err)}
 
-        # Log the outbound with the channel actually used.
+        # Log the outbound with the channel actually used (and who composed it, so the
+        # app can mark which replies the assistant sent vs which you handled). The
+        # author column is optional — if it's not in the table yet we still log the row,
+        # so a missing column can never stop a message showing in the inbox.
         try:
-            supabase.table("client_chats").insert({
+            _row = {
                 "twilio_number": clean_from, "client_number": clean_to,
                 "message": message, "direction": "outbound",
                 "sender_profile": sender, "channel": used
-            }).execute()
+            }
+            try:
+                supabase.table("client_chats").insert(dict(_row, author=author)).execute()
+            except Exception:
+                supabase.table("client_chats").insert(_row).execute()
         except Exception as le:
             print("send_to_client log error:", le)
 
@@ -3052,20 +3060,54 @@ def incoming_sms():
                             cname = e["client_name"]; break
                 except Exception:
                     pass
-                # park the pending decision for the dashboard
-                supabase.table("pending_actions").insert({
-                    "sender": sender, "client_number": client_number, "client_name": cname,
-                    "twilio_number": twilio_number, "kind": "decision",
-                    "customer_msg": incoming_msg, "reason": reason,
-                    "options": options, "status": "pending"
-                }).execute()
-                # nudge the owner (SMS-first, works today)
-                who = cname or client_number
-                _opts_txt = ""
-                for _i, _o in enumerate(options[:5], 1):
-                    _opts_txt += "\n" + str(_i) + ". " + str(_o)
-                notify_owner(profile, "\u26A0 " + who + " needs you: " + reason + _opts_txt +
-                             "\n\nReply with a number, or just tell me what to do.")
+                # Park the decision for the dashboard — but DEDUPE first. If this
+                # customer already has an open decision waiting, refresh THAT card
+                # instead of stacking a new one. A chatty customer (or a back-and-forth
+                # while testing) used to create several cards for the same person, so
+                # clearing one by text left duplicates sitting in VanOffice to ignore.
+                _existing = []
+                try:
+                    _existing = (supabase.table("pending_actions").select("id")
+                                 .eq("sender", sender).eq("client_number", client_number)
+                                 .eq("status", "pending").limit(1).execute().data or [])
+                except Exception as _xe:
+                    print("pending dedupe lookup error:", _xe)
+                if _existing:
+                    _upd = {"reason": reason, "customer_msg": incoming_msg, "options": options}
+                    if cname:
+                        _upd["client_name"] = cname
+                    try:
+                        supabase.table("pending_actions").update(_upd).eq("id", _existing[0]["id"]).execute()
+                    except Exception as _ue:
+                        print("pending dedupe update error:", _ue)
+                else:
+                    supabase.table("pending_actions").insert({
+                        "sender": sender, "client_number": client_number, "client_name": cname,
+                        "twilio_number": twilio_number, "kind": "decision",
+                        "customer_msg": incoming_msg, "reason": reason,
+                        "options": options, "status": "pending"
+                    }).execute()
+                # Walk the owner through waiting customers ONE at a time. Only nudge for
+                # a genuinely NEW customer that's now at the FRONT of the queue. If others
+                # are already queued (or this was a refresh of an existing card), stay
+                # quiet — the owner is teed up the next as they clear each by text, so ten
+                # enquiries don't become ten colliding texts and a bare 'reply 2' is never
+                # ambiguous. Nothing is lost: every one shows in VanOffice meanwhile.
+                _only = True
+                try:
+                    _waiting = (supabase.table("pending_actions").select("id")
+                                .eq("sender", sender).eq("status", "pending")
+                                .execute().data or [])
+                    _only = (len(_waiting) <= 1)
+                except Exception as _ce:
+                    print("pending count error:", _ce)
+                if (not _existing) and _only:
+                    who = cname or client_number
+                    _opts_txt = ""
+                    for _i, _o in enumerate(options[:5], 1):
+                        _opts_txt += "\n" + str(_i) + ". " + str(_o)
+                    notify_owner(profile, "\u26A0 " + who + " needs you: " + reason + _opts_txt +
+                                 "\n\nReply with a number, or just tell me what to do.")
             except Exception as e:
                 print("NEEDYOU parse error:", e)
 
@@ -4585,7 +4627,7 @@ def _resolve_pending_action(profile, pa, choice, send_verbatim=False):
             print("phrasing error:", ae)
             customer_message = choice
 
-    send_res = send_to_client(profile, client_number, customer_message)
+    send_res = send_to_client(profile, client_number, customer_message, author="owner")
     if not send_res.get("ok"):
         return {"ok": False, "error": send_res.get("error") or "Send failed"}
 
@@ -4604,12 +4646,12 @@ def _resolve_pending_action(profile, pa, choice, send_verbatim=False):
 
 
 def _latest_pending(sender, client_name=""):
-    """Most recent customer decision still waiting on the owner. If client_name
-    is given, prefer a match on that name. Returns the row or None."""
+    """The customer at the FRONT of the queue still waiting on the owner (oldest
+    first), or a name match if client_name is given. Returns the row or None."""
     try:
         rows = (supabase.table("pending_actions").select("*")
                 .eq("sender", sender).eq("status", "pending")
-                .order("created_at", desc=True).limit(10).execute().data or [])
+                .order("created_at", desc=False).limit(20).execute().data or [])
     except Exception as e:
         print("_latest_pending error:", e)
         return None
@@ -4659,7 +4701,7 @@ def run_owner_assistant(profile, user_text):
         "Pick the right tool and just do it; don't ask for confirmation unless something is genuinely ambiguous.\n"
         "If the owner is responding to a customer who is waiting (a bare number choosing an option, confirming a time, "
         "giving a price, or saying what to tell them), use respond_to_customer \u2014 a bare number refers to the option "
-        "list of the most recent waiting customer. If they say to leave/ignore it, use dismiss_customer_request. "
+        "list of the customer at the front of the queue (the one currently being asked about). If they say to leave/ignore it, use dismiss_customer_request. "
         "Otherwise help them with the right tool. Never mention tool names or internal tags; just confirm what you did "
         "in a few words." + pend_txt
     )
@@ -4686,6 +4728,39 @@ def run_owner_assistant(profile, user_text):
         return "Sorry, I couldn't action that just now \u2014 try again, or open VanOffice."
 
 
+def _pending_queue(sender, limit=20):
+    """Customers still waiting on the owner, OLDEST first (first-come-first-served).
+    Presenting AND resolving in this order is what keeps a bare 'reply 2' pointing
+    at the customer we actually put in front of them."""
+    try:
+        return (supabase.table("pending_actions").select("*")
+                .eq("sender", sender).eq("status", "pending")
+                .order("created_at", desc=False).limit(limit).execute().data or [])
+    except Exception as e:
+        print("_pending_queue error:", e)
+        return []
+
+def _pending_options(pa):
+    options = pa.get("options") or []
+    if isinstance(options, str):
+        try:
+            options = json.loads(options)
+        except Exception:
+            options = [o.strip() for o in options.split(",") if o.strip()]
+    return options if isinstance(options, list) else []
+
+def _format_pending_prompt(pa, lead="\u26A0 "):
+    """The 'who needs you + numbered options' text for ONE waiting customer.
+    Reused for the first nudge and for teeing up the next one in the queue."""
+    who = pa.get("client_name") or pa.get("client_number") or "A customer"
+    reason = (pa.get("reason", "") or "needs a reply").strip()
+    txt = lead + who + " needs you: " + reason
+    for _i, _o in enumerate(_pending_options(pa)[:5], 1):
+        txt += "\n" + str(_i) + ". " + str(_o)
+    txt += "\n\nReply with a number, or just tell me what to do."
+    return txt
+
+
 def handle_owner_reply(profile, owner_text):
     """The owner texted their own VanOffice number. Action it by reply: instant
     approve/dismiss when a decision is waiting, otherwise hand to the assistant
@@ -4695,17 +4770,20 @@ def handle_owner_reply(profile, owner_text):
     if not text:
         return "Send me a quick instruction \u2014 e.g. 'what's on tomorrow', or reply to a waiting customer."
 
-    try:
-        pend = (supabase.table("pending_actions").select("*")
-                .eq("sender", sender).eq("status", "pending")
-                .order("created_at", desc=True).limit(5).execute().data or [])
-    except Exception as e:
-        print("owner reply pending fetch error:", e)
-        pend = []
+    # Work the queue OLDEST-first, so a bare 'reply 2' always means the customer we
+    # just put in front of you. After each one we tee up the next, so clearing them
+    # by text leaves nothing stale sitting in VanOffice for you to dismiss later.
+    pend = _pending_queue(sender)
+
+    def _and_next(prefix, resolved_id):
+        nxt = [p for p in _pending_queue(sender) if p.get("id") != resolved_id]
+        if nxt:
+            return prefix + "\n\nNext \u2014 " + _format_pending_prompt(nxt[0], lead="")
+        return prefix + "\n\nThat's everyone \u2014 all caught up \U0001F44D"
 
     # Fast, deterministic path for the commonest actions when a decision is waiting.
     if pend:
-        pa = pend[0]
+        pa = pend[0]                       # the customer currently in front of you
         who = pa.get("client_name") or pa.get("client_number") or "the customer"
         low = text.lower()
         if low in ("ignore", "dismiss", "skip", "leave it", "leave", "nothing", "no"):
@@ -4715,16 +4793,10 @@ def handle_owner_reply(profile, owner_text):
                 }).eq("id", pa.get("id")).execute()
             except Exception as e:
                 print("owner dismiss error:", e)
-            more = (" (" + str(len(pend) - 1) + " more waiting.)") if len(pend) > 1 else ""
-            return "Okay, left that with " + who + " for now." + more
+            return _and_next("Okay, left that with " + who + " for now.", pa.get("id"))
 
-        options = pa.get("options") or []
-        if isinstance(options, str):
-            try:
-                options = json.loads(options)
-            except Exception:
-                options = [o.strip() for o in options.split(",") if o.strip()]
-        if text.isdigit() and isinstance(options, list) and options:
+        options = _pending_options(pa)
+        if text.isdigit() and options:
             idx = int(text) - 1
             if 0 <= idx < len(options):
                 res = _resolve_pending_action(profile, pa, options[idx], send_verbatim=False)
@@ -4733,9 +4805,7 @@ def handle_owner_reply(profile, owner_text):
                 msg = "\u2713 Sent to " + who + "."
                 if res.get("booked"):
                     msg += " " + res["booked"] + "."
-                if len(pend) > 1:
-                    msg += " (" + str(len(pend) - 1) + " more waiting \u2014 reply to action the next.)"
-                return msg
+                return _and_next(msg, pa.get("id"))
 
     # Everything else (natural-language approvals + all other commands) → the assistant.
     return run_owner_assistant(profile, text)
@@ -5954,7 +6024,7 @@ def reply_client():
         message = (data.get("message") or "").strip()
         if not client_number or not message:
             return jsonify({"error":"Missing fields"}),400
-        result_send = send_to_client(profile, client_number, message)
+        result_send = send_to_client(profile, client_number, message, author="owner")
         if not result_send["ok"]:
             return jsonify({"ok":False,"error":result_send["error"] or "Could not send."}),200
         return jsonify({"ok":True,"channel":result_send["channel"]})
