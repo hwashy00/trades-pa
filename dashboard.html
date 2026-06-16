@@ -29,6 +29,8 @@
   --acc:#ff8a1e;--acc2:#ffab57;--acc-deep:#c95f00;--acc-d:rgba(255,138,30,0.13);--acc-glow:rgba(255,138,30,0.30);
   /* ink - text sitting on the accent */
   --ink:#2a1503;
+  /* refined outbound message bubble — deep warm clay, not flat neon */
+  --out:linear-gradient(150deg,#f3922f,#df760f);
   /* status */
   --grn:#3ad29f;--grn-d:rgba(58,210,159,0.12);
   --red:#ff5a5f;--red-d:rgba(255,90,95,0.12);
@@ -403,7 +405,8 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .iconv{display:flex;align-items:center;gap:13px;padding:12px 12px;border-radius:16px;cursor:pointer;transition:background .15s;position:relative}
 .iconv:active{background:var(--s2)}
 .iconv.unread{background:rgba(255,138,30,.05)}
-.iconv-av{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:1.1rem;color:#fff;flex-shrink:0;position:relative}
+.iconv-av{width:48px;height:48px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:1rem;color:var(--acc2);background:var(--s3);border:1px solid rgba(255,138,30,.22);flex-shrink:0;position:relative}
+.iconv.unread .iconv-av{border-color:rgba(255,138,30,.45);box-shadow:0 0 0 3px rgba(255,138,30,.07)}
 .iconv-av .av-dot{position:absolute;top:-1px;right:-1px;width:14px;height:14px;border-radius:50%;background:var(--acc);border:2.5px solid var(--bg)}
 .iconv-body{flex:1;min-width:0}
 .iconv-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:3px}
@@ -423,32 +426,36 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .thread-back{width:38px;height:38px;border-radius:50%;background:var(--s2);border:1px solid var(--br);display:flex;align-items:center;justify-content:center;color:var(--t2);cursor:pointer;flex-shrink:0;transition:background .15s,transform .12s var(--press)}
 .thread-back:active{background:var(--s3);transform:scale(.92)}
 .thread-back svg{width:18px;height:18px}
-.thread-bar-av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:.95rem;color:#fff;flex-shrink:0}
+.thread-bar-av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:.85rem;color:var(--acc2);background:var(--s3);border:1px solid rgba(255,138,30,.22);flex-shrink:0}
 .thread-bar-info{flex:1;min-width:0}
-.thread-name{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:1rem;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thread-name{font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:1.02rem;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .thread-num{font-size:.68rem;color:var(--t3);margin-top:1px}
 .thread-call{width:38px;height:38px;border-radius:50%;background:var(--s2);border:1px solid var(--br);display:flex;align-items:center;justify-content:center;color:var(--acc2);cursor:pointer;flex-shrink:0;transition:transform .12s var(--press)}
 .thread-call:active{transform:scale(.92)}
 .thread-call svg{width:17px;height:17px}
 .thread-msgs{flex:1;overflow-y:auto;padding:16px 14px 8px;display:flex;flex-direction:column;gap:2px;-webkit-overflow-scrolling:touch}
 .thread-msgs::-webkit-scrollbar{display:none}
-.tday{align-self:center;font-size:.62rem;font-weight:700;color:var(--t3);background:var(--s2);border:1px solid var(--br2);padding:4px 12px;border-radius:11px;margin:14px 0 8px;text-transform:uppercase;letter-spacing:.05em}
+.tday{align-self:center;font-size:.6rem;font-weight:700;color:var(--t3);padding:5px 13px;margin:12px 0 10px;text-transform:uppercase;letter-spacing:.07em}
 .trow{display:flex;flex-direction:column;max-width:82%;margin-bottom:2px}
 .trow.out{align-self:flex-end;align-items:flex-end}
 .trow.in{align-self:flex-start;align-items:flex-start}
 .trow.grouped{margin-top:1px}
-.tmsg{padding:9px 13px;font-size:.88rem;line-height:1.45;border-radius:18px;word-wrap:break-word;position:relative;animation:msgPop .26s var(--spring)}
+.tmsg{padding:10px 14px;font-size:.9rem;line-height:1.46;border-radius:20px;word-wrap:break-word;position:relative;animation:msgPop .26s var(--spring)}
 @keyframes msgPop{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
-.trow.in .tmsg{background:var(--s2);border:1px solid var(--br2);color:var(--t1);border-bottom-left-radius:6px}
-.trow.out .tmsg{background:var(--acc);color:var(--ink);font-weight:500;border-bottom-right-radius:6px}
-.trow.grouped.in .tmsg{border-top-left-radius:6px}
-.trow.grouped.out .tmsg{border-top-right-radius:6px}
-.tmeta{font-size:.6rem;color:var(--t4);margin:3px 4px 0;display:flex;align-items:center;gap:4px}
+.trow.in .tmsg{background:var(--s2);border:1px solid var(--br);color:var(--t1);border-bottom-left-radius:7px;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.trow.out .tmsg{background:var(--out);color:var(--ink);font-weight:500;border-bottom-right-radius:7px;box-shadow:0 3px 12px -4px rgba(223,118,15,.5),inset 0 1px 0 rgba(255,255,255,.18)}
+.trow.grouped.in .tmsg{border-top-left-radius:8px}
+.trow.grouped.out .tmsg{border-top-right-radius:8px}
+.tmeta{font-size:.6rem;color:var(--t4);margin:4px 5px 0;display:flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums}
 .trow.out .tmeta{color:var(--t3)}
-.tmeta .tick{display:inline-flex}
+.tmeta .tick{display:inline-flex;color:var(--acc2)}
 .tmeta .tick.sent{color:var(--t4)}
 .tmeta .tick.ok{color:var(--acc2)}
 .tmeta .tick.err{color:var(--red)}
+/* who composed an outbound reply — the assistant on its own, or you */
+.tauto{display:inline-flex;align-items:center;gap:3px;font-size:.55rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--acc2)}
+.tauto svg{width:9px;height:9px}
+.tby{font-size:.55rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--t3)}
 .thread-typing{align-self:flex-start;display:flex;gap:4px;padding:11px 14px;background:var(--s2);border:1px solid var(--br2);border-radius:18px;border-bottom-left-radius:6px;margin-top:4px}
 .thread-typing span{width:6px;height:6px;border-radius:50%;background:var(--t3);animation:asstdot 1.2s infinite}
 .thread-typing span:nth-child(2){animation-delay:.2s}.thread-typing span:nth-child(3){animation-delay:.4s}
@@ -5527,7 +5534,7 @@ function renderConvRow(c){
   const badge=unread?'<div class="iconv-badge">1</div>':'';
   const dot=unread?'<div class="av-dot"></div>':'';
   row.innerHTML=
-    '<div class="iconv-av" style="background:'+avColour(c.client_name||c.client_number)+'">'+init+dot+'</div>'+
+    '<div class="iconv-av">'+init+dot+'</div>'+
     '<div class="iconv-body">'+
       '<div class="iconv-top"><div class="iconv-name">'+(c.client_name||c.client_number)+'</div>'+
       '<div class="iconv-time">'+timeAgo(c.created_at)+'</div></div>'+
@@ -5730,7 +5737,12 @@ function renderThread(messages, opts){
       || dayLabel(nxt.created_at)!==day;
     if(isTail){
       const meta=document.createElement('div'); meta.className='tmeta';
-      meta.innerHTML=msgTime(m.created_at)+(out?' <span class="tick ok">'+ICO.check+'</span>':'');
+      let lead='';
+      if(out){
+        if(m.author==='bot') lead='<span class="tauto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v4M5 11a7 7 0 0 0 14 0" stroke-linecap="round"/><circle cx="12" cy="7" r="3.5"/></svg>Assistant</span> · ';
+        else if(m.author==='owner') lead='<span class="tby">You</span> · ';
+      }
+      meta.innerHTML=lead+msgTime(m.created_at)+(out?' <span class="tick ok">'+ICO.check+'</span>':'');
       row.appendChild(meta);
     }
     el.appendChild(row);
@@ -5751,7 +5763,7 @@ function openThread(num,nameEnc){
   document.getElementById('threadName').textContent=inboxCurrentName;
   document.getElementById('threadNum').textContent=cleanNum;
   const av=document.getElementById('threadAv');
-  av.textContent=avInitials(inboxCurrentName); av.style.background=avColour(inboxCurrentName);
+  av.textContent=avInitials(inboxCurrentName);
   const call=document.getElementById('threadCall');
   if(call) call.onclick=function(){ haptic('light'); window.location.href='tel:'+cleanNum; };
   document.getElementById('inboxListView').style.display='none';
@@ -5825,7 +5837,7 @@ async function sendReply(){
   const row=document.createElement('div'); row.className='trow out';
   const bubble=document.createElement('div'); bubble.className='tmsg'; bubble.textContent=msg;
   const meta=document.createElement('div'); meta.className='tmeta';
-  meta.innerHTML='Sending\u2026 <span class="tick sent">'+ICO.check+'</span>';
+  meta.innerHTML='<span class="tby">You</span> · Sending\u2026 <span class="tick sent">'+ICO.check+'</span>';
   row.appendChild(bubble); row.appendChild(meta);
   el.appendChild(row); el.scrollTop=el.scrollHeight;
   // keep render state in sync so the next poll doesn't re-pop the whole thread
@@ -5836,7 +5848,7 @@ async function sendReply(){
     const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client_number:inboxCurrentClient,message:msg})});
     const d=await res.json();
     if(d && d.ok){
-      meta.innerHTML=msgTime(new Date().toISOString())+' <span class="tick ok">'+ICO.check+'</span>';
+      meta.innerHTML='<span class="tby">You</span> · '+msgTime(new Date().toISOString())+' <span class="tick ok">'+ICO.check+'</span>';
       haptic('success');
     } else { throw new Error((d&&d.error)||'send failed'); }
   }catch(e){
