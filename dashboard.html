@@ -410,13 +410,14 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .iconv-av .av-dot{position:absolute;top:-1px;right:-1px;width:14px;height:14px;border-radius:50%;background:var(--acc);border:2.5px solid var(--bg)}
 .iconv-body{flex:1;min-width:0}
 .iconv-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:3px}
-.iconv-name{font-weight:600;font-size:.92rem;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.iconv-name{font-weight:600;font-size:.92rem;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .iconv.unread .iconv-name{font-weight:800}
 .iconv-time{font-size:.66rem;color:var(--t4);flex-shrink:0;white-space:nowrap}
 .iconv.unread .iconv-time{color:var(--acc2);font-weight:700}
-.iconv-last{font-size:.78rem;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px}
+.iconv-last{font-size:.8rem;color:var(--t3);display:flex;align-items:center;gap:5px;min-width:0}
+.iconv-last .msg{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .iconv.unread .iconv-last{color:var(--t2)}
-.iconv-last .tick{color:var(--t4);flex-shrink:0}
+.iconv-last .tick{color:var(--t4);flex-shrink:0;display:inline-flex}
 .iconv-badge{min-width:20px;height:20px;border-radius:10px;background:var(--acc);color:var(--ink);font-size:.62rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 6px;flex-shrink:0}
 .iconv-sep{height:1px;background:var(--br2);margin:0 12px 0 75px}
 .iconv:last-child .iconv-sep{display:none}
@@ -5467,8 +5468,13 @@ function avColour(seed){
 function avInitials(name){
   const p=String(name||'?').trim().split(/\s+/);
   if(p.length>=2) return (p[0][0]+p[1][0]).toUpperCase();
-  return (p[0]||'?').substring(0,2).toUpperCase();
-}
+  return (p[0]||'?').substring(0,2).toUpperCase();}
+
+// A "name" that's really just a phone number shouldn't become a "+4" avatar.
+function isPhoneName(s){ s=String(s||'').trim(); return /^[+(]?\d[\d\s()\-]{4,}$/.test(s); }
+const PHONE_AV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="width:20px;height:20px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" stroke-linejoin="round"/></svg>';
+// What to put inside an avatar tile: initials for a real name, phone glyph for a number.
+function avGlyph(name){ return isPhoneName(name) ? PHONE_AV : avInitials(name); }
 
 // ── unread tracking (client-side via last-seen timestamps) ──
 function inboxSeenKey(num){ return 'inbox_seen_'+num; }
@@ -5524,8 +5530,9 @@ function dayLabel(iso){
 
 function renderConvRow(c){
   const unread=convUnread(c);
-  const init=avInitials(c.client_name||c.client_number);
-  const pre=c.direction==='outbound'?'<span class="tick">'+ICO.check+'</span> ':'';
+  const nm=c.client_name||c.client_number;
+  const init=avGlyph(nm);
+  const pre=c.direction==='outbound'?'<span class="tick">'+ICO.check+'</span>':'';
   const row=document.createElement('div');
   row.className='iconv'+(unread?' unread':'');
   row.dataset.num=c.client_number;
@@ -5536,9 +5543,9 @@ function renderConvRow(c){
   row.innerHTML=
     '<div class="iconv-av">'+init+dot+'</div>'+
     '<div class="iconv-body">'+
-      '<div class="iconv-top"><div class="iconv-name">'+(c.client_name||c.client_number)+'</div>'+
+      '<div class="iconv-top"><div class="iconv-name">'+escapeHtml(c.client_name||c.client_number)+'</div>'+
       '<div class="iconv-time">'+timeAgo(c.created_at)+'</div></div>'+
-      '<div class="iconv-last">'+pre+escapeHtml(c.last_message||'')+'</div>'+
+      '<div class="iconv-last">'+pre+'<span class="msg">'+escapeHtml(c.last_message||'')+'</span></div>'+
     '</div>'+(badge?'<div style="margin-left:8px">'+badge+'</div>':'');
   row.addEventListener('click',function(){ haptic('light'); openThread(this.dataset.num,this.dataset.name); });
   // long-press -> quick actions
@@ -5763,7 +5770,7 @@ function openThread(num,nameEnc){
   document.getElementById('threadName').textContent=inboxCurrentName;
   document.getElementById('threadNum').textContent=cleanNum;
   const av=document.getElementById('threadAv');
-  av.textContent=avInitials(inboxCurrentName);
+  if(isPhoneName(inboxCurrentName)){ av.innerHTML=PHONE_AV; } else { av.textContent=avInitials(inboxCurrentName); }
   const call=document.getElementById('threadCall');
   if(call) call.onclick=function(){ haptic('light'); window.location.href='tel:'+cleanNum; };
   document.getElementById('inboxListView').style.display='none';
