@@ -5150,9 +5150,9 @@ def api_generate_ad():
 
 @app.route("/api/social-post", methods=["POST"])
 def api_social_post():
-    """Write ONE ready-to-post social caption from a short description and/or a
-    photo of a just-finished job. Photo-aware: if a photo is sent, Claude looks at
-    it and references the finished work. Ends with the owner's Facebook quote link."""
+    """Write ONE human-sounding social caption from a short description and/or a
+    photo of a just-finished job, then append the owner's saved footer (sign-off,
+    call number, website) and Facebook quote link exactly the same way every time."""
     phone = format_phone(request.args.get("phone", "").strip())
     pin = request.args.get("pin", "")
     if not phone or not pin:
@@ -5174,21 +5174,37 @@ def api_social_post():
         slug = ensure_capture_slug(profile)
         link = request.url_root.rstrip("/") + "/q/" + slug + "?src=fb"
 
+        # Footer the owner sets once (saved on their device) and we add to EVERY post.
+        footer = data.get("footer") or {}
+        f_sign = (footer.get("signoff") or "").strip()
+        f_phone = (footer.get("phone") or "").strip()
+        f_web = (footer.get("website") or "").strip()
+        inc_link = footer.get("include_link", True)
+
         vibe_line = ""
         if vibe == "different":
-            vibe_line = "Take a noticeably DIFFERENT angle or opening from the obvious one. "
+            vibe_line = "Take a clearly different angle and opening from the obvious one. "
         elif vibe == "short":
-            vibe_line = "Keep it very short \u2014 one punchy line. "
+            vibe_line = "Keep it to one short, punchy line. "
 
-        sys = ("You write ONE ready-to-post social caption for a UK tradesperson to put on their OWN "
-               "Facebook/Instagram, showing off a job they've just finished, to win more local work.\n"
-               "Business: " + biz + (". Trade: " + trade if trade else "") + ".\n"
-               "Voice: a real, down-to-earth tradesperson \u2014 warm and proud of the work, never corporate or salesy. "
-               "1-3 short sentences. A couple of tasteful emojis are fine. " + vibe_line +
-               "If a photo is provided, look at it and naturally mention what stands out about the finished work. "
-               "Never include customer names or personal details. Never invent prices, guarantees, or details you can't see. "
-               "End with a short call to action for a free quote, then this exact link on its own final line: " + link + "\n"
-               "Return ONLY the caption text \u2014 no preamble, no surrounding quotes, no list of options.")
+        sys = ("You write ONE social caption for a UK tradesperson posting on their OWN Facebook/Instagram "
+               "about a job they've just finished, to win local work.\n"
+               "Business: " + biz + (". Trade: " + trade if trade else "") + ".\n\n"
+               "SOUND LIKE A REAL PERSON, NOT AI MARKETING. Rules:\n"
+               "- Write like a tradesperson talking to their local community: plain, warm, casual British English, first person.\n"
+               "- Use contractions and everyday wording. Short sentences. A bit understated is good.\n"
+               "- 1-3 sentences, then a low-key call to action (e.g. 'give us a shout', 'drop us a message').\n"
+               "- BANNED AI phrases, never use: 'thrilled', 'delighted to share', 'transform your space', 'elevate', "
+               "'nestled', 'stunning transformation', 'look no further', \"we've got you covered\", 'dream home', 'proud to announce'.\n"
+               "- No em dashes. Don't open with 'Just' or 'Another'. Emojis: 0 to 2 max, only if they genuinely fit. "
+               "One or two hashtags at most, or none.\n"
+               "- If a photo is provided, look at it and mention something specific and real about the finished work.\n"
+               "- Do NOT include customer names, prices, phone numbers, links or websites; those get added automatically after. "
+               "Write only the caption and its call to action.\n"
+               + vibe_line +
+               "Voice to aim for, e.g.: \"Got this lounge ceiling re-skimmed over in Exeter today. Old artex and cracks all gone, "
+               "lovely and smooth now and ready for paint. If yours are looking tired, give us a shout.\"\n"
+               "Return ONLY the caption text. No preamble, no quotes around it, no options.")
 
         content = []
         if photo_b64:
@@ -5203,11 +5219,26 @@ def api_social_post():
             content.append({"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}})
         content.append({"type": "text", "text": (desc or "Here's a photo of the job I just finished. Write the post.")})
 
-        ai = client.messages.create(model="claude-sonnet-4-5", max_tokens=400, system=sys,
+        ai = client.messages.create(model="claude-sonnet-4-5", max_tokens=350, system=sys,
                                     messages=[{"role": "user", "content": content}])
-        caption = ai.content[0].text.strip()
-        if link not in caption:
-            caption = caption + "\n" + link
+        caption = ai.content[0].text.strip().strip('"').strip()
+
+        # Append the saved footer deterministically, so the number/website/link are exact every time.
+        foot = []
+        if f_sign:
+            foot.append(f_sign)
+        contact = []
+        if f_phone:
+            contact.append("\U0001F4DE " + f_phone)
+        if f_web:
+            contact.append("\U0001F310 " + f_web)
+        if contact:
+            foot.append("  ".join(contact))
+        if inc_link:
+            foot.append(link)
+        if foot:
+            caption = caption.rstrip() + "\n\n" + "\n".join(foot)
+
         try:
             track_usage(profile.get("sender", ""), "text")
         except Exception:
