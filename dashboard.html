@@ -565,6 +565,16 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
 .sp-gen{width:100%;margin-top:18px;padding:15px;background:var(--acc);border:none;border-radius:14px;color:var(--ink);font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:1.05rem;letter-spacing:.03em;text-transform:uppercase;cursor:pointer;transition:transform .12s var(--press),filter .15s}
 .sp-gen:active{transform:scale(.97)}
 .sp-gen:disabled{filter:grayscale(.4) brightness(.7);cursor:default}
+.sp-extra-toggle{width:100%;margin-top:14px;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:7px 2px;color:var(--t2);font-family:'Hanken Grotesk',sans-serif;font-size:.8rem;font-weight:800;cursor:pointer}
+.sp-extra-toggle svg{width:16px;height:16px;transition:transform .2s}
+.sp-extra-toggle.open svg{transform:rotate(180deg)}
+.sp-extra{margin-top:4px;flex-direction:column;gap:8px;padding:12px;background:var(--s2);border:1px solid var(--br);border-radius:13px}
+.sp-mini{width:100%;background:var(--bg);border:1px solid var(--br);border-radius:10px;padding:11px 13px;color:var(--t1);font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;outline:none}
+.sp-mini:focus{border-color:var(--acc)}
+.sp-mini::placeholder{color:var(--t4)}
+.sp-check{display:flex;align-items:center;gap:9px;font-size:.82rem;color:var(--t2);font-weight:700;cursor:pointer;padding:2px}
+.sp-check input{width:17px;height:17px;accent-color:var(--acc)}
+.sp-extra-note{font-size:.68rem;color:var(--t4);line-height:1.4}
 .sp-photos-strip{display:flex;gap:8px;overflow-x:auto;margin-bottom:16px}
 .sp-photos-strip img{width:88px;height:88px;border-radius:12px;object-fit:cover;flex-shrink:0;border:1px solid var(--br)}
 .sp-actions{display:flex;gap:9px;margin-top:11px}
@@ -1520,6 +1530,17 @@ body::after{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;poin
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke-linecap="round"/></svg>
         <span id="spMicTxt">Record a voice note instead</span>
       </button>
+      <button type="button" class="sp-extra-toggle" id="spExtraToggle" onclick="spToggleFooter()">
+        <span>Add to every post</span>
+        <svg id="spExtraChev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="sp-extra" id="spExtra" style="display:none">
+        <input class="sp-mini" id="spFWeb" placeholder="Website (e.g. gwplastering.co.uk)" onchange="spSaveFooter()">
+        <input class="sp-mini" id="spFPhone" placeholder="Call / text number" onchange="spSaveFooter()">
+        <input class="sp-mini" id="spFSign" placeholder="Sign-off (optional, e.g. GW Plastering, Devon)" onchange="spSaveFooter()">
+        <label class="sp-check"><input type="checkbox" id="spFLink" checked onchange="spSaveFooter()"><span>Add my free-quote link</span></label>
+        <div class="sp-extra-note">Saved on this device and added to the bottom of every post.</div>
+      </div>
       <button type="button" class="sp-gen" id="spGenBtn" onclick="spGenerate(false)">Write my post</button>
     </div>
     <div id="spResult" style="display:none">
@@ -3194,6 +3215,31 @@ function spReset(){
   var res=document.getElementById('spResult'); if(res) res.style.display='none';
   var d=document.getElementById('spDesc'); if(d) d.value='';
   spRenderPhotos();
+  spLoadFooter();
+}
+function spGetFooter(){
+  return {
+    website:((document.getElementById('spFWeb')||{}).value||'').trim(),
+    phone:((document.getElementById('spFPhone')||{}).value||'').trim(),
+    signoff:((document.getElementById('spFSign')||{}).value||'').trim(),
+    include_link:((document.getElementById('spFLink')||{}).checked)!==false
+  };
+}
+function spSaveFooter(){
+  try{ localStorage.setItem('vo_post_footer', JSON.stringify(spGetFooter())); }catch(e){}
+}
+function spLoadFooter(){
+  var f={};
+  try{ f=JSON.parse(localStorage.getItem('vo_post_footer')||'{}')||{}; }catch(e){ f={}; }
+  var w=document.getElementById('spFWeb'); if(w) w.value=f.website||'';
+  var p=document.getElementById('spFPhone'); if(p) p.value=f.phone||'';
+  var s=document.getElementById('spFSign'); if(s) s.value=f.signoff||'';
+  var l=document.getElementById('spFLink'); if(l) l.checked = f.include_link!==false;
+}
+function spToggleFooter(){
+  var e=document.getElementById('spExtra'), t=document.getElementById('spExtraToggle');
+  if(!e) return; var open=e.style.display==='none'; e.style.display=open?'flex':'none';
+  if(t) t.classList.toggle('open',open);
 }
 function spRenderPhotos(){
   var wrap=document.getElementById('spPhotos'); if(!wrap) return;
@@ -3270,10 +3316,11 @@ async function spGenerate(regen){
   var btn=document.getElementById('spGenBtn');
   if(regen){ var cap=document.getElementById('spCaption'); if(cap) cap.value='Writing\u2026'; }
   else if(btn){ btn.disabled=true; btn.textContent='Writing\u2026'; }
+  spSaveFooter();
   try{
     var r=await fetch('/api/social-post?phone='+encodeURIComponent(userPhone)+'&pin='+encodeURIComponent(userPin),{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({description:desc,photo:spImgs[0]||'',vibe:regen?'different':'default'})
+      body:JSON.stringify({description:desc,photo:spImgs[0]||'',vibe:regen?'different':'default',footer:spGetFooter()})
     });
     var d=await r.json();
     if(!d||!d.ok||!d.caption){ alert((d&&d.error)||'Couldn\u2019t write it just now \u2014 try again.'); }
