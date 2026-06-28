@@ -211,24 +211,41 @@ def send_to_client(profile, client_number, message, prefer=None, author="bot"):
 # ─────────────────────────────────────────────────────────────
 def notify_owner(profile, message):
     """
-    Send a notification to the tradesperson's own mobile.
-    SMS-first so it works today without WhatsApp setup; never raises.
-    Also fires a web push to any installed PWA devices (best-effort).
+    Notify the tradesperson. Free web push first, then WhatsApp (free inside the
+    owner's 24h window), and only fall back to a paid SMS if WhatsApp can't deliver.
+    Set profiles.owner_sms_fallback = 'false' to switch the SMS backup off entirely.
+    Never raises.
     """
     try:
         send_web_push(profile.get("sender", ""), message)
     except Exception as e:
         print("notify_owner push error:", e)
+
+    owner_mobile = profile.get("phone", "")
+    if not owner_mobile:
+        print("notify_owner: missing owner mobile")
+        return False
+
+    # WhatsApp first — free within the owner's 24h window, no SMS charge.
+    if WA_CLOUD_TOKEN and WA_CLOUD_PHONE_ID:
+        try:
+            if send_whatsapp_cloud(owner_mobile, message):
+                return True
+        except Exception as e:
+            print("notify_owner whatsapp error:", e)
+
+    # SMS fallback only if WhatsApp couldn't deliver (window closed / not set up).
+    # Default OFF to avoid SMS cost; set profiles.owner_sms_fallback = 'true' to re-enable.
+    if str(profile.get("owner_sms_fallback", "false")).strip().lower() not in ("true", "1", "yes", "t", "on"):
+        return False
     try:
-        owner_mobile = profile.get("phone", "")
         biz_from = profile.get("twilio_number") or os.environ.get("TWILIO_NUMBER", "")
-        if not owner_mobile or not biz_from:
-            print("notify_owner: missing owner mobile or business number")
+        if not biz_from:
+            print("notify_owner: missing business number for SMS fallback")
             return False
         tc = TwilioClient(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
         clean_from = str(biz_from).replace("whatsapp:", "")
         clean_to = str(owner_mobile).replace("whatsapp:", "")
-        # Plain SMS — reliable, no Meta/WhatsApp setup needed.
         tc.messages.create(body=message, from_=clean_from, to=clean_to)
         return True
     except Exception as e:
@@ -1166,7 +1183,8 @@ def _twilio_factory():
 scheduler.add_job(lambda: send_intelligent_briefing(supabase, client, _twilio_factory), "cron", hour=7, minute=0)
 scheduler.add_job(scan_all_emails, "interval", minutes=15)
 scheduler.add_job(run_invoice_chase, "cron", hour=9, minute=0)
-scheduler.add_job(send_daily_debrief, "cron", hour=17, minute=30, timezone="Europe/London")
+# 5:30pm daily debrief SMS disabled to cut SMS cost. Re-enable or switch to email/in-app if wanted.
+# scheduler.add_job(send_daily_debrief, "cron", hour=17, minute=30, timezone="Europe/London")
 scheduler.add_job(check_renewals, "cron", hour=8, minute=15, timezone="Europe/London")
 scheduler.start()
 
@@ -2335,12 +2353,23 @@ def incoming_call():
         # loop. Triage the caller, then take a voicemail.
         print("missed call detected:", "header" if forwarded_from else "loop-guard", caller)
         _recent_dial_attempts.pop(caller, None)
+        tier = "drafted"
         try:
-            _handle_missed_call(profile, caller)
+            tier = _handle_missed_call(profile, caller)
         except Exception as e:
             print("forwarded missed-call triage error:", e)
-        resp.say(_voicemail_greeting(profile), voice=VOICE_NAME)
-        resp.record(action="/voicemail", method="POST", max_length=120, play_beep=True, timeout=4, trim="trim-silence")
+        # Personal callers (mates/family): we've stayed out of it, so don't pay for a voicemail.
+        if tier == "personal":
+            resp.hangup()
+            return str(resp)
+        # Business callers: the text-back is already handled. Only record a voicemail if the
+        # trade has opted in (recording + Whisper transcription both cost money every time).
+        if str(profile.get("take_voicemail", "")).strip().lower() in ("true", "1", "yes", "t", "on"):
+            resp.say(_voicemail_greeting(profile), voice=VOICE_NAME)
+            resp.record(action="/voicemail", method="POST", max_length=120, play_beep=True, timeout=4, trim="trim-silence")
+        else:
+            resp.say("Thanks for calling " + (profile.get("business_name") or "us") + ". We've just texted you \u2014 reply there and we'll get straight back to you. Goodbye.", voice=VOICE_NAME)
+            resp.hangup()
         return str(resp)
     if profile and profile.get("phone"):
         _recent_dial_attempts[caller] = _now
@@ -2369,15 +2398,19 @@ def call_status():
         # Missed — triage the caller (personal / known client / new lead),
         # then take a voicemail we'll transcribe.
         profile = None
+        tier = "drafted"
         try:
             result = supabase.table("profiles").select("*").eq("twilio_number", called).execute()
             profile = result.data[0] if result.data else None
             if profile:
-                _handle_missed_call(profile, caller)
+                tier = _handle_missed_call(profile, caller)
         except Exception as e:
             print("Missed-call triage error: " + str(e))
-        resp.say(_voicemail_greeting(profile), voice=VOICE_NAME)
-        resp.record(action="/voicemail", method="POST", max_length=120, play_beep=True, timeout=4, trim="trim-silence")
+        if profile and tier != "personal" and str(profile.get("take_voicemail", "")).strip().lower() in ("true", "1", "yes", "t", "on"):
+            resp.say(_voicemail_greeting(profile), voice=VOICE_NAME)
+            resp.record(action="/voicemail", method="POST", max_length=120, play_beep=True, timeout=4, trim="trim-silence")
+        elif profile and tier != "personal":
+            resp.say("Thanks for calling " + (profile.get("business_name") or "us") + ". We've just texted you \u2014 reply there and we'll get straight back to you. Goodbye.", voice=VOICE_NAME)
     return str(resp)
 
 
